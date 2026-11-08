@@ -31,9 +31,10 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "auto"  # auto | gemini | rule_based
     GEMINI_API_KEY: Optional[str] = None
     LLM_API_KEY: Optional[str] = None  # legacy alias for GEMINI_API_KEY
-    LLM_MODEL_NAME: str = "gemini-flash-latest"
-    LLM_TIMEOUT_TEXT_MS: int = 8000
-    LLM_TIMEOUT_AUDIO_MS: int = 15000
+    LLM_MODEL_NAME: str = "gemini-3.5-flash-lite"  # best accuracy/latency on the free tier (benchmarked 2026-11-09)
+    # Gemini rejects request deadlines under 10 s (400 INVALID_ARGUMENT); values are clamped
+    LLM_TIMEOUT_TEXT_MS: int = 12000
+    LLM_TIMEOUT_AUDIO_MS: int = 20000
 
     # Conversation memory & confirmation tokens
     SESSION_TTL_S: int = 900

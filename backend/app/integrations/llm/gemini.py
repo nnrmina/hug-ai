@@ -30,6 +30,7 @@ from app.integrations.llm.provider import (
 from app.utils.datetime_utils import BAKU_TZ, now_baku, parse_azerbaijani_datetime_ex
 
 MAX_ANSWER_CHARS = 320
+MIN_DEADLINE_MS = 10000  # Gemini API rejects shorter request deadlines
 AZ_WEEKDAYS = ["bazar ertəsi", "çərşənbə axşamı", "çərşənbə", "cümə axşamı", "cümə", "şənbə", "bazar"]
 CONFIRM_INTENTS = {
     "MAKE_CALL",
@@ -102,7 +103,10 @@ intent — pick exactly one:
 Slots:
 - contact_alias: the person exactly as named, in nominative form without the dative suffix
   ("qızıma" -> "qızım", "Almaz xalaya" -> "Almaz xala", "mamama" -> "mama"). Never invent phone
-  numbers. If no person is named for MAKE_CALL / SEND_VOICE_MESSAGE, set contact_alias null,
+  numbers. Elderly users mostly name relatives; when the audio is unclear prefer the closest
+  common word: mama, ana, ata, baba, nənə, qızım, oğlum, bacım, qardaşım, nəvəm, gəlinim,
+  kürəkənim, əmim, dayım, xalam, bibim, həkim (e.g. "məmməmə" -> "mama", "nəvəmə" -> "nəvəm").
+  If no person is named for MAKE_CALL / SEND_VOICE_MESSAGE, set contact_alias null,
   missing_slots ["contact_alias"] and ask who.
 - title (reminders): short noun phrase, e.g. "Dərman qəbulu", "Həkim qəbulu". For voice messages,
   put the message content in title.
@@ -154,7 +158,7 @@ class GeminiLLMAdapter(BaseLLMAdapter):
                 response_mime_type="application/json",
                 response_schema=Understanding,
                 temperature=0.2,
-                http_options=types.HttpOptions(timeout=timeout_ms),
+                http_options=types.HttpOptions(timeout=max(MIN_DEADLINE_MS, timeout_ms)),
             ),
         )
         raw = getattr(response, "text", None) or ""
