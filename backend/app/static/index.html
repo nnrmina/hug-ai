@@ -90,6 +90,15 @@
             <button id="btn-tap-to-talk" class="samsung-primary-pill-btn">
               Danışmaq üçün toxunun
             </button>
+
+            <!-- Quick Scenario Demo Strip for Elderly Users and Live Presentation -->
+            <div class="quick-scenario-strip">
+              <button class="quick-pill-btn" data-scenario="call-sister">📞 Bacıma yığ</button>
+              <button class="quick-pill-btn" data-scenario="call-daughter">👧 Qızıma zəng et</button>
+              <button class="quick-pill-btn" data-scenario="order-chef-tantuni">🌯 Chef Tantuni sifarişi</button>
+              <button class="quick-pill-btn" data-scenario="order-pharmacy">💊 Aptekdən dərman</button>
+              <button class="quick-pill-btn" data-scenario="order-taxi">🚕 Taksi çağır</button>
+            </div>
           </div>
         </main>
       </section>
@@ -280,15 +289,15 @@
           <div class="order-summary-card samsung-card">
             <div class="order-header-row">
               <div class="order-item-left">
-                <span class="order-food-emoji">🍲</span>
+                <span id="order-food-emoji" class="order-food-emoji">🌯</span>
                 <div>
-                  <h3 id="order-card-title">Bozbaş · Orta pors</h3>
-                  <p id="order-card-subtitle">Wolt Restoran X</p>
+                  <h3 id="order-card-title">Tantuni · 1 pors</h3>
+                  <p id="order-card-subtitle">Chef Tantuni (Wolt)</p>
                 </div>
               </div>
-              <span id="order-card-price" class="order-price-badge">12 AZN</span>
+              <span id="order-card-price" class="order-price-badge">8.50 AZN</span>
             </div>
-            <p id="order-card-breakdown" class="order-breakdown">Yemək 10 AZN + Çatdırılma 2 AZN</p>
+            <p id="order-card-breakdown" class="order-breakdown">Yemək 6.50 AZN + Wolt Çatdırılma 2.00 AZN</p>
           </div>
 
           <div class="order-tracking-card samsung-card">
@@ -326,9 +335,90 @@
           </div>
 
           <div class="order-actions-bottom">
+            <!-- Universal Wolt Deep Link / App Opener -->
+            <a id="btn-wolt-deep-link" href="https://wolt.com/az/aze/baku/search?q=chef+tantuni" target="_blank" rel="noopener noreferrer" class="samsung-wolt-btn">
+              <span class="wolt-logo-pill">W</span> Wolt Tətbiqində Aç
+            </a>
             <button id="btn-order-finish" class="samsung-primary-pill-btn">
               Sifarişi Tamamla
             </button>
+          </div>
+        </main>
+      </section>
+
+      <!-- ==============================================
+           SCREEN 6: TAXI TRACKING (Samsung One UI Style)
+           ============================================== -->
+      <section id="screen-taxi-tracking" class="screen-view">
+        <header class="top-nav samsung-top-nav">
+          <button class="samsung-icon-btn btn-go-home" title="Geri">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+
+          <div class="center-screen-title">Sizin taksi</div>
+
+          <button class="samsung-icon-btn btn-more-options" title="Seçimlər">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="2"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+              <circle cx="12" cy="19" r="2"></circle>
+            </svg>
+          </button>
+        </header>
+
+        <main class="taxi-main">
+          <!-- Taxi Route Map Card (Matching reference design Screen 6) -->
+          <div class="taxi-map-card samsung-card">
+            <div class="taxi-map-grid">
+              <svg class="taxi-route-svg" viewBox="0 0 300 180" fill="none">
+                <line x1="0" y1="45" x2="300" y2="45" stroke="rgba(46, 161, 63, 0.15)" stroke-width="1"/>
+                <line x1="0" y1="90" x2="300" y2="90" stroke="rgba(46, 161, 63, 0.15)" stroke-width="1"/>
+                <line x1="0" y1="135" x2="300" y2="135" stroke="rgba(46, 161, 63, 0.15)" stroke-width="1"/>
+                <line x1="60" y1="0" x2="60" y2="180" stroke="rgba(46, 161, 63, 0.15)" stroke-width="1"/>
+                <line x1="120" y1="0" x2="120" y2="180" stroke="rgba(46, 161, 63, 0.15)" stroke-width="1"/>
+                <line x1="180" y1="0" x2="180" y2="180" stroke="rgba(46, 161, 63, 0.15)" stroke-width="1"/>
+                <line x1="240" y1="0" x2="240" y2="180" stroke="rgba(46, 161, 63, 0.15)" stroke-width="1"/>
+
+                <!-- Dotted curved green path -->
+                <path d="M 30 135 C 70 135, 110 95, 160 85 C 200 75, 230 40, 270 30" stroke="#2ea13f" stroke-width="3.5" stroke-dasharray="6 6" fill="none"/>
+
+                <!-- Pickup location -->
+                <circle cx="30" cy="135" r="7" fill="#ffffff" stroke="#2ea13f" stroke-width="3"/>
+
+                <!-- Moving Taxi Car Indicator -->
+                <circle cx="160" cy="85" r="9" fill="#2ea13f" stroke="#ffffff" stroke-width="2.5"/>
+
+                <!-- Destination pin -->
+                <circle cx="270" cy="30" r="7" fill="#2ea13f"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Driver Details Card -->
+          <div class="driver-card samsung-card">
+            <div class="driver-info-row">
+              <div class="driver-avatar-circle">R</div>
+              <div class="driver-details">
+                <h3 class="driver-name">Rəşad M.</h3>
+                <p class="driver-car">Toyota Camry · 10-AB-123</p>
+              </div>
+              <div class="driver-eta-badge">3 dəq</div>
+            </div>
+            <div class="driver-route-row">
+              <p class="taxi-route-text">Götürmə: Nizami küç. → Şəhər mərkəzi · Ekonom 5 AZN</p>
+            </div>
+          </div>
+
+          <div class="taxi-actions-group">
+            <button id="btn-cancel-taxi" class="samsung-secondary-pill-btn">
+              Ləğv et
+            </button>
+            <a id="btn-call-taxi-driver" href="tel:+994508889900" class="samsung-primary-pill-btn taxi-call-btn">
+              📞 Sürücüyə zəng et
+            </a>
           </div>
         </main>
       </section>

@@ -476,6 +476,78 @@ body {
   width: 100%;
 }
 
+/* Quick Scenarios Horizontal Strip for elderly and instant demo */
+.quick-scenario-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 12px 2px 4px;
+  width: 100%;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.quick-scenario-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-pill-btn {
+  background: rgba(255, 255, 255, 0.90);
+  border: 1px solid rgba(46, 161, 63, 0.28);
+  color: #173b1d;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.quick-pill-btn:active {
+  transform: scale(0.96);
+  background: #2ea13f;
+  color: #ffffff;
+}
+
+/* Wolt Direct Action Button / Deep Link */
+.samsung-wolt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 18px;
+  background: #00c2e8;
+  color: #ffffff !important;
+  font-size: 15px;
+  font-weight: 800;
+  border-radius: 28px;
+  text-decoration: none;
+  margin-bottom: 10px;
+  box-shadow: 0 6px 16px rgba(0, 194, 232, 0.35);
+  transition: transform 0.15s ease;
+}
+
+.samsung-wolt-btn:active {
+  transform: scale(0.98);
+}
+
+.wolt-logo-pill {
+  background: #ffffff;
+  color: #00c2e8;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 13px;
+}
+
 /* ==========================================================================
    SCREEN 2: LISTENING / PROCESSING
    ========================================================================== */
@@ -951,6 +1023,126 @@ body {
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 12px;
+}
+
+/* ==========================================================================
+   SCREEN: TAXI TRACKING (Samsung One UI Style)
+   ========================================================================== */
+.taxi-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px 4px 14px;
+  gap: 14px;
+}
+
+.taxi-map-card {
+  width: 100%;
+  height: 200px;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+  background: #d8ecdc;
+  border-radius: 28px;
+  border: 1px solid rgba(46, 161, 63, 0.20);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.taxi-map-grid {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.taxi-route-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.driver-card {
+  width: 100%;
+  padding: 16px 18px;
+  background: #ffffff;
+  border-radius: 24px;
+}
+
+.driver-info-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.driver-avatar-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 25px;
+  background: #2ea13f;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(46, 161, 63, 0.3);
+}
+
+.driver-details {
+  flex: 1;
+  text-align: left;
+}
+
+.driver-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: #121913;
+}
+
+.driver-car {
+  font-size: 13px;
+  color: #617264;
+  margin-top: 2px;
+}
+
+.driver-eta-badge {
+  background: rgba(46, 161, 63, 0.14);
+  color: #1b7a2b;
+  font-size: 13.5px;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 16px;
+}
+
+.driver-route-row {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding-top: 10px;
+  text-align: left;
+}
+
+.taxi-route-text {
+  font-size: 12.5px;
+  color: #556658;
+  line-height: 1.4;
+}
+
+.taxi-actions-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.taxi-call-btn {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 /* ==========================================================================
