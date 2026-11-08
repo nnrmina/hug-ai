@@ -22,23 +22,22 @@ PHRASES = {
     "taxi_active.mp3": "Taksi təsdiqləndi. Toyota Camry üç dəqiqəyə çatır.",
     "reminders.mp3": "Xatırlatmalarınız ekrandadır.",
     "order_done.mp3": "Sifarişiniz tamamlandı. Nuş olsun!",
-    "action_cancel.mp3": "Əməliyyat ləğv edildi."
+    "action_cancel.mp3": "Əməliyyat ləğv edildi.",
+    "call_nene_confirm.mp3": "Nənənizə zəng edilsin? Bəli deyin.",
+    "call_nene_active.mp3": "Nənəniz ilə əlaqə qurulur.",
+    "not_understood.mp3": "Bağışlayın, tam başa düşmədim. Zəhmət olmasa təkrar edin."
 }
 
 async def generate():
+    # public/ is the single source for the web UI; the backend serves files from there too.
     out_dir_pub = os.path.join("public", "static", "audio")
-    out_dir_back = os.path.join("backend", "app", "static", "audio")
     os.makedirs(out_dir_pub, exist_ok=True)
-    os.makedirs(out_dir_back, exist_ok=True)
 
     for filename, text in PHRASES.items():
         pub_path = os.path.join(out_dir_pub, filename)
-        back_path = os.path.join(out_dir_back, filename)
         print(f"Generating {filename}: '{text}'...")
         communicate = edge_tts.Communicate(text, VOICE)
         await communicate.save(pub_path)
-        with open(pub_path, "rb") as f_in, open(back_path, "wb") as f_out:
-            f_out.write(f_in.read())
         print(f"Saved: {pub_path} ({os.path.getsize(pub_path)} bytes)")
 
     print("All Azerbaijani voice audio generated successfully!")

@@ -3,9 +3,21 @@
 
 const INITIAL_CONTACTS = [
   {
+    id: "grandmother",
+    alias: "nənəm",
+    aliases: ["nənəm", "nenem", "nənə", "nene", "nənəmə", "neneme", "nənəyə", "neneye", "nənəmin", "nenemin"],
+    display_name: "Nənəm (Fatma nənə)",
+    short_name: "Nənəm",
+    relation_title: "Nənənizə",
+    phone_number: "+994 50 987 65 43",
+    initial: "N",
+    audio_confirm: "call_nene_confirm",
+    audio_active: "call_nene_active"
+  },
+  {
     id: "sister",
     alias: "bacım",
-    aliases: ["bacım", "bacim", "bacı", "baci", "bacıma", "almaz", "almaza"],
+    aliases: ["bacım", "bacim", "bacı", "baci", "bacıma", "bacima", "almaz", "almaza"],
     display_name: "Almaz xala (Bacım)",
     short_name: "Almaz xala",
     relation_title: "Bacınız Almaz xalaya",
@@ -17,7 +29,7 @@ const INITIAL_CONTACTS = [
   {
     id: "daughter",
     alias: "qızım",
-    aliases: ["qızım", "qizim", "qızıma", "sevinc", "sevincə"],
+    aliases: ["qızım", "qizim", "qız", "qiz", "qızıma", "qizima", "sevinc", "sevincə", "sevince"],
     display_name: "Sevinc Məmmədova (Qızım)",
     short_name: "Sevinc",
     relation_title: "Qızınız Sevincə",
@@ -29,7 +41,7 @@ const INITIAL_CONTACTS = [
   {
     id: "mother",
     alias: "anam",
-    aliases: ["anam", "mama", "mamama", "anama", "mamam"],
+    aliases: ["anam", "mama", "mamama", "anama", "mamam", "ana", "anaya", "mamaya"],
     display_name: "Anam (Mama)",
     short_name: "Mama",
     relation_title: "Mamanıza",
@@ -41,7 +53,7 @@ const INITIAL_CONTACTS = [
   {
     id: "son",
     alias: "oğlum",
-    aliases: ["oğlum", "oglum", "oğluma", "murad", "murada"],
+    aliases: ["oğlum", "oglum", "oğul", "ogul", "oğluma", "ogluma", "murad", "murada"],
     display_name: "Murad (Oğlum)",
     short_name: "Murad",
     relation_title: "Oğlunuz Murada",
@@ -53,14 +65,14 @@ const INITIAL_CONTACTS = [
   {
     id: "doctor",
     alias: "həkim",
-    aliases: ["həkim", "hekim", "həkimə", "nigar", "doktor"],
+    aliases: ["həkim", "hekim", "həkimə", "hekime", "nigar", "doktor"],
     display_name: "Dr. Nigar Həkim",
     short_name: "Dr. Nigar",
     relation_title: "Dr. Nigar Həkimə",
     phone_number: "+994 50 765 43 21",
     initial: "H",
     audio_confirm: "call_doctor_confirm",
-    audio_active: "call_mother_active"
+    audio_active: "call_sister_active"
   }
 ];
 
@@ -83,7 +95,10 @@ const AZ_AUDIO_MAP = {
   taxi_active: "/static/audio/taxi_active.mp3",
   reminders: "/static/audio/reminders.mp3",
   order_done: "/static/audio/order_done.mp3",
-  action_cancel: "/static/audio/action_cancel.mp3"
+  action_cancel: "/static/audio/action_cancel.mp3",
+  call_nene_confirm: "/static/audio/call_nene_confirm.mp3",
+  call_nene_active: "/static/audio/call_nene_active.mp3",
+  not_understood: "/static/audio/not_understood.mp3"
 };
 
 let recognition = null;
@@ -94,13 +109,206 @@ let currentActionPayload = null;
 let currentAudio = null;
 let audioUnlocked = false;
 
-// MediaRecorder state for optional OpenAI Whisper
+// MediaRecorder state for optional server-side Whisper
 let mediaRecorder = null;
 let audioStream = null;
 let recordedChunks = [];
 
 // Hands-free confirmation state
 let confirmRecognition = null;
+let currentCancelHandler = null;
+
+// ----------------------------------------------------
+// Backend API helpers
+// ----------------------------------------------------
+const API_BASE = "/api/v1";
+let sessionUserId = null;
+
+function safeStorageGet(key) {
+  try { return localStorage.getItem(key); } catch (_) { return null; }
+}
+function safeStorageSet(key, value) {
+  try { localStorage.setItem(key, value); } catch (_) {}
+}
+function safeStorageRemove(key) {
+  try { localStorage.removeItem(key); } catch (_) {}
+}
+
+function newUuid() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  window.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+// Random per-device identity; it is what keeps one user's reminders separate from another's.
+function getUserId() {
+  let id = safeStorageGet("hug_user_id");
+  if (!id) {
+    id = sessionUserId || newUuid();
+    sessionUserId = id;
+    safeStorageSet("hug_user_id", id);
+  }
+  return id;
+}
+
+// ----------------------------------------------------
+// Device authentication: the server issues a signed token; it never trusts a user_id we send.
+// The old per-device UUID is sent once as legacy_user_id so existing reminders stay with this device.
+// ----------------------------------------------------
+let authTokenPromise = null;
+
+function getStoredToken() {
+  const token = safeStorageGet("hug_auth_token");
+  const expires = Date.parse(safeStorageGet("hug_auth_expires") || "");
+  if (token && (!expires || expires - Date.now() > 60000)) return token;
+  return null;
+}
+
+async function fetchJson(path, options) {
+  try {
+    const res = await fetch(`${API_BASE}${path}`, options);
+    let data = null;
+    try { data = await res.json(); } catch (_) {}
+    return { ok: res.ok, status: res.status, data };
+  } catch (_) {
+    return { ok: false, status: 0, data: null };
+  }
+}
+
+function ensureAuthToken(forceRefresh = false) {
+  if (!forceRefresh) {
+    const stored = getStoredToken();
+    if (stored) return Promise.resolve(stored);
+  }
+  if (!authTokenPromise) {
+    authTokenPromise = (async () => {
+      const savedUser = safeStorageGet("hug_auth_user");
+      const savedSecret = safeStorageGet("hug_device_secret");
+      // Known device: get a new token for the SAME account (data is kept).
+      // First run: register; the old pre-login UUID is offered once so its reminders are kept.
+      const payload = savedUser && savedSecret
+        ? { user_id: savedUser, device_secret: savedSecret }
+        : { legacy_user_id: getUserId() };
+      const result = await fetchJson("/auth/device", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      authTokenPromise = null;
+      if (!result.ok || !result.data || !result.data.access_token) return null;
+      safeStorageSet("hug_auth_token", result.data.access_token);
+      safeStorageSet("hug_auth_expires", result.data.expires_at || "");
+      safeStorageSet("hug_auth_user", result.data.user_id);
+      if (result.data.device_secret) safeStorageSet("hug_device_secret", result.data.device_secret);
+      return result.data.access_token;
+    })();
+  }
+  return authTokenPromise;
+}
+
+async function apiRequest(method, path, body = null, isForm = false, isRetry = false) {
+  const token = await ensureAuthToken(isRetry);
+  if (!token) {
+    return { ok: false, status: 401, data: { detail: "Serverə giriş alınmadı. Səhifəni yeniləyin." } };
+  }
+  const options = { method, headers: { Authorization: `Bearer ${token}` } };
+  if (body !== null) {
+    if (isForm) {
+      options.body = body;
+    } else {
+      options.headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(body);
+    }
+  }
+  const result = await fetchJson(path, options);
+  // Expired/invalid token: register again once and retry the request once.
+  if (result.status === 401 && !isRetry) {
+    safeStorageRemove("hug_auth_token");
+    return apiRequest(method, path, body, isForm, true);
+  }
+  return result;
+}
+
+function apiErrorText(result, fallback) {
+  if (result.status === 0) return "Serverlə əlaqə yoxdur. İnternet bağlantınızı yoxlayın.";
+  const detail = result.data && result.data.detail;
+  if (typeof detail === "string") return detail;
+  return fallback;
+}
+
+// ----------------------------------------------------
+// Azerbaijani text helpers
+// ----------------------------------------------------
+function azLower(text) {
+  return (text || "").replace(/I/g, "ı").replace(/İ/g, "i").toLowerCase();
+}
+
+function tokenize(text) {
+  return azLower(text).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+
+function hasWord(text, words) {
+  const tokens = tokenize(text);
+  return words.some((w) => tokens.includes(w));
+}
+
+function hasAnyPrefix(text, prefixes) {
+  const tokens = tokenize(text);
+  return prefixes.some((p) => tokens.some((t) => t.startsWith(p)));
+}
+
+// Decide whether a spoken confirmation is yes / no / unclear.
+// Negatives are checked FIRST and only whole words count, so "Yox, zəng etmə" or "heç lazım deyil"
+// can never be read as "yes". Anything unclear returns null and the app keeps waiting.
+function classifyYesNo(spoken) {
+  const lower = azLower(spoken);
+  const tokens = tokenize(spoken);
+  const negativeWords = ["xeyr", "yox", "yoxdur", "ləğv", "istəmirəm", "lazım", "dayan", "saxla", "heç", "no", "nə", "etmə", "eləmə", "vurma", "yığma"];
+  if (tokens.some((t) => negativeWords.includes(t)) || lower.includes("lazım deyil") || lower.includes("ləğv et")) {
+    return "no";
+  }
+  const positiveWords = ["bəli", "beli", "hə", "he", "həri", "heri", "hı", "oldu", "olar", "təsdiq", "təsdiqləyirəm", "razıyam", "əlbəttə", "aha", "yes", "ok", "okey"];
+  if (tokens.some((t) => positiveWords.includes(t))) {
+    return "yes";
+  }
+  return null;
+}
+
+// ----------------------------------------------------
+// Contacts: phone numbers are entered by the user and kept only on this device
+// ----------------------------------------------------
+function loadContactPhones() {
+  try {
+    return JSON.parse(safeStorageGet("hug_contact_phones") || "{}") || {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function normalizeAzPhone(raw) {
+  const digits = (raw || "").replace(/[^\d+]/g, "");
+  const only = digits.replace(/\D/g, "");
+  if (/^994\d{9}$/.test(only)) return `+${only}`;
+  if (/^0\d{9}$/.test(only)) return `+994${only.slice(1)}`;
+  if (/^\d{9}$/.test(only)) return `+994${only}`;
+  return null;
+}
+
+function getContactPhone(contact) {
+  const custom = loadContactPhones()[contact.id];
+  return custom || contact.phone_number || "+994 50 123 45 67";
+}
+
+function formatPhoneForDisplay(phone) {
+  const m = /^\+994(\d{2})(\d{3})(\d{2})(\d{2})$/.exec(phone || "");
+  return m ? `+994 ${m[1]} ${m[2]} ${m[3]} ${m[4]}` : phone;
+}
 
 // Play Chime on Mic Activation
 function playChime() {
@@ -244,18 +452,13 @@ function speakAz(text, onEndedCallback = null) {
 }
 
 // Contact Lookup
+// Whole-word matching only ("anam" must not match inside "Anamnez", "mama" inside "mamamız").
+// Returns null when nothing or more than one contact matches — the app then asks instead of guessing.
 function findContact(query) {
   if (!query) return null;
-  const q = query.toLowerCase();
-
-  for (const c of INITIAL_CONTACTS) {
-    for (const a of c.aliases) {
-      if (q.includes(a)) {
-        return c;
-      }
-    }
-  }
-  return null;
+  const tokens = tokenize(query);
+  const matches = INITIAL_CONTACTS.filter((c) => c.aliases.some((a) => tokens.includes(azLower(a))));
+  return matches.length === 1 ? matches[0] : null;
 }
 
 // Clear Confirmation Workflow Timers & Listeners
@@ -274,8 +477,9 @@ function clearConfirmWorkflow() {
 }
 
 // Confirmation Workflow: Only proceeds when the user ACTUALLY speaks "Bəli" or clicks the button!
-function startConfirmation(audioKey, questionVoicePrompt, onConfirmCallback) {
+function startConfirmation(audioKey, questionVoicePrompt, onConfirmCallback, onCancelCallback = null) {
   clearConfirmWorkflow();
+  currentCancelHandler = onCancelCallback;
   showScreen("screen-confirm");
 
   const voiceLabelEl = document.getElementById("confirm-voice-label");
@@ -300,36 +504,19 @@ function startConfirmation(audioKey, questionVoicePrompt, onConfirmCallback) {
       confirmRecognition.maxAlternatives = 1;
 
       confirmRecognition.onresult = (event) => {
-        const spoken = (event.results[0][0].transcript || "").toLowerCase();
-        console.log("Confirmation heard:", spoken);
+        const spoken = event.results[0][0].transcript || "";
+        const answer = classifyYesNo(spoken);
 
-        if (
-          spoken.includes("bəli") ||
-          spoken.includes("beli") ||
-          spoken.includes("hə") ||
-          spoken.includes("he") ||
-          spoken.includes("həri") ||
-          spoken.includes("oldu") ||
-          spoken.includes("təsdiq") ||
-          spoken.includes("zəng") ||
-          spoken.includes("sifariş") ||
-          spoken.includes("aha") ||
-          spoken.includes("yes")
-        ) {
+        if (answer === "no") {
+          cancelCurrentConfirmation();
+        } else if (answer === "yes") {
           clearConfirmWorkflow();
           if (voiceLabelEl) voiceLabelEl.textContent = "✓ Səslə təsdiqləndi!";
+          currentCancelHandler = null;
           onConfirmCallback();
-        } else if (
-          spoken.includes("xeyr") ||
-          spoken.includes("yox") ||
-          spoken.includes("ləğv") ||
-          spoken.includes("lazım deyil") ||
-          spoken.includes("saxla") ||
-          spoken.includes("no")
-        ) {
-          clearConfirmWorkflow();
-          showScreen("screen-home");
-          playAzAudio("action_cancel", "Əməliyyat ləğv edildi.");
+        } else if (voiceLabelEl) {
+          // Unclear answer: never guess. Ask again and wait for a clear "Bəli"/"Xeyr" or a button tap.
+          voiceLabelEl.textContent = "Başa düşmədim. “Bəli” və ya “Xeyr” deyin, ya da düyməyə toxunun.";
         }
       };
 
@@ -347,29 +534,277 @@ function startConfirmation(audioKey, questionVoicePrompt, onConfirmCallback) {
   }
 }
 
-// Executes the confirmed action
-function executeConfirmedAction() {
+// Cancel the pending confirmation (voice "Xeyr" or the cancel button)
+function cancelCurrentConfirmation() {
   clearConfirmWorkflow();
-  if (!currentActionPayload) return;
+  const handler = currentCancelHandler;
+  currentCancelHandler = null;
+  if (handler) {
+    try { handler(); } catch (_) {}
+  }
+  currentActionPayload = null;
+  showScreen("screen-home");
+  playAzAudio("action_cancel", "Əməliyyat ləğv edildi.");
+}
 
-  if (currentActionPayload.type === "CALL") {
-    startCall(currentActionPayload.contact);
+// Executes the confirmed action
+async function executeConfirmedAction() {
+  clearConfirmWorkflow();
+  currentCancelHandler = null;
+  const payload = currentActionPayload;
+  if (!payload) return;
+
+  if (payload.type === "CALL") {
+    startCall(payload.contact);
   } else if (
-    currentActionPayload.type === "ORDER" ||
-    currentActionPayload.type === "ORDER_FOOD" ||
-    currentActionPayload.type === "ORDER_PHARMACY"
+    payload.type === "ORDER" ||
+    payload.type === "ORDER_FOOD" ||
+    payload.type === "ORDER_PHARMACY"
   ) {
     startOrderTracking();
-  } else if (currentActionPayload.type === "ORDER_TAXI") {
+  } else if (payload.type === "ORDER_TAXI") {
     startTaxiTracking();
-  } else {
-    document.getElementById("done-message-subtext").textContent = "Əməliyyatınız uğurla yerinə yetirildi.";
+  } else if (payload.type === "BACKEND_ACTION") {
+    const result = await apiRequest("POST", `/assistant/confirm/${encodeURIComponent(payload.actionId)}`);
+    if (!result.ok) {
+      showInfoMessage(apiErrorText(result, "Əməliyyat təsdiqlənmədi."), true);
+      return;
+    }
+    const data = result.data || {};
+    const actionData = data.action_data || {};
+    if (payload.intent === "EMERGENCY_CALL" && actionData.authorized_execution === "OPEN_DIALER") {
+      const number = actionData.phone_number || "103";
+      speakAz(data.response || `${number} yığılır.`);
+      window.location.href = `tel:${number}`;
+      showInfoMessage(data.response || `${number} yığılır.`);
+      return;
+    }
+    if (payload.intent === "CREATE_REMINDER") {
+      speakAz(data.response || "Xatırlatma yaradıldı.");
+      openRemindersScreen();
+      return;
+    }
+    document.getElementById("done-message-subtext").textContent = data.response || "Əməliyyat təsdiqləndi.";
     showScreen("screen-done");
+  }
+  currentActionPayload = null;
+}
+
+// Shows a spoken + written message on the listening screen with a retry button
+function showInfoMessage(message, isError = false) {
+  showScreen("screen-listening");
+  const quoteEl = document.getElementById("recognized-speech-quote");
+  const badgeEl = document.getElementById("listening-status-badge");
+  const retryBtn = document.getElementById("btn-retry-listening");
+  const finishBtn = document.getElementById("btn-finish-recording");
+  if (quoteEl) quoteEl.textContent = message;
+  if (badgeEl) badgeEl.textContent = isError ? "⚠️ Diqqət" : "ℹ️ Cavab";
+  if (retryBtn) retryBtn.style.display = "block";
+  if (finishBtn) finishBtn.style.display = "none";
+  speakAz(message);
+}
+
+function showConfirmScreen({ badge, title, primary, secondary, yesLabel }) {
+  document.getElementById("confirm-avatar-badge").textContent = badge;
+  document.getElementById("confirm-question-title").textContent = title;
+  document.getElementById("confirm-details-primary").textContent = primary;
+  document.getElementById("confirm-details-secondary").textContent = secondary;
+  document.getElementById("btn-confirm-yes").textContent = yesLabel;
+}
+
+// ----------------------------------------------------
+// Intent detection helpers (whole words, Azerbaijani-aware)
+// ----------------------------------------------------
+function isCallCommand(text) {
+  return hasWord(text, ["zəng", "zeng", "zvanok", "yığ", "yig"]) || /nömrəsini\s+yığ|əlaqə\s+saxla/u.test(azLower(text));
+}
+
+function isReminderCommand(text) {
+  const lower = azLower(text);
+  return hasAnyPrefix(text, ["xatırla", "xatirla"]) || lower.includes("yadıma sal") || lower.includes("yadima sal") ||
+    hasWord(text, ["oyat"]) || lower.includes("zəngli saat");
+}
+
+function hasOrderVerb(text) {
+  return hasAnyPrefix(text, ["sifariş", "sifaris", "gətir", "getir", "al", "istəyirəm"]);
+}
+
+// Demo-only order scenarios (nothing is really ordered). Medicines are only matched when the user
+// explicitly asks to order/buy, so "dərmanımı xatırlat" is a reminder, never a pharmacy order.
+function detectDemoOrder(text) {
+  if (hasAnyPrefix(text, ["chef", "tantuni", "bozbaş", "bozbas", "dönər", "doner"]) || (hasAnyPrefix(text, ["yemək", "yemek"]) && hasOrderVerb(text))) {
+    return "ORDER_FOOD";
+  }
+  if (hasAnyPrefix(text, ["aptek"]) || (hasAnyPrefix(text, ["dərman", "derman", "kardiomaqnil"]) && hasOrderVerb(text))) {
+    return "ORDER_PHARMACY";
+  }
+  if (hasAnyPrefix(text, ["taksi", "taxi"])) {
+    return "ORDER_TAXI";
+  }
+  return null;
+}
+
+function extractDynamicContact(text) {
+  const lower = azLower(text);
+  let cleaned = lower
+    .replace(/\b(zəng\s*et|zeng\s*et|zəng\s*elə|zeng\s*ele|zəng\s*vur|yığ|yig|zvanok|telefon|aç|zəng|zeng|elə|ele|et|edərsiniz|edin|zəhmət\s*olmasa|mənə|mənim|üçün|nömrəsini|xahiş\s*edirəm)\b/gu, "")
+    .trim();
+
+  if (cleaned.endsWith("mə") || cleaned.endsWith("ma")) {
+    cleaned = cleaned.slice(0, -2);
+  } else if (cleaned.endsWith("yə") || cleaned.endsWith("ya")) {
+    cleaned = cleaned.slice(0, -2);
+  } else if (cleaned.endsWith("ə") || cleaned.endsWith("a")) {
+    cleaned = cleaned.slice(0, -1);
+  }
+  cleaned = cleaned.trim();
+
+  if (cleaned.length >= 2) {
+    const capitalized = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+    return {
+      id: "custom_" + cleaned,
+      alias: cleaned,
+      aliases: [cleaned, lower],
+      display_name: capitalized,
+      short_name: capitalized,
+      relation_title: `${capitalized} şəxsinə`,
+      phone_number: "+994 50 123 45 67",
+      initial: capitalized.charAt(0),
+      audio_confirm: null,
+      audio_active: null
+    };
+  }
+  return null;
+}
+
+function startCallConfirmation(contact) {
+  const phone = getContactPhone(contact);
+  currentActionPayload = { type: "CALL", contact };
+  showConfirmScreen({
+    badge: contact.initial,
+    title: `${contact.relation_title} zəng edilsin?`,
+    primary: contact.display_name,
+    secondary: `Mobil · ${formatPhoneForDisplay(phone)}`,
+    yesLabel: "Bəli, zəng et",
+  });
+  startConfirmation(contact.audio_confirm, `${contact.relation_title} zəng edilsin? Bəli və ya xeyr deyin.`, executeConfirmedAction);
+}
+
+function startDemoOrder(kind, text) {
+  if (kind === "ORDER_FOOD") {
+    const isTantuni = hasAnyPrefix(text, ["tantuni", "chef"]);
+    currentActionPayload = {
+      type: "ORDER_FOOD",
+      vendor: isTantuni ? "Chef Tantuni" : "Wolt Restoran",
+      item: isTantuni ? "Tantuni · 1 pors" : "Bozbaş · Orta pors",
+      price: isTantuni ? "8.50 AZN" : "12.00 AZN",
+      breakdown: isTantuni ? "Yemək 6.50 AZN + Wolt Çatdırılma 2.00 AZN" : "Yemək 10.00 AZN + Wolt Çatdırılma 2.00 AZN",
+      emoji: isTantuni ? "🌯" : "🍲",
+      deepLink: isTantuni
+        ? "https://wolt.com/az/aze/baku/search?q=chef+tantuni"
+        : "https://wolt.com/az/aze/baku/search?q=bozbas"
+    };
+    showConfirmScreen({
+      badge: currentActionPayload.emoji,
+      title: `${currentActionPayload.vendor} sifarişi göstərilsin? (Demo)`,
+      primary: currentActionPayload.item,
+      secondary: `Təxmini ${currentActionPayload.price} · DEMO — real sifariş verilmir`,
+      yesLabel: "Bəli, göstər",
+    });
+    startConfirmation(isTantuni ? "chef_tantuni_confirm" : null,
+      `${currentActionPayload.vendor} sifarişi göstərilsin? Bu demo rejimdir. Bəli və ya xeyr deyin.`, executeConfirmedAction);
+  } else if (kind === "ORDER_PHARMACY") {
+    currentActionPayload = {
+      type: "ORDER_PHARMACY",
+      vendor: "Aptek (Wolt)",
+      item: "Dərmanınızı Wolt-da axtarın",
+      price: "",
+      breakdown: "Dərmanı həkiminizin təyin etdiyi kimi seçin.",
+      emoji: "💊",
+      deepLink: "https://wolt.com/az/aze/baku/search?q=aptek"
+    };
+    showConfirmScreen({
+      badge: "💊",
+      title: "Aptek axtarışı açılsın? (Demo)",
+      primary: "Wolt-da aptek axtarışı",
+      secondary: "DEMO — dərman avtomatik seçilmir və sifariş verilmir",
+      yesLabel: "Bəli, aç",
+    });
+    startConfirmation(null, "Woltda aptek axtarışı açılsın? Dərman avtomatik seçilmir. Bəli və ya xeyr deyin.", executeConfirmedAction);
+  } else if (kind === "ORDER_TAXI") {
+    currentActionPayload = { type: "ORDER_TAXI" };
+    showConfirmScreen({
+      badge: "🚕",
+      title: "Taksi nümunəsi göstərilsin? (Demo)",
+      primary: "Taksi çağırışı nümunəsi",
+      secondary: "DEMO — real taksi çağırılmır",
+      yesLabel: "Bəli, göstər",
+    });
+    startConfirmation(null, "Taksi nümunəsi göstərilsin? Real taksi çağırılmır. Bəli və ya xeyr deyin.", executeConfirmedAction);
+  }
+}
+
+// Sends the command to the backend agent and handles reminders, emergencies, security checks and questions.
+async function handleWithBackend(text) {
+  const result = await apiRequest("POST", "/assistant/message", { message: text });
+  if (!result.ok || !result.data) {
+    showInfoMessage("Bağışlayın, tam başa düşmədim. Zəhmət olmasa təkrar edin.", true);
+    playAzAudio("not_understood", "Bağışlayın, tam başa düşmədim. Zəhmət olmasa təkrar edin.");
+    return;
+  }
+  const data = result.data;
+  const actionData = data.action_data || {};
+
+  if (data.status === "needs_confirmation" && data.action_id) {
+    const cancelBackend = () => apiRequest("POST", `/assistant/cancel/${encodeURIComponent(data.action_id)}`);
+
+    if (data.intent === "MAKE_CALL" || data.intent === "SEND_VOICE_MESSAGE") {
+      cancelBackend();
+      let contact = findContact(`${actionData.contact_alias || ""} ${text}`);
+      if (!contact) {
+        contact = extractDynamicContact(`${actionData.contact_alias || ""} ${text}`);
+      }
+      if (!contact) {
+        showInfoMessage("Kimə zəng etmək istədiyinizi tapa bilmədim. Məsələn: “Nənəmə zəng et” deyin.", true);
+        return;
+      }
+      startCallConfirmation(contact);
+      return;
+    }
+
+    currentActionPayload = { type: "BACKEND_ACTION", actionId: data.action_id, intent: data.intent };
+    if (data.intent === "EMERGENCY_CALL") {
+      showConfirmScreen({
+        badge: "🚑",
+        title: `${actionData.phone_number || "103"} nömrəsinə zəng edilsin?`,
+        primary: "Təcili yardım",
+        secondary: data.response,
+        yesLabel: "Bəli, zəng et",
+      });
+    } else if (data.intent === "CREATE_REMINDER") {
+      showConfirmScreen({
+        badge: "⏰",
+        title: "Xatırlatma yaradılsın?",
+        primary: actionData.title || "Xatırlatma",
+        secondary: data.response,
+        yesLabel: "Bəli, yarat",
+      });
+    } else {
+      showConfirmScreen({ badge: "✦", title: "Təsdiqləyirsiniz?", primary: text, secondary: data.response, yesLabel: "Bəli" });
+    }
+    startConfirmation(null, `${data.response} Bəli və ya xeyr deyin.`, executeConfirmedAction, cancelBackend);
+    return;
+  }
+
+  // completed (security analysis, questions), rejected, needs_clarification -> just tell the user
+  showInfoMessage(data.response || "Bağışlayın, tam başa düşmədim. Məsələn: “Nənəmə zəng et” və ya “Taksi çağır” deyin.", data.status === "rejected");
+  if (!data.response) {
+    playAzAudio("not_understood", "Bağışlayın, tam başa düşmədim. Zəhmət olmasa təkrar edin.");
   }
 }
 
 // Process Real Spoken Voice Text
-function handleProcessedVoice(text) {
+async function handleProcessedVoice(text) {
   if (!text || !text.trim()) {
     showMicError("Heç bir səs eşidilmədi. Zəhmət olmasa təkrar danışın.");
     return;
@@ -385,195 +820,150 @@ function handleProcessedVoice(text) {
     badgeEl.textContent = "✓ Eşidildi";
   }
 
-  const lowered = text.toLowerCase();
+  // 1. Reminders before everything else, so "dərmanımı xatırlat" or "zəngli saat" is never a call/order.
+  if (isReminderCommand(text)) {
+    await handleWithBackend(text);
+    return;
+  }
 
-  // ----------------------------------------------------
-  // SCENARIO 1: CALL (Bacı, Qızım, Mama, Həkim)
-  // ----------------------------------------------------
-  if (
-    lowered.includes("zəng") ||
-    lowered.includes("zeng") ||
-    lowered.includes("yığ") ||
-    lowered.includes("yig") ||
-    lowered.includes("zvanok") ||
-    lowered.includes("telefon") ||
-    lowered.includes("bacı") ||
-    lowered.includes("baci") ||
-    lowered.includes("qızım") ||
-    lowered.includes("qizim") ||
-    lowered.includes("mama")
-  ) {
-    let matchedContact = findContact(lowered);
-    if (!matchedContact) {
-      matchedContact = INITIAL_CONTACTS[1]; // Default to Qızım (Sevinc)
+  // 2. Direct calls to contacts or spoken names (resolved on-device, zero privacy leak)
+  if (isCallCommand(text) && !/\b(103|112)\b/u.test(text)) {
+    let contact = findContact(text);
+    if (!contact) {
+      contact = extractDynamicContact(text);
     }
+    if (contact) {
+      startCallConfirmation(contact);
+      return;
+    }
+  }
 
-    currentActionPayload = {
-      type: "CALL",
-      contact: matchedContact
-    };
-
-    setTimeout(() => {
-      document.getElementById("confirm-avatar-badge").textContent = matchedContact.initial;
-      document.getElementById("confirm-question-title").textContent = `${matchedContact.relation_title} zəng edilsin?`;
-      document.getElementById("confirm-details-primary").textContent = matchedContact.display_name;
-      document.getElementById("confirm-details-secondary").textContent = `Mobil · ${matchedContact.phone_number}`;
-      document.getElementById("btn-confirm-yes").textContent = "Bəli, zəng et";
-
-      startConfirmation(
-        matchedContact.audio_confirm || "call_sister_confirm",
-        `${matchedContact.relation_title} zəng edilsin? Bəli deyin.`,
-        executeConfirmedAction
-      );
-    }, 600);
+  // Also check if user just spoke a contact's name directly (e.g. "Nənəm", "Fatma nənə", "Mama", "Sevinc")
+  const directContact = findContact(text);
+  if (directContact) {
+    startCallConfirmation(directContact);
     return;
   }
 
-  // ----------------------------------------------------
-  // SCENARIO 2: WOLT FOOD (Chef Tantuni / Yemek)
-  // ----------------------------------------------------
-  if (
-    lowered.includes("chef") ||
-    lowered.includes("tantuni") ||
-    lowered.includes("bozbaş") ||
-    lowered.includes("yemək") ||
-    lowered.includes("yemek") ||
-    lowered.includes("dönər") ||
-    lowered.includes("doner")
-  ) {
-    const isTantuni = lowered.includes("tantuni") || lowered.includes("chef");
-
-    currentActionPayload = {
-      type: "ORDER_FOOD",
-      vendor: isTantuni ? "Chef Tantuni" : "Wolt Restoran",
-      item: isTantuni ? "Tantuni · 1 pors" : "Bozbaş · Orta pors",
-      price: isTantuni ? "8.50 AZN" : "12.00 AZN",
-      breakdown: isTantuni ? "Yemək 6.50 AZN + Wolt Çatdırılma 2.00 AZN" : "Yemək 10.00 AZN + Wolt Çatdırılma 2.00 AZN",
-      emoji: isTantuni ? "🌯" : "🍲",
-      deepLink: isTantuni
-        ? "https://wolt.com/az/aze/baku/search?q=chef+tantuni"
-        : "https://wolt.com/az/aze/baku/search?q=bozbas"
-    };
-
-    setTimeout(() => {
-      document.getElementById("confirm-avatar-badge").textContent = currentActionPayload.emoji;
-      document.getElementById("confirm-question-title").textContent = `${currentActionPayload.vendor} sifarişiniz təsdiqlənsin?`;
-      document.getElementById("confirm-details-primary").textContent = currentActionPayload.item;
-      document.getElementById("confirm-details-secondary").textContent = `Cəmi ${currentActionPayload.price} (${currentActionPayload.vendor} · Wolt)`;
-      document.getElementById("btn-confirm-yes").textContent = "Bəli, sifariş et";
-
-      startConfirmation(
-        "chef_tantuni_confirm",
-        "Chef Tantunidən bir pors Tantuni sifarişiniz təsdiqlənsin? Cəmi səkkiz manat əlli qəpik. Bəli deyin.",
-        executeConfirmedAction
-      );
-    }, 600);
+  // 3. Demo order scenarios (clearly labelled, nothing real is ordered)
+  const demoKind = detectDemoOrder(text);
+  if (demoKind) {
+    startDemoOrder(demoKind, text);
     return;
   }
 
-  // ----------------------------------------------------
-  // SCENARIO 3: WOLT PHARMACY (Aptek / Dərman)
-  // ----------------------------------------------------
-  if (
-    lowered.includes("aptek") ||
-    lowered.includes("dərman") ||
-    lowered.includes("derman") ||
-    lowered.includes("kardiomaqnil") ||
-    lowered.includes("təzyiq")
-  ) {
-    currentActionPayload = {
-      type: "ORDER_PHARMACY",
-      vendor: "Zəfəran Aptek",
-      item: "Kardiomaqnil 75 mq",
-      price: "6.20 AZN",
-      breakdown: "Dərman 4.20 AZN + Wolt Çatdırılma 2.00 AZN",
-      emoji: "💊",
-      deepLink: "https://wolt.com/az/aze/baku/search?q=kardiomaqnil"
-    };
+  // 4. Everything else (emergencies, unknown names, scam checks, questions) goes to the backend agent
+  await handleWithBackend(text);
+}
 
-    setTimeout(() => {
-      document.getElementById("confirm-avatar-badge").textContent = "💊";
-      document.getElementById("confirm-question-title").textContent = "Aptekdən sifarişiniz təsdiqlənsin?";
-      document.getElementById("confirm-details-primary").textContent = "Kardiomaqnil 75 mq (Zəfəran Aptek)";
-      document.getElementById("confirm-details-secondary").textContent = "Cəmi 6.20 AZN (Wolt Çatdırılma ilə)";
-      document.getElementById("btn-confirm-yes").textContent = "Bəli, sifariş et";
+// ----------------------------------------------------
+// Reminders screen (real data from the backend)
+// ----------------------------------------------------
+const AZ_MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "İyun", "İyul", "Avqust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr"];
 
-      startConfirmation(
-        "pharmacy_confirm",
-        "Aptekdən kardiomaqnil dərmanı sifarişiniz təsdiqlənsin? Cəmi altı manat iyirmi qəpik. Bəli deyin.",
-        executeConfirmedAction
-      );
-    }, 600);
+function formatReminderTime(date) {
+  const now = new Date();
+  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const dayDiff = Math.round((startOfDay(date) - startOfDay(now)) / 86400000);
+  const time = date.toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Baku" });
+  const label = dayDiff === 0 ? "Bu gün" : dayDiff === 1 ? "Sabah" : `${date.getDate()} ${AZ_MONTHS[date.getMonth()].toLowerCase()}`;
+  return `${label} · ${time}`;
+}
+
+function renderCalendar(reminders) {
+  const grid = document.getElementById("calendar-grid");
+  const title = document.getElementById("cal-month-title");
+  if (!grid) return;
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  if (title) title.textContent = `${AZ_MONTHS[month]} ${year}`;
+
+  const eventDays = new Set(
+    reminders
+      .map((r) => new Date(r.scheduled_at))
+      .filter((d) => d.getFullYear() === year && d.getMonth() === month)
+      .map((d) => d.getDate())
+  );
+
+  grid.replaceChildren();
+  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7; // Monday = 0
+  for (let i = 0; i < firstWeekday; i++) {
+    const blank = document.createElement("span");
+    blank.className = "cal-day dim";
+    grid.appendChild(blank);
+  }
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let day = 1; day <= daysInMonth; day++) {
+    const cell = document.createElement("span");
+    cell.className = "cal-day";
+    if (day === now.getDate()) cell.classList.add("today");
+    if (eventDays.has(day)) cell.classList.add("active-event");
+    cell.textContent = String(day);
+    grid.appendChild(cell);
+  }
+}
+
+async function loadReminders() {
+  const list = document.getElementById("reminders-list");
+  if (!list) return;
+  const result = await apiRequest("GET", "/reminders");
+  list.replaceChildren();
+
+  if (!result.ok || !Array.isArray(result.data)) {
+    const p = document.createElement("p");
+    p.className = "reminder-empty";
+    p.textContent = apiErrorText(result, "Xatırlatmaları yükləmək mümkün olmadı.");
+    list.appendChild(p);
+    renderCalendar([]);
     return;
   }
 
-  // ----------------------------------------------------
-  // SCENARIO 4: TAXI (Wolt Taxi / Şəhər mərkəzinə)
-  // ----------------------------------------------------
-  if (
-    lowered.includes("taksi") ||
-    lowered.includes("taxi") ||
-    lowered.includes("maşın") ||
-    lowered.includes("masin")
-  ) {
-    currentActionPayload = {
-      type: "ORDER_TAXI",
-      route: "Nizami küç. → Şəhər mərkəzi",
-      car: "Toyota Camry · 10-AB-123",
-      driver: "Rəşad M.",
-      price: "5.00 AZN",
-      eta: "3 dəq"
-    };
+  const upcoming = result.data.filter((r) => r.status === "pending");
+  renderCalendar(upcoming);
 
-    setTimeout(() => {
-      document.getElementById("confirm-avatar-badge").textContent = "🚕";
-      document.getElementById("confirm-question-title").textContent = "Taksi çağırılsın?";
-      document.getElementById("confirm-details-primary").textContent = "Nizami küç. → Şəhər mərkəzi";
-      document.getElementById("confirm-details-secondary").textContent = "Toyota Camry · Ekonom 5 AZN";
-      document.getElementById("btn-confirm-yes").textContent = "Bəli, taksi çağır";
-
-      startConfirmation(
-        "taxi_confirm",
-        "Nizami küçəsindən şəhər mərkəzinə taksi çağırılsın? Qiymət beş manat. Bəli deyin.",
-        executeConfirmedAction
-      );
-    }, 600);
+  if (upcoming.length === 0) {
+    const p = document.createElement("p");
+    p.className = "reminder-empty";
+    p.textContent = "Hələ xatırlatma yoxdur. “Sabah saat 9-da dərmanımı xatırlat” deyin.";
+    list.appendChild(p);
     return;
   }
 
-  // ----------------------------------------------------
-  // SCENARIO 5: REMINDERS / CALENDAR
-  // ----------------------------------------------------
-  if (
-    lowered.includes("xatırla") ||
-    lowered.includes("xatirlat") ||
-    lowered.includes("yadıma sal") ||
-    lowered.includes("yadima sal") ||
-    lowered.includes("təqvim") ||
-    lowered.includes("teqvim")
-  ) {
-    setTimeout(() => {
-      showScreen("screen-reminders");
-      playAzAudio("reminders", "Xatırlatmalarınız ekrandadır.");
-    }, 600);
-    return;
-  }
+  upcoming.forEach((r) => {
+    const card = document.createElement("div");
+    card.className = "reminder-item-card samsung-card";
+    const info = document.createElement("div");
+    const h4 = document.createElement("h4");
+    h4.textContent = r.title;
+    const p = document.createElement("p");
+    p.textContent = formatReminderTime(new Date(r.scheduled_at));
+    info.append(h4, p);
 
-  // General fallback
-  currentActionPayload = {
-    type: "GENERAL",
-    text: text
-  };
+    const del = document.createElement("button");
+    del.className = "reminder-delete-btn";
+    del.type = "button";
+    del.textContent = "Sil";
+    del.setAttribute("aria-label", `${r.title} xatırlatmasını sil`);
+    del.addEventListener("click", async () => {
+      if (!window.confirm(`“${r.title}” xatırlatması silinsin?`)) return;
+      const res = await apiRequest("DELETE", `/reminders/${encodeURIComponent(r.id)}`);
+      if (!res.ok) alert(apiErrorText(res, "Silmək mümkün olmadı."));
+      loadReminders();
+    });
 
-  setTimeout(() => {
-    document.getElementById("confirm-avatar-badge").textContent = "✦";
-    document.getElementById("confirm-question-title").textContent = "Əməliyyat icra edilsin?";
-    document.getElementById("confirm-details-primary").textContent = `“${text}”`;
-    document.getElementById("confirm-details-secondary").textContent = "HUG Səsli Köməkçi Sistemi";
-    document.getElementById("btn-confirm-yes").textContent = "Bəli, icra et";
+    const actions = document.createElement("div");
+    actions.className = "reminder-actions";
+    actions.appendChild(del);
+    card.append(info, actions);
+    list.appendChild(card);
+  });
+}
 
-    startConfirmation("chef_tantuni_confirm", "Əməliyyatı icra edim? Bəli deyin.", executeConfirmedAction);
-  }, 600);
+function openRemindersScreen() {
+  clearConfirmWorkflow();
+  showScreen("screen-reminders");
+  loadReminders();
 }
 
 // Show clear message when microphone was silent (NO FAKE AUTO EXECUTION)
@@ -606,31 +996,49 @@ async function startListeningWorkflow(samplePrompt = null) {
   if (retryBtn) retryBtn.style.display = "none";
   if (finishBtn) finishBtn.style.display = "block";
 
-  // Play Native Azerbaijani Voice: "Eşidirəm, buyurun"
-  playAzAudio("listen", "Eşidirəm, buyurun");
-
   // If a quick pill was tapped explicitly, use that text
   if (samplePrompt) {
+    playAzAudio("listen", "Eşidirəm, buyurun");
     setTimeout(() => {
       handleProcessedVoice(samplePrompt);
     }, 1100);
     return;
   }
 
-  // Check if OpenAI Whisper is configured
-  const openAiKey = localStorage.getItem("hug_openai_api_key");
-  const voiceEngine = localStorage.getItem("hug_voice_engine") || "browser";
+  // Play "Eşidirəm, buyurun" FIRST and open the microphone only after it finishes,
+  // otherwise the recognizer hears the prompt itself or times out before the user speaks.
+  let micStarted = false;
+  const startMic = () => {
+    if (micStarted || !document.getElementById("screen-listening").classList.contains("active")) return;
+    micStarted = true;
+    if (badgeEl) badgeEl.textContent = "🔴 Sizi dinləyirəm... danışın";
+    startMicrophoneRecognition();
+  };
+  playAzAudio("listen", "Eşidirəm, buyurun", startMic);
+  setTimeout(startMic, 2500); // safety net if the audio "ended" event never fires
+}
 
-  if (voiceEngine === "openai" && openAiKey) {
-    // OpenAI Whisper Real Audio Recording
-    startWhisperRecording(openAiKey);
+const SPEECH_ERROR_MESSAGES = {
+  "no-speech": "Səs eşidilmədi. Mikrofona yaxın və bir qədər ucadan danışın.",
+  "audio-capture": "Mikrofon tapılmadı. Mikrofonun qoşulu olduğunu və başqa proqramın istifadə etmədiyini yoxlayın.",
+  "not-allowed": "Mikrofona icazə verilmədi. Ünvan sətrindəki 🔒 işarəsinə basıb mikrofona icazə verin.",
+  "service-not-allowed": "Bu brauzer səs tanımaya icazə vermir. Google Chrome istifadə edin.",
+  "network": "Səs tanıma xidmətinə qoşulmaq olmadı. Bu brauzer (məs. Edge/Opera/Brave) dəstəkləməyə bilər — Google Chrome istifadə edin və ya Tənzimləmələrdə “Server Whisper” seçin.",
+  "language-not-supported": "Bu brauzer Azərbaycan dilində səs tanımanı dəstəkləmir. Google Chrome istifadə edin.",
+};
+
+function startMicrophoneRecognition() {
+  // Server-side Whisper (the OpenAI key lives only on the server)
+  const voiceEngine = safeStorageGet("hug_voice_engine") || "browser";
+  if (voiceEngine === "openai") {
+    startWhisperRecording();
     return;
   }
 
   // Native Browser SpeechRecognition (Default & Free)
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    showMicError("Mikrofon bu brauzerdə dəstəklənmir. Zəhmət olmasa Chrome və ya Samsung Internet istifadə edin.");
+    showMicError("Mikrofon bu brauzerdə dəstəklənmir. Zəhmət olmasa Google Chrome və ya Samsung Internet istifadə edin.");
     return;
   }
 
@@ -644,6 +1052,7 @@ async function startListeningWorkflow(samplePrompt = null) {
     recognition.maxAlternatives = 1;
 
     let hasHeardSpeech = false;
+    let lastError = null;
 
     recognition.onresult = (event) => {
       hasHeardSpeech = true;
@@ -656,19 +1065,17 @@ async function startListeningWorkflow(samplePrompt = null) {
     };
 
     recognition.onerror = (event) => {
-      console.log("Speech recognition error:", event.error);
-      if (!hasHeardSpeech) {
-        if (event.error === "not-allowed") {
-          showMicError("Mikrofona icazə verilmədi. Brauzer parametrlərində mikrofona icazə verin.");
-        } else {
-          showMicError("Səs eşidilmədi. Zəhmət olmasa danışın və ya düyməyə basaraq təkrar cəhd edin.");
-        }
+      console.warn("Speech recognition error:", event.error);
+      lastError = event.error;
+      if (!hasHeardSpeech && event.error !== "aborted") {
+        showMicError(SPEECH_ERROR_MESSAGES[event.error] || `Səs tanıma xətası: ${event.error}. Yenidən cəhd edin.`);
       }
     };
 
     recognition.onend = () => {
-      if (!hasHeardSpeech && document.getElementById("screen-listening").classList.contains("active")) {
-        showMicError("Danışıq başa çatdı. Zəhmət olmasa təkrar cəhd edin.");
+      // Do not overwrite the specific error message shown by onerror.
+      if (!hasHeardSpeech && !lastError && document.getElementById("screen-listening").classList.contains("active")) {
+        showMicError("Heç nə eşidilmədi. “Yenidən Danış” düyməsinə basıb siqnaldan sonra danışın.");
       }
     };
 
@@ -679,8 +1086,8 @@ async function startListeningWorkflow(samplePrompt = null) {
   }
 }
 
-// OpenAI Whisper Real Audio Recording Handler
-async function startWhisperRecording(apiKey) {
+// Server Whisper Recording Handler: audio is sent to OUR backend, which calls OpenAI with its own key
+async function startWhisperRecording() {
   try {
     recordedChunks = [];
     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -706,32 +1113,19 @@ async function startWhisperRecording(apiKey) {
       if (badgeEl) badgeEl.textContent = "⏳ Whisper emal edir...";
       if (quoteEl) quoteEl.textContent = "Səs qeydiniz tanınır...";
 
-      try {
-        const formData = new FormData();
-        formData.append("file", audioBlob, "audio.webm");
-        formData.append("model", "whisper-1");
-        formData.append("language", "az");
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "audio.webm");
+      const result = await apiRequest("POST", "/speech/transcribe", formData, true);
 
-        const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}` },
-          body: formData
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          showMicError(`Whisper xətası: ${errData.error?.message || "API açarı yoxlayın"}`);
-          return;
-        }
-
-        const data = await res.json();
-        if (data.text && data.text.trim()) {
-          handleProcessedVoice(data.text);
-        } else {
-          showMicError("Heç bir səs tanınmadı. Zəhmət olmasa təkrar danışın.");
-        }
-      } catch (err) {
-        showMicError("OpenAI ilə əlaqə qurulmadı. İnternet bağlantınızı yoxlayın.");
+      if (!result.ok) {
+        showMicError(apiErrorText(result, "Səs tanınmadı. Zəhmət olmasa təkrar danışın."));
+        return;
+      }
+      const text = result.data && result.data.text;
+      if (text && text.trim()) {
+        handleProcessedVoice(text);
+      } else {
+        showMicError("Heç bir səs tanınmadı. Zəhmət olmasa təkrar danışın.");
       }
     };
 
@@ -756,7 +1150,11 @@ function startCall(contact) {
   document.getElementById("calling-contact-name").textContent = contact.short_name || contact.display_name;
   document.getElementById("call-avatar-circle").textContent = contact.initial;
 
-  const rawPhone = contact.phone_number.replace(/\s+/g, "");
+  const rawPhone = getContactPhone(contact);
+  if (!rawPhone) {
+    showInfoMessage(`${contact.short_name} üçün nömrə yoxdur. Tənzimləmələrdə əlavə edin.`, true);
+    return;
+  }
   document.getElementById("native-dialer-btn").href = `tel:${rawPhone}`;
 
   callSeconds = 0;
@@ -770,7 +1168,7 @@ function startCall(contact) {
     timerEl.textContent = `Zəng edilir... · ${mins}:${secs}`;
   }, 1000);
 
-  playAzAudio(contact.audio_active || "call_sister_active", `${contact.short_name} ilə əlaqə qurulur`);
+  playAzAudio(contact.audio_active, `${contact.short_name} ilə əlaqə qurulur`);
 
   // Direct trigger to native Samsung Phone dialer
   try {
@@ -813,17 +1211,14 @@ function startOrderTracking() {
     }
   }
 
-  if (currentActionPayload && currentActionPayload.type === "ORDER_PHARMACY") {
-    playAzAudio("pharmacy_active", "Aptekdən sifarişiniz qəbul olundu. Kuryer yoldadır.");
-  } else {
-    playAzAudio("chef_tantuni_active", "Chef Tantunidən sifarişiniz qəbul olundu. Kuryer yoldadır.");
-  }
+  // Honest wording: this is a demo screen, nothing has been ordered.
+  speakAz("Bu demo ekrandır, real sifariş verilməyib. Sifariş etmək üçün Wolt düyməsinə toxunun.");
 }
 
 // Wolt Taxi Tracking Workflow
 function startTaxiTracking() {
   showScreen("screen-taxi-tracking");
-  playAzAudio("taxi_active", "Taksi təsdiqləndi. Toyota Camry üç dəqiqəyə çatır.");
+  speakAz("Bu demo ekrandır, real taksi çağırılmayıb.");
 }
 
 // Initialize Application DOM Events
@@ -864,23 +1259,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 3. Quick Scenario Pill Buttons
-  document.querySelectorAll(".quick-pill-btn").forEach((pill) => {
-    pill.addEventListener("click", (e) => {
-      const scenario = e.currentTarget.getAttribute("data-scenario");
-      if (scenario === "call-sister") {
-        startListeningWorkflow("Bacıma yığ");
-      } else if (scenario === "call-daughter") {
-        startListeningWorkflow("Qızıma zəng et");
-      } else if (scenario === "order-chef-tantuni") {
-        startListeningWorkflow("Chef Tantunidən yemək sifariş edirəm");
-      } else if (scenario === "order-pharmacy") {
-        startListeningWorkflow("Aptekdən kardiomaqnil sifariş et");
-      } else if (scenario === "order-taxi") {
-        startListeningWorkflow("Taksi çağır");
-      }
-    });
-  });
+  // A browser-stored OpenAI key from older versions is a leak risk — remove it.
+  safeStorageRemove("hug_openai_api_key");
 
   // 4. Navigation / Back Buttons
   document.querySelectorAll(".btn-go-home").forEach((btn) => {
@@ -896,17 +1276,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnReminders = document.getElementById("btn-open-reminders");
   if (btnReminders) {
     btnReminders.addEventListener("click", () => {
-      clearConfirmWorkflow();
-      showScreen("screen-reminders");
+      openRemindersScreen();
       playAzAudio("reminders", "Xatırlatmalarınız ekrandadır.");
-    });
-  }
-
-  // 6. Contacts Icon Button
-  const btnContacts = document.getElementById("btn-open-contacts");
-  if (btnContacts) {
-    btnContacts.addEventListener("click", () => {
-      startListeningWorkflow("Bacıma yığ");
     });
   }
 
@@ -917,27 +1288,55 @@ document.addEventListener("DOMContentLoaded", () => {
   const engineBrowserBtn = document.getElementById("engine-btn-browser");
   const engineOpenAIBtn = document.getElementById("engine-btn-openai");
   const openAIKeyContainer = document.getElementById("openai-key-container");
-  const openAIKeyInput = document.getElementById("openai-api-key");
   const btnSaveSettings = document.getElementById("btn-save-settings");
+  const contactsEditor = document.getElementById("contacts-editor");
+
+  function renderContactsEditor() {
+    if (!contactsEditor) return;
+    const phones = loadContactPhones();
+    contactsEditor.replaceChildren();
+    INITIAL_CONTACTS.forEach((c) => {
+      const row = document.createElement("div");
+      row.className = "contact-row";
+      const label = document.createElement("label");
+      label.htmlFor = `contact-phone-${c.id}`;
+      label.textContent = c.display_name;
+      const input = document.createElement("input");
+      input.type = "tel";
+      input.id = `contact-phone-${c.id}`;
+      input.dataset.contactId = c.id;
+      input.placeholder = "+994 50 000 00 00";
+      input.autocomplete = "off";
+      input.value = phones[c.id] ? formatPhoneForDisplay(phones[c.id]) : "";
+      row.append(label, input);
+      contactsEditor.appendChild(row);
+    });
+  }
+
+  function openSettings() {
+    if (!modalSettings) return;
+    const savedEngine = safeStorageGet("hug_voice_engine") || "browser";
+    if (savedEngine === "openai") {
+      engineOpenAIBtn.classList.add("active");
+      engineBrowserBtn.classList.remove("active");
+      openAIKeyContainer.classList.remove("hidden");
+    } else {
+      engineBrowserBtn.classList.add("active");
+      engineOpenAIBtn.classList.remove("active");
+      openAIKeyContainer.classList.add("hidden");
+    }
+    renderContactsEditor();
+    modalSettings.classList.remove("hidden");
+  }
+
+  // 6. Contacts Icon Button opens the contact number editor
+  const btnContacts = document.getElementById("btn-open-contacts");
+  if (btnContacts) {
+    btnContacts.addEventListener("click", openSettings);
+  }
 
   if (btnSettings && modalSettings) {
-    btnSettings.addEventListener("click", () => {
-      const savedEngine = localStorage.getItem("hug_voice_engine") || "browser";
-      const savedKey = localStorage.getItem("hug_openai_api_key") || "";
-
-      if (savedEngine === "openai") {
-        engineOpenAIBtn.classList.add("active");
-        engineBrowserBtn.classList.remove("active");
-        openAIKeyContainer.classList.remove("hidden");
-      } else {
-        engineBrowserBtn.classList.add("active");
-        engineOpenAIBtn.classList.remove("active");
-        openAIKeyContainer.classList.add("hidden");
-      }
-
-      if (openAIKeyInput) openAIKeyInput.value = savedKey;
-      modalSettings.classList.remove("hidden");
-    });
+    btnSettings.addEventListener("click", openSettings);
   }
 
   if (btnCloseSettings && modalSettings) {
@@ -962,13 +1361,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnSaveSettings && modalSettings) {
     btnSaveSettings.addEventListener("click", () => {
-      const isWhisper = engineOpenAIBtn.classList.contains("active");
-      localStorage.setItem("hug_voice_engine", isWhisper ? "openai" : "browser");
-      if (openAIKeyInput) {
-        localStorage.setItem("hug_openai_api_key", openAIKeyInput.value.trim());
+      // Validate and save contact numbers (device-local only)
+      const phones = {};
+      let hasInvalid = false;
+      if (contactsEditor) {
+        contactsEditor.querySelectorAll("input[data-contact-id]").forEach((input) => {
+          const raw = input.value.trim();
+          if (!raw) {
+            input.removeAttribute("aria-invalid");
+            return;
+          }
+          const normalized = normalizeAzPhone(raw);
+          if (normalized) {
+            phones[input.dataset.contactId] = normalized;
+            input.removeAttribute("aria-invalid");
+          } else {
+            input.setAttribute("aria-invalid", "true");
+            hasInvalid = true;
+          }
+        });
       }
+      if (hasInvalid) {
+        alert("Bəzi nömrələr yanlışdır. Format: +994 50 123 45 67 və ya 050 123 45 67");
+        return;
+      }
+      safeStorageSet("hug_contact_phones", JSON.stringify(phones));
+
+      const isWhisper = engineOpenAIBtn.classList.contains("active");
+      safeStorageSet("hug_voice_engine", isWhisper ? "openai" : "browser");
       modalSettings.classList.add("hidden");
-      alert(isWhisper ? "OpenAI Whisper aktivləşdirildi!" : "Daxili Brauzer Səs Tanıması aktivdir.");
+      alert(isWhisper ? "Server Whisper səs tanıması seçildi." : "Brauzerin öz səs tanıması aktivdir.");
     });
   }
 
@@ -984,9 +1406,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnConfirmCancel) {
     btnConfirmCancel.addEventListener("click", () => {
-      clearConfirmWorkflow();
-      showScreen("screen-home");
-      playAzAudio("action_cancel", "Əməliyyat ləğv edildi.");
+      cancelCurrentConfirmation();
     });
   }
 

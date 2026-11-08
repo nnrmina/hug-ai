@@ -1408,3 +1408,74 @@ body {
 .done-actions {
   width: 100%;
 }
+
+/* ---- Safety & data fixes ---- */
+.demo-banner {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fff4d6;
+  color: #6b4a00;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.reminder-empty {
+  font-size: 16px;
+  color: #4f5f52;
+  text-align: center;
+  padding: 12px 0;
+}
+
+.reminder-item-card .reminder-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.reminder-delete-btn {
+  min-width: 48px;
+  min-height: 48px;
+  border: none;
+  border-radius: 12px;
+  background: #fdecec;
+  color: #a1261f;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.contacts-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.contact-row label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.contact-row input {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1.5px solid #c7d8c5;
+  border-radius: 12px;
+  font-size: 16px;
+  background: #fafdf9;
+}
+
+.contact-row input:focus {
+  outline: 2px solid #2ea13f;
+  border-color: #2ea13f;
+}
+
+.contact-row input[aria-invalid="true"] {
+  border-color: #c0392b;
+}

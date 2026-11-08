@@ -206,7 +206,7 @@
 
           <div class="confirm-details-card samsung-card">
             <p id="confirm-details-primary" class="confirm-name">Sevinc Məmmədova</p>
-            <p id="confirm-details-secondary" class="confirm-meta">Mobil · +994 50 123 45 67</p>
+            <p id="confirm-details-secondary" class="confirm-meta"></p>
           </div>
 
           <!-- Hands-Free Voice Listener Indicator (Waits for user's explicit voice) -->
@@ -310,6 +310,7 @@
         </header>
 
         <main class="order-main">
+          <p class="demo-banner" role="note">DEMO rejim — real sifariş verilmir. Sifariş üçün aşağıdakı Wolt düyməsindən istifadə edin.</p>
           <div class="order-summary-card samsung-card">
             <div class="order-header-row">
               <div class="order-item-left">
@@ -394,6 +395,7 @@
         </header>
 
         <main class="taxi-main">
+          <p class="demo-banner" role="note">DEMO rejim — taksi real çağırılmır, sürücü və maşın nümunədir.</p>
           <!-- Taxi Route Map Card (Matching reference design Screen 6) -->
           <div class="taxi-map-card samsung-card">
             <div class="taxi-map-grid">
@@ -440,8 +442,8 @@
             <button id="btn-cancel-taxi" class="samsung-secondary-pill-btn">
               Ləğv et
             </button>
-            <a id="btn-call-taxi-driver" href="tel:+994508889900" class="samsung-primary-pill-btn taxi-call-btn">
-              📞 Sürücüyə zəng et
+            <a id="btn-call-taxi-driver" href="https://taxi.wolt.com/" target="_blank" rel="noopener noreferrer" class="samsung-primary-pill-btn taxi-call-btn">
+              🚕 Real taksi tətbiqini aç
             </a>
           </div>
         </main>
@@ -472,36 +474,16 @@
         <main class="reminders-main">
           <div class="calendar-card samsung-card">
             <div class="calendar-header">
-              <span class="cal-month-title">Noyabr 2026</span>
+              <span id="cal-month-title" class="cal-month-title"></span>
             </div>
             <div class="calendar-weekdays">
               <span>B.E</span><span>Ç.A</span><span>Ç</span><span>C.A</span><span>C</span><span>Ş</span><span>B</span>
             </div>
-            <div class="calendar-grid">
-              <span class="cal-day dim"></span><span class="cal-day">1</span><span class="cal-day">2</span><span class="cal-day">3</span><span class="cal-day">4</span><span class="cal-day">5</span><span class="cal-day">6</span>
-              <span class="cal-day">7</span><span class="cal-day today">8</span><span class="cal-day active-event">9</span><span class="cal-day">10</span><span class="cal-day">11</span><span class="cal-day">12</span><span class="cal-day active-event">13</span>
-              <span class="cal-day">14</span><span class="cal-day">15</span><span class="cal-day">16</span><span class="cal-day">17</span><span class="cal-day">18</span><span class="cal-day">19</span><span class="cal-day active-event">20</span>
-              <span class="cal-day">21</span><span class="cal-day">22</span><span class="cal-day">23</span><span class="cal-day">24</span><span class="cal-day">25</span><span class="cal-day">26</span><span class="cal-day">27</span>
-              <span class="cal-day">28</span><span class="cal-day">29</span><span class="cal-day">30</span>
-            </div>
+            <div id="calendar-grid" class="calendar-grid"></div>
           </div>
 
-          <div class="reminders-list-container">
-            <div class="reminder-item-card samsung-card">
-              <div>
-                <h4>Həkim Qəbulu</h4>
-                <p>Sabah · 10:00 (Poliklinika)</p>
-              </div>
-              <span class="time-badge">16 saat sonra</span>
-            </div>
-
-            <div class="reminder-item-card samsung-card">
-              <div>
-                <h4>Təzyiq Dərmanı</h4>
-                <p>Bu gün · 21:00 (Kardiomaqnil)</p>
-              </div>
-              <span class="time-badge">3 saat sonra</span>
-            </div>
+          <div id="reminders-list" class="reminders-list-container" aria-live="polite">
+            <p class="reminder-empty">Xatırlatmalar yüklənir...</p>
           </div>
 
           <button class="samsung-primary-pill-btn btn-go-home">
@@ -555,14 +537,16 @@
         <label class="settings-label">Səs Tanıma Rejimi:</label>
         <div class="engine-toggle-group">
           <button id="engine-btn-browser" class="engine-opt active" type="button">Pulsuz Brauzer (Web Speech)</button>
-          <button id="engine-btn-openai" class="engine-opt" type="button">OpenAI Whisper (API)</button>
+          <button id="engine-btn-openai" class="engine-opt" type="button">Server Whisper (OpenAI)</button>
         </div>
 
         <div id="openai-key-container" class="key-container hidden">
-          <label class="settings-label" for="openai-api-key">OpenAI API Açarı:</label>
-          <input type="password" id="openai-api-key" placeholder="sk-proj-..." class="key-input" />
-          <p class="key-help">API açarı yalnız brauzerinizdə saxlanılır. Whisper ilə Azərbaycan dilində səs 99% dəqiqliklə tanınır.</p>
+          <p class="key-help">Səs yazısı serverə göndərilir və orada tanınır. OpenAI açarı brauzerdə deyil, yalnız serverdə saxlanılır (OPENAI_API_KEY və STT_PROVIDER=openai).</p>
         </div>
+
+        <label class="settings-label">Kontakt nömrələri:</label>
+        <p class="key-help">Nömrələr yalnız bu cihazda saxlanılır. Boş qalan kontakta zəng edilmir.</p>
+        <div id="contacts-editor" class="contacts-editor"></div>
 
         <div class="settings-actions">
           <button id="btn-save-settings" class="samsung-primary-pill-btn" type="button">Yadda Saxla</button>
