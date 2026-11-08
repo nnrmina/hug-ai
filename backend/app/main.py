@@ -30,6 +30,7 @@ ROOT_FILES = {
     "sw.js": {"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
     "manifest.webmanifest": {"Cache-Control": "no-cache"},
     "favicon.svg": {},
+    "family.html": {"Cache-Control": "no-cache"},
     "favicon.ico": {},
     "robots.txt": {},
 }

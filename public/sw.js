@@ -23,6 +23,11 @@ const SHELL = [
   "/static/js/reminders/index.js",
   "/static/js/reminders/calendar.js",
   "/static/js/reminders/alerts.js",
+  "/static/js/device.js",
+  "/static/js/push.js",
+  "/static/js/care/care.js",
+  "/static/js/family.js",
+  "/family.html",
   "/static/audio/call_end.mp3",
   "/static/audio/order_done.mp3",
   "/static/audio/action_cancel.mp3",
@@ -77,16 +82,45 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
+// Server-sent push: medicine time, reminders, check-in (elder) / SOS, missed doses (family)
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (_) { data = { title: "HUG", body: event.data?.text() || "" }; }
+  const title = data.title || "HUG";
+  const options = {
+    body: data.body || "",
+    tag: data.tag || undefined,
+    renotify: Boolean(data.tag),
+    requireInteraction: Boolean(data.requireInteraction),
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    vibrate: data.kind === "sos" ? [300, 100, 300, 100, 600] : [120, 60, 120],
+    actions: Array.isArray(data.actions) ? data.actions.slice(0, 2) : [],
+    data: { url: data.url || "/", doseId: data.doseId || null }
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const data = event.notification.data || {};
+  let url = data.url || "/?open=reminders";
+  if (data.doseId && (event.action === "taken" || event.action === "snooze")) {
+    url = `/?dose=${encodeURIComponent(data.doseId)}&act=${event.action}`;
+  }
+  const target = new URL(url, location.origin);
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      const client = clients.find((c) => new URL(c.url).origin === location.origin);
+      // External links (e.g. Google Maps location in an SOS) open in a new window
+      if (target.origin !== location.origin) return self.clients.openWindow(target.href);
+      const client = clients.find((c) => new URL(c.url).origin === location.origin &&
+        (target.pathname.startsWith("/f/") ? new URL(c.url).pathname === target.pathname : !new URL(c.url).pathname.startsWith("/f/")));
       if (client) {
-        client.postMessage({ type: "open-reminders" });
+        if (target.search) client.postMessage({ type: "deeplink", search: target.search });
+        else client.postMessage({ type: "open-reminders" });
         return client.focus();
       }
-      return self.clients.openWindow("/?open=reminders");
+      return self.clients.openWindow(target.href);
     })
   );
 });

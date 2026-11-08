@@ -65,15 +65,19 @@
       <!-- ============ HOME ============ -->
       <section id="screen-home" class="screen-view active" aria-label="Ana səhifə">
         <header class="top-nav samsung-top-nav">
-          <button id="btn-open-contacts" class="samsung-icon-btn" aria-label="Kontaktlar" title="Kontaktlar">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
+          <button id="btn-sos" class="sos-btn" aria-label="SOS — təcili kömək. Basıb saxlayın." title="Basıb saxlayın">
+            <svg class="sos-ring" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="27"/></svg>
+            <span>SOS</span>
           </button>
 
           <div class="samsung-brand-logo">HUG</div>
 
           <div class="top-nav-right">
+            <button id="btn-open-contacts" class="samsung-icon-btn" aria-label="Ailəm" title="Ailəm">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </button>
             <button id="btn-open-settings" class="samsung-icon-btn" aria-label="Tənzimləmələr" title="Tənzimləmələr">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="3"></circle>
@@ -95,6 +99,19 @@
               Bu gün sizə necə <span class="accent-word">kömək</span><br />edə bilərəm?
             </h1>
             <span id="engine-badge" class="engine-badge" hidden></span>
+          </div>
+
+          <div id="care-card" class="care-card" hidden>
+            <button id="care-checkin" class="care-row care-checkin" hidden>
+              <span class="care-ico" aria-hidden="true">☀️</span>
+              <span class="care-text"><strong>Özünüzü necə hiss edirsiniz?</strong><small>Toxunun və cavab verin</small></span>
+            </button>
+            <div id="care-dose" class="care-row" hidden>
+              <span class="care-ico" aria-hidden="true">💊</span>
+              <span class="care-text"><strong id="care-dose-title"></strong><small id="care-dose-sub"></small></span>
+              <button id="care-dose-taken" class="care-taken-btn">İçdim</button>
+            </div>
+            <button id="care-open-meds" class="care-link">Bu günün dərmanları →</button>
           </div>
 
           <div class="orb-stage">
@@ -359,6 +376,107 @@
         </main>
       </section>
 
+
+      <!-- ============ SOS ============ -->
+      <section id="screen-sos" class="screen-view sos-screen" aria-label="SOS">
+        <main class="sos-main">
+          <div id="sos-phase-countdown" class="sos-phase">
+            <div class="sos-count-ring"><span id="sos-count">5</span></div>
+            <h2 class="sos-title" data-screen-title>Ailənizə xəbər verilir…</h2>
+            <p class="sos-sub">Səhvən basmısınızsa, ləğv edin</p>
+            <button id="btn-sos-cancel" class="sos-cancel-btn">Ləğv et</button>
+          </div>
+          <div id="sos-phase-sent" class="sos-phase" hidden>
+            <div class="sos-done-ring" aria-hidden="true">✓</div>
+            <h2 class="sos-title">Xəbər verildi</h2>
+            <p id="sos-sent-sub" class="sos-sub"></p>
+            <div class="sos-actions">
+              <a id="sos-call-family" class="sos-call-btn family" href="tel:">📞 <span id="sos-call-family-name">Ailəyə zəng</span></a>
+              <a class="sos-call-btn" href="tel:103">🚑 103 · Təcili yardım</a>
+              <a class="sos-call-btn" href="tel:112">🆘 112</a>
+            </div>
+            <button class="samsung-secondary-pill-btn btn-go-home">Bağla</button>
+          </div>
+        </main>
+      </section>
+
+      <!-- ============ DOSE ALERT ============ -->
+      <section id="screen-dose" class="screen-view" aria-label="Dərman vaxtı">
+        <header class="top-nav samsung-top-nav">
+          <button class="samsung-icon-btn btn-go-home" aria-label="Geri"><svg width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <div class="center-screen-title">Dərman vaxtı</div>
+          <span class="nav-spacer"></span>
+        </header>
+        <main class="done-main dose-main">
+          <div class="dose-pill-icon" aria-hidden="true">💊</div>
+          <h2 id="dose-name" class="done-title" data-screen-title>Dərman</h2>
+          <p id="dose-meta" class="done-subtext"></p>
+          <div class="done-actions dose-actions">
+            <button id="btn-dose-taken" class="samsung-primary-pill-btn dose-big">İçdim ✓</button>
+            <button id="btn-dose-snooze" class="samsung-secondary-pill-btn">10 dəqiqə sonra xatırlat</button>
+          </div>
+        </main>
+      </section>
+
+      <!-- ============ DAILY CHECK-IN ============ -->
+      <section id="screen-checkin" class="screen-view" aria-label="Gündəlik yoxlama">
+        <header class="top-nav samsung-top-nav">
+          <button class="samsung-icon-btn btn-go-home" aria-label="Geri"><svg width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <div class="center-screen-title">Gününüz necədir?</div>
+          <span class="nav-spacer"></span>
+        </header>
+        <main class="done-main checkin-main">
+          <h2 id="checkin-title" class="done-title" data-screen-title>Sabahınız xeyir!</h2>
+          <p class="done-subtext">Özünüzü necə hiss edirsiniz?</p>
+          <div class="mood-grid">
+            <button class="mood-btn good" data-mood="good"><span aria-hidden="true">😊</span>Yaxşı</button>
+            <button class="mood-btn ok" data-mood="ok"><span aria-hidden="true">😐</span>Elə də</button>
+            <button class="mood-btn bad" data-mood="bad"><span aria-hidden="true">😟</span>Pis</button>
+          </div>
+          <p class="checkin-hint">Səslə də deyə bilərsiniz: “Özümü yaxşı hiss edirəm”</p>
+        </main>
+      </section>
+
+      <!-- ============ MEDICINES ============ -->
+      <section id="screen-meds" class="screen-view" aria-label="Dərmanlar">
+        <header class="top-nav samsung-top-nav">
+          <button class="samsung-icon-btn btn-go-home" aria-label="Geri"><svg width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h2 class="center-screen-title" data-screen-title>Dərmanlarım</h2>
+          <span class="nav-spacer"></span>
+        </header>
+        <main class="reminders-main meds-main">
+          <h3 class="reminders-list-title">Bu gün</h3>
+          <div id="doses-list" class="reminders-list-container"></div>
+          <h3 class="reminders-list-title">Hər gün</h3>
+          <div id="meds-list" class="reminders-list-container"></div>
+          <form id="med-form" class="samsung-card med-form" autocomplete="off">
+            <label>Dərmanın adı<input id="med-name" type="text" maxlength="120" placeholder="Məs.: Kardiomaqnil" required /></label>
+            <label>Saatlar<input id="med-times" type="text" maxlength="60" placeholder="09:00, 21:00" required /></label>
+            <button type="submit" class="samsung-primary-pill-btn">Dərman əlavə et</button>
+          </form>
+          <p class="checkin-hint">Səslə də olar: “Hər gün səhər 9-da və axşam 9-da təzyiq dərmanımı xatırlat”</p>
+        </main>
+      </section>
+
+      <!-- ============ FIRST-RUN SETUP ============ -->
+      <section id="screen-onboarding" class="screen-view" aria-label="Tanışlıq">
+        <main class="reminders-main onboarding-main">
+          <div class="onb-hero">
+            <img src="/icons/icon-192.png" alt="" width="84" height="84" />
+            <h2 data-screen-title>Xoş gəlmisiniz!</h2>
+            <p>HUG sizin səsli köməkçinizdir. Gəlin tanış olaq.</p>
+          </div>
+          <form id="onb-form" class="samsung-card med-form" autocomplete="off">
+            <label>Adınız<input id="onb-name" type="text" maxlength="100" placeholder="Məs.: Səadət xanım" /></label>
+            <p class="onb-section">Ailənizdən kimləri əlavə edək? Təcili halda onlara xəbər veriləcək.</p>
+            <div id="onb-family"></div>
+            <button type="button" id="onb-add-row" class="link-btn">+ Daha bir nəfər</button>
+            <button type="submit" class="samsung-primary-pill-btn">Davam et</button>
+            <button type="button" id="onb-skip" class="link-btn onb-skip">İndi yox</button>
+          </form>
+        </main>
+      </section>
+
       <!-- ============ DONE ============ -->
       <section id="screen-done" class="screen-view" aria-label="Tamamlandı">
         <header class="top-nav samsung-top-nav">
@@ -391,11 +509,18 @@
   <!-- ============ CONTACTS ============ -->
   <dialog id="contacts-dialog" class="sheet-dialog" aria-labelledby="contacts-title">
     <div class="sheet-header">
-      <h3 id="contacts-title">Kontaktlar</h3>
+      <h3 id="contacts-title">Ailəm</h3>
       <button id="btn-close-contacts" class="close-modal-btn" aria-label="Bağla">✕</button>
     </div>
-    <p class="sheet-note">🔒 Kontaktlarınız yalnız bu telefonda saxlanılır.</p>
+    <p class="sheet-note">Toxunun — zəng edilsin. Təcili halda (SOS) hamısına xəbər gedir.</p>
     <div id="contacts-list" class="contacts-list"></div>
+    <form id="family-form" class="family-form" autocomplete="off">
+      <h4>Yeni ailə üzvü</h4>
+      <input id="fam-name" type="text" maxlength="100" placeholder="Adı (məs.: Leyla)" aria-label="Adı" required />
+      <select id="fam-relation" aria-label="Kimdir"></select>
+      <input id="fam-phone" type="tel" maxlength="30" placeholder="+994 50 123 45 67" aria-label="Telefon" required />
+      <button type="submit" class="samsung-primary-pill-btn">Əlavə et</button>
+    </form>
   </dialog>
 
   <!-- ============ SETTINGS ============ -->

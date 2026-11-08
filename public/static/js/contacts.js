@@ -1,6 +1,50 @@
 // On-device contacts. Privacy by design: this list never leaves the phone — the server only
 // returns an alias ("qızım", "Almaz xala") and matching happens here.
 
+// Family members entered by the user (from /care/state). When present they replace the demo
+// list below, so "qızıma zəng et" calls the real daughter.
+const RELATIONS = {
+  "qızım": { aliases: ["qızım", "qizim", "qızıma", "qız"], title: (n) => `Qızınız ${n}` },
+  "oğlum": { aliases: ["oğlum", "oglum", "oğluma", "oğul"], title: (n) => `Oğlunuz ${n}` },
+  "həyat yoldaşım": { aliases: ["həyat yoldaşım", "yoldaşım", "yoldasim", "arvadım", "ərim", "erim", "xanımım"], title: (n) => `Həyat yoldaşınız ${n}` },
+  "bacım": { aliases: ["bacım", "bacim", "bacıma", "bacı"], title: (n) => `Bacınız ${n}` },
+  "qardaşım": { aliases: ["qardaşım", "qardasim", "qardaşıma", "qardaş"], title: (n) => `Qardaşınız ${n}` },
+  "nəvəm": { aliases: ["nəvəm", "nevem", "nəvəmə", "nəvə"], title: (n) => `Nəvəniz ${n}` },
+  "gəlinim": { aliases: ["gəlinim", "gelinim", "gəlin"], title: (n) => `Gəliniz ${n}` },
+  "kürəkənim": { aliases: ["kürəkənim", "kurekenim", "kürəkən"], title: (n) => `Kürəkəniniz ${n}` },
+  "həkim": { aliases: ["həkim", "hekim", "həkimə", "doktor"], title: (n) => `Həkim ${n}` },
+  "anam": { aliases: ["anam", "ana", "mama", "mamam", "mamama", "anama"], title: (n) => `Ananız ${n}` },
+  "atam": { aliases: ["atam", "ata", "papa", "atama"], title: (n) => `Atanız ${n}` }
+};
+export const RELATION_OPTIONS = Object.keys(RELATIONS);
+
+let family = [];
+
+const fmtPhone = (p) => (p || "").replace(/^(\+994)(\d{2})(\d{3})(\d{2})(\d{2})$/, "$1 $2 $3 $4 $5");
+
+export function setFamily(members = []) {
+  family = members.map((m) => {
+    const rel = RELATIONS[(m.relation || "").toLocaleLowerCase("az")] || null;
+    const first = (m.name || "").trim();
+    const lower = first.toLocaleLowerCase("az");
+    return {
+      id: m.id,
+      aliases: [...(rel ? rel.aliases : []), lower, ...lower.split(/\s+/)].filter(Boolean),
+      display_name: m.relation ? `${first} (${m.relation[0].toLocaleUpperCase("az")}${m.relation.slice(1)})` : first,
+      short_name: first,
+      relation_title: rel ? rel.title(first) : first,
+      phone_number: fmtPhone(m.phone) || m.phone,
+      initial: (first[0] || "?").toLocaleUpperCase("az"),
+      call_phrase: `${first}-a zəng et`,
+      invite_url: m.invite_url,
+      real: true
+    };
+  });
+}
+
+export const getFamily = () => family;
+const activeContacts = () => (family.length ? family : CONTACTS);
+
 export const CONTACTS = [
   {
     id: "sister",
@@ -77,11 +121,12 @@ function editDistance(a, b) {
 export function findContact(query) {
   const q = normalize(query);
   if (!q) return null;
-  for (const c of CONTACTS) {
+  const list = activeContacts();
+  for (const c of list) {
     if (c.aliases.includes(q)) return c;
   }
   const words = new Set(q.split(/\s+/));
-  for (const c of CONTACTS) {
+  for (const c of list) {
     if (c.aliases.some((a) => !a.includes(" ") && words.has(a))) return c;
   }
 
@@ -89,7 +134,7 @@ export function findContact(query) {
   let best = null;
   let bestDist = Infinity;
   let tie = false;
-  for (const c of CONTACTS) {
+  for (const c of list) {
     const candidates = c.aliases.map(fold).filter((a) => a[0] === fq[0]);
     if (!candidates.length) continue;
     const d = Math.min(...candidates.map((a) => editDistance(fq, a)));

@@ -155,6 +155,18 @@ export function handleResponse(data, heardText) {
       return askConfirmation(data.response);
     }
 
+    if (intent === "CREATE_MEDICATION") {
+      pending = { ...base, type: "MEDICATION" };
+      fillConfirm({
+        badge: "💊",
+        title: "Hər gün xatırladım?",
+        primary: action.title || "Dərman",
+        secondary: `Hər gün: ${(action.med_times || []).join(", ")}`,
+        yesLabel: "Bəli, xatırlat"
+      });
+      return askConfirmation(data.response);
+    }
+
     if (intent === "ORDER_FOOD" || intent === "ORDER_PHARMACY" || intent === "ORDER_TAXI") {
       const order = action.order || {};
       pending = { ...base, type: intent, order };
@@ -173,6 +185,16 @@ export function handleResponse(data, heardText) {
     pending = { ...base, type: "GENERAL" };
     fillConfirm({ badge: "✦", title: "Əməliyyat icra edilsin?", primary: `“${heard}”`, secondary: data.response, yesLabel: "Bəli, icra et" });
     return askConfirmation(data.response);
+  }
+
+  if (intent === "EMERGENCY") {
+    return import("../care/care.js").then((m) => m.startSos({ reason: heard }));
+  }
+  if (intent === "MEDICATION_TAKEN" || intent === "CHECKIN") {
+    import("../care/care.js").then((m) => m.refreshCare());
+    haptic("success");
+    return showReply({ title: intent === "CHECKIN" ? "Təşəkkürlər" : "Qeyd edildi ✓", text: data.response, heard,
+                       icon: intent === "CHECKIN" ? "☀️" : "💊" });
   }
 
   if (intent === "ANALYZE_MESSAGE") {
@@ -230,6 +252,15 @@ export async function executeConfirmed() {
       return startOrderTracking(action.order, result.response);
     case "ORDER_TAXI":
       return startTaxiTracking(action.order, result.response);
+    case "MEDICATION": {
+      const care = await import("../care/care.js");
+      await care.refreshCare();
+      setText("done-message-subtext", result.response);
+      showScreen("screen-done");
+      say(result.response);
+      care.ensureNotifications();
+      return;
+    }
     case "REMINDER":
       return openReminders({ spoken: result.response, highlightId: result.action_data?.reminder_id, askAlerts: true });
     default:

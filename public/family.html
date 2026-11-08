@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="az" data-contrast="normal" data-text-size="normal">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#EBF3E8" />
+  <meta name="robots" content="noindex" />
+  <meta name="referrer" content="no-referrer" />
+  <title>HUG · Ailə</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script type="module" src="/static/js/family.js"></script>
+</head>
+<body class="family-body">
+  <div id="sr-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+  <main class="family-page">
+    <header class="family-header">
+      <div class="family-brand"><img src="/icons/icon-192.png" alt="" width="40" height="40" /> <span>HUG · Ailə</span></div>
+      <h1 id="fam-elder" class="family-elder">Yüklənir…</h1>
+      <p id="fam-hello" class="family-hello"></p>
+    </header>
+
+    <section id="fam-sos" class="family-sos" hidden>
+      <strong>🚨 SOS</strong>
+      <span id="fam-sos-text"></span>
+      <a id="fam-sos-map" href="#" target="_blank" rel="noopener" hidden>Xəritədə bax →</a>
+    </section>
+
+    <button id="fam-notify" class="samsung-primary-pill-btn family-notify" hidden>🔔 Bildirişləri aç</button>
+    <p id="fam-notify-hint" class="family-hint" hidden></p>
+
+    <section class="samsung-card family-card">
+      <h2>Bu günkü hal</h2>
+      <p id="fam-checkin" class="family-big"></p>
+    </section>
+
+    <section class="samsung-card family-card">
+      <h2>Bu günün dərmanları</h2>
+      <div id="fam-doses" class="family-list"></div>
+    </section>
+
+    <section class="samsung-card family-card">
+      <h2>Son hadisələr</h2>
+      <div id="fam-events" class="family-list"></div>
+    </section>
+
+    <section class="samsung-card family-card">
+      <h2>Dərman əlavə et</h2>
+      <form id="fam-med-form" class="med-form" autocomplete="off">
+        <label>Dərmanın adı<input id="fm-name" type="text" maxlength="120" placeholder="Məs.: Kardiomaqnil" required /></label>
+        <label>Hər gün saat<input id="fm-times" type="text" maxlength="60" placeholder="09:00, 21:00" required /></label>
+        <button type="submit" class="samsung-primary-pill-btn">Əlavə et</button>
+      </form>
+      <div id="fam-meds" class="family-list"></div>
+    </section>
+
+    <section class="samsung-card family-card">
+      <h2>Xatırlatma əlavə et</h2>
+      <form id="fam-rem-form" class="med-form" autocomplete="off">
+        <label>Nə?<input id="fr-title" type="text" maxlength="200" placeholder="Məs.: Həkim qəbulu" required /></label>
+        <label>Nə vaxt?<input id="fr-when" type="datetime-local" required /></label>
+        <button type="submit" class="samsung-primary-pill-btn">Əlavə et</button>
+      </form>
+    </section>
+
+    <p class="family-foot">Bu keçid şəxsidir — başqası ilə paylaşmayın.</p>
+  </main>
+  <div id="toast-host" class="toast-host" aria-live="polite"></div>
+</body>
+</html>

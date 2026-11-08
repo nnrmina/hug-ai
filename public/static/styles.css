@@ -2010,3 +2010,264 @@ body { background: var(--page); color: var(--text); }
   .reply-icon { width: 56px; height: 56px; font-size: 24px; }
   .done-info-banner { display: none; }
 }
+
+/* ==========================================================================
+   SOS button (header): hold to activate — ring fills while holding
+   ========================================================================== */
+.sos-btn {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  border: none;
+  background: #d93025;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: calc(13px * var(--text-scale));
+  letter-spacing: 0.5px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(217, 48, 37, 0.35);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.sos-btn span { position: relative; z-index: 1; }
+.sos-ring { position: absolute; inset: -4px; width: 56px; height: 56px; transform: rotate(-90deg); pointer-events: none; }
+.sos-ring circle { fill: none; stroke: #d93025; stroke-width: 3; stroke-dasharray: 170; stroke-dashoffset: 170; }
+.sos-btn.holding .sos-ring circle { transition: stroke-dashoffset 1.5s linear; stroke-dashoffset: 0; }
+.sos-btn.holding { transform: scale(0.96); }
+
+/* ==========================================================================
+   Home: today card (check-in prompt + next medicine)
+   ========================================================================== */
+.care-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.care-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 12px 10px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+}
+button.care-row { cursor: pointer; }
+.care-row.due { border-color: var(--accent); background: var(--accent-soft); }
+.care-checkin { border-color: #f3d27a; background: #fff8e1; }
+:root[data-theme="dark"] .care-checkin { background: #3a2c08; border-color: #6b5214; }
+.care-ico { font-size: 24px; line-height: 1; flex-shrink: 0; }
+.care-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.care-text strong { font-size: calc(16px * var(--text-scale)); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.care-text small { font-size: calc(13px * var(--text-scale)); color: var(--text-muted); }
+.care-taken-btn {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 22px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 800;
+  font-size: calc(15px * var(--text-scale));
+  cursor: pointer;
+}
+.care-link {
+  align-self: center;
+  border: none;
+  background: none;
+  color: var(--accent-strong);
+  font-weight: 700;
+  font-size: calc(14px * var(--text-scale));
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+/* keep the home screen calm: the orb shrinks a little when the card is shown */
+#screen-home:has(.care-card:not([hidden])) .orb-stage { transform: scale(0.82); margin: -16px 0; }
+
+/* ==========================================================================
+   SOS screen
+   ========================================================================== */
+/* tint the whole phone (not just the screen box) and follow light/dark/contrast tokens */
+.samsung-container:has(#screen-sos.active) { background: color-mix(in srgb, #d93025 12%, var(--bg)); }
+.sos-screen { background: transparent; }
+.sos-main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px 8px; }
+.sos-phase { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+.sos-count-ring, .sos-done-ring {
+  width: 150px;
+  height: 150px;
+  border-radius: 75px;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-size: 64px;
+  font-weight: 800;
+}
+.sos-count-ring { background: #d93025; box-shadow: 0 0 0 14px rgba(217, 48, 37, 0.18), 0 0 0 28px rgba(217, 48, 37, 0.08); animation: sosPulse 1s ease-in-out infinite; }
+.sos-done-ring { background: var(--accent); }
+@keyframes sosPulse { 50% { transform: scale(1.05); } }
+.sos-title { font-size: calc(28px * var(--text-scale)); font-weight: 800; color: var(--text); }
+.sos-sub { font-size: calc(17px * var(--text-scale)); color: var(--text-muted); max-width: 300px; }
+.sos-cancel-btn {
+  margin-top: 18px;
+  width: 100%;
+  height: 72px;
+  border-radius: 36px;
+  border: 3px solid var(--text);
+  background: var(--surface);
+  color: var(--text);
+  font-size: calc(24px * var(--text-scale));
+  font-weight: 800;
+  cursor: pointer;
+}
+.sos-actions { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.sos-call-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  border-radius: 32px;
+  background: var(--surface);
+  border: 2px solid #d93025;
+  color: var(--text);
+  gap: 10px;
+  font-size: calc(20px * var(--text-scale));
+  font-weight: 800;
+  text-decoration: none;
+}
+.sos-call-btn.family { background: #d93025; color: #ffffff; }
+
+/* ==========================================================================
+   Dose alert + daily check-in
+   ========================================================================== */
+.dose-main, .checkin-main { justify-content: center; gap: 12px; }
+.dose-pill-icon { width: 110px; height: 110px; border-radius: 55px; background: var(--accent-soft); display: grid; place-items: center; font-size: 54px; }
+.dose-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.dose-big { height: 76px; font-size: calc(24px * var(--text-scale)); }
+.mood-grid { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.mood-btn {
+  min-height: 132px;
+  border-radius: 26px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: calc(18px * var(--text-scale));
+  font-weight: 800;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.mood-btn span { font-size: 44px; line-height: 1; }
+.mood-btn.good:hover, .mood-btn.good:focus-visible { border-color: var(--accent); background: var(--accent-soft); }
+.mood-btn.bad:hover, .mood-btn.bad:focus-visible { border-color: #d93025; background: #fde8e8; }
+.checkin-hint { text-align: center; font-size: calc(14px * var(--text-scale)); color: var(--text-muted); margin-top: 8px; }
+
+/* ==========================================================================
+   Medicines + onboarding forms
+   ========================================================================== */
+.meds-main, .onboarding-main { gap: 10px; }
+.dose-row .time-badge { margin-top: 4px; }
+.dose-row.taken .time-badge { background: var(--accent-soft); color: var(--accent-strong); }
+.dose-row.missed .time-badge { background: #fde8e8; color: #b3261e; }
+.dose-row.pending .time-badge { background: #fff4d6; color: #7a5410; }
+.med-form { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.med-form label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; font-size: calc(14px * var(--text-scale)); color: var(--text-muted); }
+.med-form input, .family-form input, .family-form select, .onb-row input, .onb-row select {
+  height: 52px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: calc(16px * var(--text-scale));
+  width: 100%;
+  box-sizing: border-box;
+}
+.med-form input:focus, .family-form input:focus, .family-form select:focus { outline: none; border-color: var(--accent); }
+.onb-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 12px 0 4px; }
+.onb-hero img { border-radius: 22px; }
+.onb-hero h2 { font-size: calc(28px * var(--text-scale)); font-weight: 800; }
+.onb-hero p { font-size: calc(16px * var(--text-scale)); color: var(--text-muted); }
+.onb-section { font-size: calc(15px * var(--text-scale)); color: var(--text); font-weight: 600; margin-top: 4px; }
+.onb-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-bottom: 10px; border-bottom: 1px dashed var(--border); }
+.onb-row input[type="tel"] { grid-column: 1 / -1; }
+.onb-skip { align-self: center; color: var(--text-muted); }
+
+/* ==========================================================================
+   Family sheet (elder side)
+   ========================================================================== */
+.family-row { display: flex; flex-direction: column; gap: 6px; }
+.family-row .contact-row { text-decoration: none; }
+.family-tools { display: flex; gap: 8px; padding-left: 56px; }
+.family-share {
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--accent-strong);
+  font-weight: 700;
+  font-size: calc(13px * var(--text-scale));
+  border-radius: 16px;
+  min-height: 36px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+.family-del {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  min-width: 36px;
+  min-height: 36px;
+  cursor: pointer;
+}
+.family-form { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.family-form h4 { font-size: calc(15px * var(--text-scale)); font-weight: 800; }
+
+/* ==========================================================================
+   Family page (/f/<token>) — a normal scrolling page, not the phone frame
+   ========================================================================== */
+body.family-body { display: block; min-height: 100vh; background: var(--bg); overflow: auto; }
+.family-page { max-width: 520px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 20px) 16px 40px; display: flex; flex-direction: column; gap: 14px; }
+.family-header { display: flex; flex-direction: column; gap: 6px; }
+.family-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: calc(16px * var(--text-scale)); color: var(--accent-strong); }
+.family-brand img { border-radius: 12px; }
+.family-elder { font-size: calc(32px * var(--text-scale)); font-weight: 800; color: var(--text); margin-top: 6px; }
+.family-hello { font-size: calc(16px * var(--text-scale)); color: var(--text-muted); }
+.family-card { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.family-card h2 { font-size: calc(15px * var(--text-scale)); font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; }
+.family-big { font-size: calc(20px * var(--text-scale)); font-weight: 700; color: var(--text); }
+.family-big.warn { color: #b3261e; }
+.family-list { display: flex; flex-direction: column; gap: 6px; }
+.family-row-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: calc(16px * var(--text-scale)); color: var(--text); }
+.family-row-item:last-child { border-bottom: none; }
+.family-chip { flex-shrink: 0; padding: 4px 10px; border-radius: 12px; font-size: calc(13px * var(--text-scale)); font-weight: 700; background: var(--surface-2); color: var(--text-muted); }
+.family-chip.ok { background: var(--accent-soft); color: var(--accent-strong); }
+.family-chip.bad { background: #fde8e8; color: #b3261e; }
+.family-chip.wait { background: #fff4d6; color: #7a5410; }
+.family-sos { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; border-radius: 22px; background: #d93025; color: #ffffff; font-size: calc(17px * var(--text-scale)); }
+.family-sos a { color: #ffffff; font-weight: 800; }
+.family-notify { margin: 0; }
+.family-hint { font-size: calc(14px * var(--text-scale)); color: var(--text-muted); text-align: center; }
+.family-foot { text-align: center; font-size: calc(13px * var(--text-scale)); color: var(--text-muted); margin-top: 8px; }
+.family-body .toast-host { position: fixed; }
+.meds-main, .onboarding-main { justify-content: flex-start; }
+.onboarding-main { padding-top: 24px; }
+/* The family page is a normal document: let it scroll (the app's no-scroll rule is for the phone UI) */
+html:has(body.family-body), body.family-body { height: auto !important; overflow: visible !important; overscroll-behavior: auto !important; }
+.family-notify { gap: 10px; }

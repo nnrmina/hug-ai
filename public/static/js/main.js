@@ -2,13 +2,13 @@
 // Voice / typed command → FastAPI agent (Gemini or rules) → confirmation → on-device action.
 import { getCapabilities } from "./api.js";
 import { stopSpeaking, unlockAudio } from "./audio/tts.js";
-import { CONTACTS } from "./contacts.js";
 import { cancelConfirmed, cancelPendingAction, executeConfirmed, stopConfirmListening } from "./flows/assistant.js";
 import { endCall, stopCallTimer } from "./flows/call.js";
 import { cancelListening, finishListening, processText, startListening } from "./flows/listen.js";
 import { finishOrder, stopOrderTimers } from "./flows/orders.js";
 import { clearDayFilter, openReminders, refreshReminders } from "./reminders/index.js";
 import { initSettings } from "./settings.js";
+import { ensureNotifications, handleCareDeepLink, initCare, maybeOnboard, refreshCare, showCheckin, watchDoses } from "./care/care.js";
 import { applySettings, capabilities, settings } from "./store.js";
 import { haptic } from "./ui/haptics.js";
 import { bindWaveform } from "./ui/orb.js";
@@ -45,27 +45,6 @@ function greeting() {
   el.textContent = h < 5 ? "Gecəniz xeyrə" : h < 12 ? "Sabahınız xeyir" : h < 18 ? "Günortanız xeyir" : "Axşamınız xeyir";
 }
 
-function renderContactsSheet() {
-  const list = document.getElementById("contacts-list");
-  if (!list) return;
-  list.innerHTML = "";
-  for (const c of CONTACTS) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "contact-row";
-    btn.innerHTML = `<span class="contact-avatar" aria-hidden="true"></span><span class="contact-text"><strong></strong><small></small></span><span class="contact-call" aria-hidden="true">📞</span>`;
-    btn.querySelector(".contact-avatar").textContent = c.initial;
-    btn.querySelector("strong").textContent = c.display_name;
-    btn.querySelector("small").textContent = c.phone_number;
-    btn.setAttribute("aria-label", `${c.display_name} — zəng et`);
-    btn.addEventListener("click", () => {
-      document.getElementById("contacts-dialog").close();
-      processText(c.call_phrase);
-    });
-    list.append(btn);
-  }
-}
-
 async function loadCapabilities() {
   try {
     Object.assign(capabilities, await getCapabilities());
@@ -95,11 +74,21 @@ document.addEventListener("DOMContentLoaded", () => {
   startClock();
   greeting();
   initSettings();
-  renderContactsSheet();
+  initCare();
   loadCapabilities();
   registerServiceWorker();
   if (settings.alerts) refreshReminders().catch(() => {});
-  if (new URLSearchParams(location.search).get("open") === "reminders") openReminders();
+  const params = new URLSearchParams(location.search);
+  refreshCare().then(async (care) => {
+    if (maybeOnboard()) return;
+    if (params.get("open") === "reminders") return openReminders();
+    if (params.get("dose") || params.get("checkin")) return handleCareDeepLink(params);
+    if (care && typeof Notification !== "undefined" && Notification.permission === "granted") ensureNotifications({ quiet: true });
+  });
+  watchDoses();
+  navigator.serviceWorker?.addEventListener("message", (e) => {
+    if (e.data?.type === "deeplink") handleCareDeepLink(new URLSearchParams(e.data.search || ""));
+  });
 
   document.addEventListener("pointerdown", unlockAudio, { once: true });
 

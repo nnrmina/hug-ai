@@ -1,4 +1,5 @@
 // Thin client for the FastAPI agent (/api/v1). Same origin locally and on Vercel.
+import { deviceId } from "./device.js";
 import { getHistory, getSessionId } from "./store.js";
 
 export const API_BASE = "/api/v1";
@@ -17,7 +18,7 @@ async function request(path, { method = "GET", json, body, timeoutMs = 25000 } =
     const res = await fetch(`${API_BASE}${path}`, {
       method,
       body: json !== undefined ? JSON.stringify(json) : body,
-      headers: json !== undefined ? { "Content-Type": "application/json" } : undefined,
+      headers: { "X-HUG-Device": deviceId(), ...(json !== undefined ? { "Content-Type": "application/json" } : {}) },
       signal: controller.signal
     });
     if (res.status === 204) return null;
@@ -67,3 +68,18 @@ export const updateReminder = (id, patch) =>
 export const deleteReminder = (id) => request(`/reminders/${encodeURIComponent(id)}`, { method: "DELETE" });
 
 export const ttsUrl = (text) => `${API_BASE}/tts?text=${encodeURIComponent(text.slice(0, 600))}`;
+
+// ---- care: profile, family circle, medicines, check-in, SOS, push ----
+export const careState = () => request("/care/state", { timeoutMs: 10000 });
+export const saveProfile = (body) => request("/care/profile", { method: "PUT", json: body });
+export const addFamily = (body) => request("/care/family", { method: "POST", json: body });
+export const removeFamily = (id) => request(`/care/family/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const addMedication = (body) => request("/care/medications", { method: "POST", json: body });
+export const removeMedication = (id) => request(`/care/medications/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const doseTaken = (id) => request(`/care/doses/${encodeURIComponent(id)}/taken`, { method: "POST" });
+export const doseSnooze = (id, minutes = 10) =>
+  request(`/care/doses/${encodeURIComponent(id)}/snooze`, { method: "POST", json: { minutes } });
+export const sendCheckin = (mood, note = "") => request("/care/checkin", { method: "POST", json: { mood, note } });
+export const sendSos = (body) => request("/care/sos", { method: "POST", json: body, timeoutMs: 15000 });
+export const subscribeElderPush = (subscription) =>
+  request("/care/push/subscribe", { method: "POST", json: { subscription } });
