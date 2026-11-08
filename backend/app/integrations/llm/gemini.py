@@ -1,0 +1,327 @@
+"""Gemini-powered understanding for HUG / YAXIN AI.
+
+One `generate_content` call per turn handles audio *or* text: it transcribes Azerbaijani
+speech, classifies the intent and extracts the slots as schema-validated JSON. Anything
+that goes wrong (no key, quota 429, timeout, malformed JSON) falls back to the
+deterministic rule-based adapter, so the assistant never stops working.
+
+Privacy: only the user's own words (and the last few turns) are sent. Contact lists,
+phone numbers and saved reminders never leave the device / database.
+"""
+from __future__ import annotations
+
+import time
+from datetime import datetime, timedelta
+from functools import lru_cache
+from typing import Any, Dict, List, Literal, Optional
+
+from pydantic import BaseModel, Field, ValidationError
+
+from app.core.config import settings
+from app.core.logging import logger
+from app.core.security import ACTION_RISK_POLICY
+from app.integrations.llm.base import BaseLLMAdapter
+from app.integrations.llm.provider import (
+    ASK_WHEN,
+    ASK_WHO,
+    AzerbaijaniSmartLLMAdapter,
+    get_rule_adapter,
+)
+from app.utils.datetime_utils import BAKU_TZ, now_baku, parse_azerbaijani_datetime_ex
+
+MAX_ANSWER_CHARS = 320
+AZ_WEEKDAYS = ["bazar ertəsi", "çərşənbə axşamı", "çərşənbə", "cümə axşamı", "cümə", "şənbə", "bazar"]
+CONFIRM_INTENTS = {
+    "MAKE_CALL",
+    "SEND_VOICE_MESSAGE",
+    "CREATE_REMINDER",
+    "ORDER_FOOD",
+    "ORDER_PHARMACY",
+    "ORDER_TAXI",
+}
+
+IntentName = Literal[
+    "MAKE_CALL",
+    "SEND_VOICE_MESSAGE",
+    "CREATE_REMINDER",
+    "ANALYZE_MESSAGE",
+    "ORDER_FOOD",
+    "ORDER_PHARMACY",
+    "ORDER_TAXI",
+    "GENERAL_QUESTION",
+    "UNKNOWN",
+]
+
+
+class SecurityAssessment(BaseModel):
+    risk_level: Literal["low", "medium", "high"]
+    risk_score: int = Field(ge=0, le=100)
+    indicators: List[str] = Field(default_factory=list)
+    explanation: str
+    recommendation: str
+
+
+class Understanding(BaseModel):
+    transcript: str = Field(description="Exactly what the user said, in Azerbaijani script.")
+    intent: IntentName
+    confidence: float = Field(ge=0.0, le=1.0)
+    contact_alias: Optional[str] = None
+    title: Optional[str] = None
+    scheduled_at: Optional[str] = None
+    food_item: Optional[Literal["tantuni", "doner", "bozbas"]] = None
+    message_to_analyze: Optional[str] = None
+    answer: Optional[str] = None
+    clarification_question: Optional[str] = None
+    missing_slots: List[str] = Field(default_factory=list)
+    blocked_action: Optional[Literal["BANK_TRANSFER", "MEDICAL_DECISION"]] = None
+    security: Optional[SecurityAssessment] = None
+
+
+SYSTEM_PROMPT = """You are HUG, a warm, patient voice assistant for elderly people in Azerbaijan.
+Every user-facing string you write (answer, clarification_question, title, security texts) MUST be
+natural, polite Azerbaijani (Latin script), short and easy to understand when spoken aloud.
+
+For each turn return ONE JSON object matching the schema.
+
+transcript: the user's words verbatim in Azerbaijani (fix obvious speech-recognition spelling only).
+If the audio is silent or unintelligible, return intent UNKNOWN, transcript "" and a short
+clarification_question asking them to repeat.
+
+intent — pick exactly one:
+- MAKE_CALL: call someone ("qızıma zəng et", "mamama zvanok elə", "Almazı yığ").
+- SEND_VOICE_MESSAGE: send someone a message or tell them something ("qızıma de ki gecikirəm").
+- CREATE_REMINDER: remind / wake up / alarm at a time ("sabah 10-da dərmanımı xatırlat").
+- ANALYZE_MESSAGE: user asks whether a message/SMS/call is a scam, or reads one out.
+- ORDER_FOOD: order a meal (Wolt, tantuni, dönər, bozbaş, "yemək sifariş et").
+- ORDER_PHARMACY: order medicine from a pharmacy (aptek, kardiomaqnil, "dərman sifariş et").
+  Note: "remind me to take my medicine" is CREATE_REMINDER, not ORDER_PHARMACY.
+- ORDER_TAXI: call a taxi / car.
+- GENERAL_QUESTION: greetings, small talk, questions about you or general knowledge.
+- UNKNOWN: anything else, or when you genuinely cannot tell.
+
+Slots:
+- contact_alias: the person exactly as named, in nominative form without the dative suffix
+  ("qızıma" -> "qızım", "Almaz xalaya" -> "Almaz xala", "mamama" -> "mama"). Never invent phone
+  numbers. If no person is named for MAKE_CALL / SEND_VOICE_MESSAGE, set contact_alias null,
+  missing_slots ["contact_alias"] and ask who.
+- title (reminders): short noun phrase, e.g. "Dərman qəbulu", "Həkim qəbulu". For voice messages,
+  put the message content in title.
+- scheduled_at (reminders): ISO 8601 with +04:00 offset, resolved against the current Baku time
+  below, always in the future. If the user gave no day and no time, set it null, add
+  "scheduled_at" to missing_slots and ask when. "səhər" = morning, "axşam" = evening,
+  "günorta" = afternoon; with no part of day, assume the next upcoming occurrence.
+- food_item: tantuni | doner | bozbas when mentioned.
+- message_to_analyze + security (ANALYZE_MESSAGE): judge scam risk (urgency, requests for
+  card/PIN/OTP, suspicious links, impersonation of banks or officials, prizes). Explain in
+  1-2 sentences and give one clear recommendation.
+- answer (GENERAL_QUESTION only): at most 2 short sentences. You have NO internet or live data:
+  for weather, news, prices or exchange rates, say kindly that you cannot see live information.
+  Never give medical diagnoses or dosing advice, nor financial/investment advice.
+- blocked_action: BANK_TRANSFER for any request to send/transfer money or pay from a card;
+  MEDICAL_DECISION for requests to change, stop or choose medication or treatment. Use intent
+  UNKNOWN in those cases.
+
+Use the previous turns to resolve follow-ups: if the assistant just asked a question (e.g. "Nə vaxt
+xatırladım?") the user's reply fills that slot of the SAME intent, keeping earlier details."""
+
+
+class GeminiLLMAdapter(BaseLLMAdapter):
+    """Gemini adapter with automatic rule-based fallback."""
+
+    def __init__(self, client: Any = None, model: Optional[str] = None,
+                 fallback: Optional[AzerbaijaniSmartLLMAdapter] = None):
+        self._client = client
+        self.model = model or settings.LLM_MODEL_NAME
+        self.fallback = fallback or get_rule_adapter()
+
+    # -- plumbing ---------------------------------------------------------
+    @property
+    def client(self):
+        if self._client is None:
+            from google import genai
+
+            self._client = genai.Client(api_key=settings.gemini_key)
+        return self._client
+
+    def _call(self, contents: List[Any], timeout_ms: int) -> Understanding:
+        from google.genai import types
+
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                response_schema=Understanding,
+                temperature=0.2,
+                http_options=types.HttpOptions(timeout=timeout_ms),
+            ),
+        )
+        raw = getattr(response, "text", None) or ""
+        return Understanding.model_validate_json(raw)
+
+    @staticmethod
+    def _context_block(history: Optional[List[Dict[str, Any]]], now: datetime) -> str:
+        lines = [
+            f"Current Baku time: {now.isoformat(timespec='minutes')} ({AZ_WEEKDAYS[now.weekday()]}).",
+        ]
+        turns = [t for t in (history or []) if t.get("user") or t.get("assistant")][-settings.SESSION_MAX_TURNS:]
+        if turns:
+            lines.append("Previous turns (oldest first):")
+            for t in turns:
+                if t.get("user"):
+                    lines.append(f"User: {str(t['user'])[:400]}")
+                if t.get("assistant"):
+                    lines.append(f"Assistant: {str(t['assistant'])[:400]}")
+        return "\n".join(lines)
+
+    # -- BaseLLMAdapter ----------------------------------------------------
+    def detect_intent(self, message: str) -> Dict[str, Any]:
+        return self.understand(text=message)
+
+    def analyze_security_text(self, message: str) -> Dict[str, Any]:
+        return self.fallback.analyze_security_text(message)
+
+    def understand(
+        self,
+        text: Optional[str] = None,
+        audio: Optional[bytes] = None,
+        mime_type: Optional[str] = None,
+        history: Optional[List[Dict[str, Any]]] = None,
+        now: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        now = (now or now_baku()).astimezone(BAKU_TZ)
+        text = (text or "").strip() or None
+        if not text and not audio:
+            return self.fallback.understand(text=None, history=history, now=now)
+
+        contents: List[Any] = [self._context_block(history, now)]
+        if audio:
+            from google.genai import types
+
+            contents.append(types.Part.from_bytes(data=audio, mime_type=mime_type or "audio/wav"))
+            contents.append("Understand the user's spoken request in the audio above.")
+            if text:
+                contents.append(f"(Browser speech recognition heard: {text})")
+            timeout_ms = settings.LLM_TIMEOUT_AUDIO_MS
+        else:
+            contents.append(f"User: {text}")
+            timeout_ms = settings.LLM_TIMEOUT_TEXT_MS
+
+        started = time.monotonic()
+        try:
+            parsed = self._call(contents, timeout_ms)
+        except ValidationError as exc:
+            return self._fallback(text, audio, history, now, f"invalid JSON: {exc.error_count()} errors")
+        except Exception as exc:  # APIError (429/5xx), timeouts, network, auth
+            status = getattr(exc, "code", None) or getattr(exc, "status", None) or type(exc).__name__
+            return self._fallback(text, audio, history, now, f"{status}")
+
+        logger.info("gemini ok model=%s intent=%s %.0fms", self.model, parsed.intent,
+                    (time.monotonic() - started) * 1000)
+        return self._to_action(parsed, text, now)
+
+    # -- fallback & mapping ------------------------------------------------
+    def _fallback(self, text, audio, history, now, reason: str) -> Dict[str, Any]:
+        logger.warning("gemini unavailable (%s) -> rule_based fallback", reason)
+        result = self.fallback.understand(text=text, audio=audio, history=history, now=now)
+        result["fallback_reason"] = reason
+        return result
+
+    def _to_action(self, u: Understanding, typed_text: Optional[str], now: datetime) -> Dict[str, Any]:
+        transcript = (u.transcript or typed_text or "").strip()
+        out: Dict[str, Any] = {
+            "intent": u.intent,
+            "confidence": round(float(u.confidence), 2),
+            "requires_confirmation": u.intent in CONFIRM_INTENTS,
+            "transcript": transcript,
+            "engine": "gemini",
+        }
+        if u.missing_slots:
+            out["missing_slots"] = list(u.missing_slots)
+
+        # Hard safety rails: only accept blocks that the policy table really disallows
+        if u.blocked_action and not ACTION_RISK_POLICY.get(u.blocked_action, {}).get("allowed_in_mvp", True):
+            out.update(intent="UNKNOWN", requires_confirmation=False, blocked_action=u.blocked_action,
+                       reason=ACTION_RISK_POLICY[u.blocked_action].get("reason"))
+            return out
+
+        if not transcript and u.intent == "UNKNOWN":
+            out["stt_failed"] = True
+            out["clarification_question"] = u.clarification_question or "Sizi eşidə bilmədim. Bir daha deyə bilərsiniz?"
+            return out
+
+        if u.intent in ("MAKE_CALL", "SEND_VOICE_MESSAGE"):
+            alias = (u.contact_alias or "").strip()
+            if alias:
+                out["contact_alias"] = alias
+                out["search_candidates"] = self.fallback._build_search_candidates(alias)
+                if u.intent == "SEND_VOICE_MESSAGE" and u.title:
+                    out["message_text"] = u.title.strip()[:300]
+            else:
+                out["clarification_question"] = u.clarification_question or ASK_WHO
+                out["missing_slots"] = ["contact_alias"]
+
+        elif u.intent == "CREATE_REMINDER":
+            when = self._valid_future(u.scheduled_at, now)
+            title = (u.title or "").strip()
+            if when is None:
+                # Gemini gave no/invalid time: trust our parser only if the user really said one
+                parsed_dt, parsed_title, matched_time, matched_day = parse_azerbaijani_datetime_ex(transcript, now)
+                title = title or parsed_title
+                if matched_time or matched_day:
+                    when = parsed_dt
+            out["title"] = (title or "Xatırlatma")[:120]
+            out["timezone"] = "Asia/Baku"
+            if when is None:
+                out["clarification_question"] = u.clarification_question or ASK_WHEN
+                out["missing_slots"] = ["scheduled_at"]
+            else:
+                out["scheduled_at"] = when.isoformat()
+
+        elif u.intent in ("ORDER_FOOD", "ORDER_PHARMACY", "ORDER_TAXI"):
+            if u.food_item:
+                out["food_item"] = u.food_item
+
+        elif u.intent == "ANALYZE_MESSAGE":
+            out["message_to_analyze"] = (u.message_to_analyze or transcript)[:2000]
+            if u.security:
+                out["llm_security"] = u.security.model_dump()
+
+        elif u.intent == "GENERAL_QUESTION":
+            if u.answer:
+                out["answer"] = _cap(u.answer)
+
+        elif u.intent == "UNKNOWN" and u.clarification_question:
+            out["clarification_question"] = _cap(u.clarification_question)
+
+        return out
+
+    @staticmethod
+    def _valid_future(value: Optional[str], now: datetime) -> Optional[datetime]:
+        if not value:
+            return None
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if dt.tzinfo is None:
+            return None
+        dt = dt.astimezone(BAKU_TZ)
+        if dt <= now - timedelta(minutes=1) or dt > now + timedelta(days=366):
+            return None
+        return dt
+
+
+def _cap(text: str) -> str:
+    text = " ".join(text.split())
+    if len(text) <= MAX_ANSWER_CHARS:
+        return text
+    cut = text[:MAX_ANSWER_CHARS]
+    return cut[: cut.rfind(" ")].rstrip(",;:") + "…"
+
+
+@lru_cache
+def get_gemini_adapter() -> GeminiLLMAdapter:
+    logger.info("LLM engine: Gemini (%s) with rule-based fallback", settings.LLM_MODEL_NAME)
+    return GeminiLLMAdapter()

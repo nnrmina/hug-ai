@@ -9,6 +9,11 @@ from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+# Tests never call the real Gemini API (a developer's backend/.env key must not leak in);
+# Gemini behaviour is covered with an injected fake client in test_gemini_adapter.py.
+os.environ["LLM_PROVIDER"] = "rule_based"
+os.environ["GEMINI_API_KEY"] = ""
+os.environ["LLM_API_KEY"] = ""
 
 from app.main import app  # noqa: E402
 from app.core.database import Base, get_db  # noqa: E402
@@ -44,3 +49,13 @@ def client(db_session):
         yield test_client
     app.dependency_overrides.clear()
 
+
+
+@pytest.fixture(autouse=True)
+def _reset_memory():
+    from app.services.assistant_service import _ACTION_STORE
+    from app.services.session_store import session_store
+
+    _ACTION_STORE.clear()
+    session_store.clear()
+    yield

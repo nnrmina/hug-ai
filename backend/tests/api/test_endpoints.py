@@ -140,4 +140,9 @@ def test_voice_endpoint_does_not_invent_transcripts(client):
         "/api/v1/assistant/voice",
         files={"audio": ("voice.webm", bytes([0xFF, 0xFE, 0x00, 0x81]), "audio/webm")},
     )
-    assert res.status_code == 422
+    # Without Gemini the server cannot read raw audio: it must ask again, never guess.
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "needs_clarification"
+    assert data["action_data"]["stt_failed"] is True
+    assert data["intent"] == "UNKNOWN"

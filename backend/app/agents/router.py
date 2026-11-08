@@ -7,7 +7,7 @@ def route_by_intent(state: AgentState) -> str:
     intent = state.get("intent") or "UNKNOWN"
     action_data = state.get("action_data") or {}
 
-    if action_data.get("blocked_action"):
+    if action_data.get("blocked_action") or state.get("status") == "needs_clarification":
         return "validation_node"
 
     if intent in ("MAKE_CALL", "SEND_VOICE_MESSAGE"):

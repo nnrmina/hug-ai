@@ -1,3 +1,5 @@
+from typing import Any, Dict, Optional
+
 from app.agents.state import AgentState
 from app.agents.router import route_by_intent
 from app.agents.nodes.intent_node import input_node, intent_node
@@ -86,7 +88,11 @@ def build_agent_graph():
 agent_graph = build_agent_graph()
 
 
-def run_agent_workflow(user_id: str, user_message: str) -> AgentState:
+def run_agent_workflow(
+    user_id: str,
+    user_message: str,
+    llm_parsed: Optional[Dict[str, Any]] = None,
+) -> AgentState:
     """Execute the full YAXIN AI agent workflow for a user message."""
     initial_state: AgentState = {
         "user_id": user_id,
@@ -98,6 +104,7 @@ def run_agent_workflow(user_id: str, user_message: str) -> AgentState:
         "confirmation_status": None,
         "response": None,
         "status": None,
+        "llm_parsed": llm_parsed,
     }
     return agent_graph.invoke(initial_state)
 

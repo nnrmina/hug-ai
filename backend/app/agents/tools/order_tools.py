@@ -4,7 +4,7 @@ Nothing here places a real order: Wolt has no public ordering API. The backend r
 a structured order preview (vendor, item, price, deep link) that the UI shows for
 confirmation and then hands off to Wolt's own search page.
 """
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 ORDER_INTENTS = ("ORDER_FOOD", "ORDER_PHARMACY", "ORDER_TAXI")
 
@@ -74,12 +74,14 @@ def _pick_food(text: str) -> Dict[str, Any]:
     return _FOOD_CATALOG["tantuni"]
 
 
-def prepare_order(intent: str, text: str) -> Dict[str, Any]:
+def prepare_order(intent: str, text: str, food_item: Optional[str] = None) -> Dict[str, Any]:
     """Build a simulated order preview for the given order intent."""
     if intent == "ORDER_PHARMACY":
         order = _PHARMACY_ORDER
     elif intent == "ORDER_TAXI":
         order = _TAXI_ORDER
+    elif food_item in _FOOD_CATALOG:
+        order = _FOOD_CATALOG[food_item]
     else:
         order = _pick_food(text)
 

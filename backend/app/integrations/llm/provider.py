@@ -1,7 +1,13 @@
 import re
-from typing import Any, Dict, List
+from datetime import datetime
+from functools import lru_cache
+from typing import Any, Dict, List, Optional
 from app.integrations.llm.base import BaseLLMAdapter
-from app.utils.datetime_utils import parse_azerbaijani_datetime
+from app.utils.datetime_utils import parse_azerbaijani_datetime, parse_azerbaijani_datetime_ex
+
+ASK_WHEN = "Nə vaxt xatırladım? Məsələn: “sabah saat 9-da”."
+ASK_WHO = "Kimə zəng edim? Məsələn: “qızıma” və ya “Almaz xalaya”."
+_CALL_VERB_ONLY = re.compile(r"(?i)^(?:zəng|zeng|yığ|yig|zvanok|nömrə|nomre|əlaqə)\b")
 
 INTENTS = [
     "MAKE_CALL",
@@ -306,6 +312,76 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
             "requires_confirmation": False,
         }
 
+    def understand(
+        self,
+        text: Optional[str] = None,
+        audio: Optional[bytes] = None,
+        mime_type: Optional[str] = None,
+        history: Optional[List[Dict[str, Any]]] = None,
+        now: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        """Rule-based turn understanding with simple slot-filling follow-ups."""
+        meta = {"engine": "rule_based"}
+        if not text or not text.strip():
+            # Without a server-side speech model we cannot read raw audio.
+            return {
+                "intent": "UNKNOWN",
+                "confidence": 0.0,
+                "requires_confirmation": False,
+                "transcript": "",
+                "stt_failed": bool(audio),
+                **meta,
+            }
+        text = text.strip()
+        meta["transcript"] = text
+        pending = (history[-1].get("pending") if history else None) or {}
+
+        # Follow-up: the previous turn asked "Nə vaxt?" for a reminder
+        if pending.get("intent") == "CREATE_REMINDER":
+            scheduled, _, matched_time, matched_day = parse_azerbaijani_datetime_ex(text, now)
+            if matched_time or matched_day:
+                return {
+                    "intent": "CREATE_REMINDER",
+                    "confidence": 0.9,
+                    "title": pending.get("title") or "Xatırlatma",
+                    "scheduled_at": scheduled.isoformat(),
+                    "timezone": "Asia/Baku",
+                    "requires_confirmation": True,
+                    **meta,
+                }
+
+        parsed = self.detect_intent(text)
+
+        # Follow-up: the previous turn asked "Kimə?" and the user just said a name
+        if parsed["intent"] == "UNKNOWN" and not parsed.get("blocked_action") and pending.get("intent") in (
+            "MAKE_CALL",
+            "SEND_VOICE_MESSAGE",
+        ):
+            alias = self._extract_contact_alias(text)
+            parsed = {
+                "intent": pending["intent"],
+                "confidence": 0.85,
+                "contact_alias": alias,
+                "search_candidates": self._build_search_candidates(alias),
+                "requires_confirmation": True,
+            }
+
+        if parsed["intent"] == "CREATE_REMINDER":
+            _, _, matched_time, matched_day = parse_azerbaijani_datetime_ex(text, now)
+            if not matched_time and not matched_day:
+                parsed["clarification_question"] = ASK_WHEN
+                parsed["missing_slots"] = ["scheduled_at"]
+
+        if parsed["intent"] in ("MAKE_CALL", "SEND_VOICE_MESSAGE"):
+            alias = (parsed.get("contact_alias") or "").strip()
+            if not alias or alias == "naməlum kontakt" or _CALL_VERB_ONLY.match(alias):
+                parsed["contact_alias"] = None
+                parsed["clarification_question"] = ASK_WHO
+                parsed["missing_slots"] = ["contact_alias"]
+
+        parsed.update(meta)
+        return parsed
+
     def _extract_contact_alias(self, text: str) -> str:
         """Extract kinship alias or proper contact name (e.g., 'Almaza zəng et' -> 'Almaz')."""
         cleaned = re.sub(
@@ -451,6 +527,19 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
         return [mapping.get(ind, ind) for ind in indicators]
 
 
-def get_llm_adapter() -> BaseLLMAdapter:
-    """Return configured LLM adapter instance."""
+@lru_cache
+def get_rule_adapter() -> AzerbaijaniSmartLLMAdapter:
     return AzerbaijaniSmartLLMAdapter()
+
+
+def get_llm_adapter() -> BaseLLMAdapter:
+    """Return the configured adapter: Gemini when a key is set (LLM_PROVIDER=auto|gemini),
+    otherwise the deterministic Azerbaijani rule-based parser."""
+    from app.core.config import settings
+
+    provider = (settings.LLM_PROVIDER or "auto").lower()
+    if provider in ("auto", "gemini") and settings.gemini_key:
+        from app.integrations.llm.gemini import get_gemini_adapter
+
+        return get_gemini_adapter()
+    return get_rule_adapter()

@@ -35,16 +35,30 @@ def parse_azerbaijani_datetime(
     reference_time: Optional[datetime] = None,
 ) -> Tuple[datetime, str]:
     """Extract scheduled datetime (Asia/Baku) and cleaned title from Azerbaijani command text."""
+    scheduled, title, _, _ = parse_azerbaijani_datetime_ex(text, reference_time)
+    return scheduled, title
+
+
+def parse_azerbaijani_datetime_ex(
+    text: str,
+    reference_time: Optional[datetime] = None,
+) -> Tuple[datetime, str, bool, bool]:
+    """Like parse_azerbaijani_datetime, but also reports whether a time and/or a day was
+    actually mentioned: (scheduled, title, matched_time, matched_day). When neither was said
+    the datetime is only a default guess and the assistant should ask "Nə vaxt?"."""
     base = (reference_time or now_baku()).astimezone(BAKU_TZ)
     lower = text.lower().strip()
 
     days_offset = 0
+    matched_day = True
     if "birigün" in lower or "biri gün" in lower:
         days_offset = 2
     elif "sabah" in lower:
         days_offset = 1
     elif "bu gün" in lower or "bugün" in lower:
         days_offset = 0
+    else:
+        matched_day = False
 
     hour = 9
     minute = 0
@@ -112,7 +126,7 @@ def parse_azerbaijani_datetime(
             scheduled += timedelta(days=1)
 
     title = extract_reminder_title(text)
-    return scheduled, title
+    return scheduled, title, matched_time, matched_day
 
 
 def extract_reminder_title(text: str) -> str:

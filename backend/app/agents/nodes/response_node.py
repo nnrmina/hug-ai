@@ -40,7 +40,7 @@ def validation_node(state: AgentState) -> AgentState:
 
 def confirmation_node(state: AgentState) -> AgentState:
     """Human-in-the-loop confirmation gate (Section 9.6)."""
-    if state.get("status") == "rejected":
+    if state.get("status") in ("rejected", "needs_clarification"):
         return state
 
     if state.get("requires_confirmation"):
@@ -73,6 +73,13 @@ def response_node(state: AgentState) -> AgentState:
             **state,
             "response": reason,
             "status": "rejected",
+        }
+
+    if status == "needs_clarification" and action_data.get("clarification_question"):
+        return {
+            **state,
+            "response": action_data["clarification_question"],
+            "status": "needs_clarification",
         }
 
     if intent == "MAKE_CALL":
@@ -119,6 +126,8 @@ def response_node(state: AgentState) -> AgentState:
         }
 
     if intent == "GENERAL_QUESTION":
+        if action_data.get("answer"):
+            return {**state, "response": action_data["answer"], "status": "completed"}
         is_greeting = "salam" in (state.get("user_message") or "").lower()
         prefix = "Salam! Sizə necə kömək edə bilərəm? " if is_greeting else "Mən sizin səsli köməkçinizəm. "
         return {

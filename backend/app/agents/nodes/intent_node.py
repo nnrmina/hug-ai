@@ -13,8 +13,7 @@ def input_node(state: AgentState) -> AgentState:
 
 def intent_node(state: AgentState) -> AgentState:
     """Detect user intent and extract initial structured fields using the LLM adapter."""
-    adapter = get_llm_adapter()
-    parsed = adapter.detect_intent(state["user_message"])
+    parsed = state.get("llm_parsed") or get_llm_adapter().detect_intent(state["user_message"])
 
     intent = parsed.get("intent", "UNKNOWN")
     confidence = float(parsed.get("confidence", 0.0))
@@ -25,11 +24,16 @@ def intent_node(state: AgentState) -> AgentState:
         if key not in ("intent", "confidence", "requires_confirmation"):
             action_data[key] = value
 
-    return {
+    new_state = {
         **state,
         "intent": intent,
         "confidence": confidence,
         "action_data": action_data,
         "requires_confirmation": requires_confirmation,
     }
+    # A required slot is missing (e.g. "Xatırlat" with no time): ask instead of acting
+    if action_data.get("clarification_question") and not action_data.get("blocked_action"):
+        new_state["requires_confirmation"] = False
+        new_state["status"] = "needs_clarification"
+    return new_state
 
