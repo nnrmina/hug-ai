@@ -26,23 +26,19 @@ PHRASES = {
 }
 
 async def generate():
-    out_dir_pub = os.path.join("public", "static", "audio")
-    out_dir_back = os.path.join("backend", "app", "static", "audio")
-    os.makedirs(out_dir_pub, exist_ok=True)
-    os.makedirs(out_dir_back, exist_ok=True)
+    # Single frontend source: public/ (served by Vercel directly and by FastAPI locally)
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out_dir = os.path.join(repo_root, "public", "static", "audio")
+    os.makedirs(out_dir, exist_ok=True)
 
     for filename, text in PHRASES.items():
-        pub_path = os.path.join(out_dir_pub, filename)
-        back_path = os.path.join(out_dir_back, filename)
+        path = os.path.join(out_dir, filename)
         print(f"Generating {filename}: '{text}'...")
-        communicate = edge_tts.Communicate(text, VOICE)
-        await communicate.save(pub_path)
-        with open(pub_path, "rb") as f_in, open(back_path, "wb") as f_out:
-            f_out.write(f_in.read())
-        print(f"Saved: {pub_path} ({os.path.getsize(pub_path)} bytes)")
+        await edge_tts.Communicate(text, VOICE).save(path)
+        print(f"Saved: {path} ({os.path.getsize(path)} bytes)")
 
     print("All Azerbaijani voice audio generated successfully!")
 
+
 if __name__ == "__main__":
     asyncio.run(generate())
-

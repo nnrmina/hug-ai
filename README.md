@@ -33,48 +33,47 @@
 ## 3. Qovluq Strukturu (Folder Structure)
 
 ```text
-yaxin-ai/
-├── backend/                  # Python + FastAPI + SQLAlchemy + LangGraph
-├── mobile/                   # Flutter (Android-first MVP, Riverpod, Clean Architecture)
-├── docs/                     # Texniki sənədləşmə (Architecture, API, DB, AI Workflow, Privacy)
-├── infrastructure/           # Docker və deployment konfiqurasiyaları
-├── .gitignore
-├── docker-compose.yml
-└── README.md
+hug-ai/
+├── public/                   # Web tətbiqi (PWA) — YEGANƏ frontend mənbəyi (Vercel + FastAPI)
+├── backend/                  # Python + FastAPI + SQLAlchemy + LangGraph agent
+├── api/index.py              # Vercel serverless giriş nöqtəsi (backend tətbiqini idxal edir)
+├── hug-ml/                   # Eksperimental scikit-learn niyyət təsnifatçısı (backend-ə qoşulmayıb)
+├── mobile/                   # Flutter skeleti (Android-first)
+├── scripts/                  # Köməkçi skriptlər (səs faylları generasiyası)
+└── docs/                     # Texniki sənədləşmə
 ```
 
 ---
 
 ## 4. Quraşdırma və İşə Salma (Quick Start)
 
-### 4.1. Database (Docker ilə)
+### 4.1. Backend + Web tətbiqi
 ```bash
-docker compose up -d db
+cd backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+cp .env.example .env          # GEMINI_API_KEY əlavə edin (opsional)
+.venv/bin/uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+- Web tətbiqi: `http://127.0.0.1:8000/`
+- Swagger UI: `http://127.0.0.1:8000/docs`
+
+Heç bir açar olmadan da işləyir: SQLite, qayda əsaslı niyyət analizi və pulsuz neural səs (edge-tts) standartdır.
+
+### 4.2. Docker
+```bash
+docker build -f backend/Dockerfile -t hug-ai .
+docker run -p 8000:8000 --env-file backend/.env hug-ai
 ```
 
-### 4.2. Backend (FastAPI)
-```powershell
-cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-Swagger UI: `http://127.0.0.1:8000/docs`
-
-> **Qeyd:** Lokal inkişaf və test zamanı PostgreSQL əlçatan olmadıqda, backend avtomatik və ya konfiqurasiya ilə SQLite (`sqlite:///./yaxin_ai.db`) üzərində də işləyə bilir.
-
-### 4.3. Testlərin İşə Salınması
-```powershell
-cd backend
-pytest
+### 4.3. Testlər
+```bash
+cd backend && .venv/bin/pytest
 ```
 
 ### 4.4. Mobil Tətbiq (Flutter)
-```powershell
-cd mobile
-flutter pub get
-flutter run
+```bash
+cd mobile && flutter pub get && flutter run
 ```
 
 ---

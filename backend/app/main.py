@@ -1,13 +1,35 @@
+import mimetypes
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, Request, Response
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+
 from app.api.router import api_router
 from app.core.database import init_db
 
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+# Single source of truth for the web app: <repo>/public (also served as-is by Vercel).
+REPO_ROOT = Path(__file__).resolve().parents[2]
+PUBLIC_DIR = Path(os.environ.get("PUBLIC_DIR") or REPO_ROOT / "public").resolve()
+
+# Windows' registry often maps .js to text/plain, which breaks ES modules.
+mimetypes.add_type("application/javascript", ".js")
+mimetypes.add_type("application/javascript", ".mjs")
+mimetypes.add_type("text/css", ".css")
+mimetypes.add_type("application/manifest+json", ".webmanifest")
+mimetypes.add_type("image/svg+xml", ".svg")
+
+# Top-level files the PWA needs at the site root (same paths Vercel serves from public/)
+ROOT_FILES = {
+    "sw.js": {"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
+    "manifest.webmanifest": {"Cache-Control": "no-cache"},
+    "favicon.svg": {},
+    "favicon.ico": {},
+    "robots.txt": {},
+}
 
 
 @asynccontextmanager
@@ -33,43 +55,30 @@ app.add_middleware(
 
 app.include_router(api_router, prefix="/api/v1")
 
-
-def _load_index_html() -> str:
-    index_path = STATIC_DIR / "index.html"
-    if index_path.exists():
-        return index_path.read_text(encoding="utf-8")
-    return "<h1>YAXIN AI</h1>"
+for _sub in ("static", "icons"):
+    if (PUBLIC_DIR / _sub).is_dir():
+        app.mount(f"/{_sub}", StaticFiles(directory=str(PUBLIC_DIR / _sub)), name=_sub)
 
 
-@app.get("/static/styles.css", include_in_schema=False)
-async def serve_css():
-    css_path = STATIC_DIR / "styles.css"
-    return Response(
-        content=css_path.read_text(encoding="utf-8") if css_path.exists() else "",
-        media_type="text/css; charset=utf-8",
-    )
-
-
-@app.get("/static/app.js", include_in_schema=False)
-async def serve_js():
-    js_path = STATIC_DIR / "app.js"
-    return Response(
-        content=js_path.read_text(encoding="utf-8") if js_path.exists() else "",
-        media_type="application/javascript; charset=utf-8",
-    )
-
-
-if STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-
-@app.get("/", response_class=HTMLResponse)
-@app.get("/app", response_class=HTMLResponse, include_in_schema=False)
-@app.get("/app/", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/", include_in_schema=False)
+@app.get("/app", include_in_schema=False)
+@app.get("/app/", include_in_schema=False)
 async def web_app():
-    return HTMLResponse(content=_load_index_html())
+    index_path = PUBLIC_DIR / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="public/index.html not found")
+    return FileResponse(index_path, media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+@app.get("/{filename}", include_in_schema=False)
+async def root_file(filename: str):
+    headers = ROOT_FILES.get(filename)
+    path = PUBLIC_DIR / filename
+    if headers is None or not path.is_file():
+        raise HTTPException(status_code=404)
+    return FileResponse(path, headers=headers)
