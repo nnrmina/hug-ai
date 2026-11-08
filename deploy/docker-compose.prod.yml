@@ -11,6 +11,8 @@ services:
     image: hug-ai-api:latest
     restart: unless-stopped
     env_file: .env
+    environment:
+      GIT_SHA: ${GIT_SHA:-unknown}
     volumes:
       - hug-data:/data
     networks:

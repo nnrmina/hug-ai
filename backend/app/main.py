@@ -72,7 +72,8 @@ async def web_app():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    # GIT_SHA is injected at deploy time (deploy/deploy.sh) so you can see what is live
+    return {"status": "healthy", "version": os.environ.get("GIT_SHA", "dev")}
 
 
 @app.get("/{filename}", include_in_schema=False)

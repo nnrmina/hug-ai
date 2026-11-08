@@ -17,8 +17,8 @@ if [ "${SKIP_PULL:-0}" != "1" ]; then
   SKIP_PULL=1 exec "$0" "$@"
 fi
 
-echo "==> build + up"
-"${COMPOSE[@]}" up -d --build --remove-orphans
+echo "==> build + up ($(git log --oneline -1))"
+GIT_SHA=$(git rev-parse --short HEAD) "${COMPOSE[@]}" up -d --build --remove-orphans
 
 echo "==> wait for health"
 for i in $(seq 1 40); do
