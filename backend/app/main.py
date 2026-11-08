@@ -56,8 +56,8 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api/v1")
 
 for _sub in ("static", "icons"):
-    if (PUBLIC_DIR / _sub).is_dir():
-        app.mount(f"/{_sub}", StaticFiles(directory=str(PUBLIC_DIR / _sub)), name=_sub)
+    # check_dir=False: folders created after startup (or missing in a slim build) still work
+    app.mount(f"/{_sub}", StaticFiles(directory=str(PUBLIC_DIR / _sub), check_dir=False), name=_sub)
 
 
 @app.get("/", include_in_schema=False)

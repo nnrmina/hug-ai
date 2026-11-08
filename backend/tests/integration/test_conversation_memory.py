@@ -97,3 +97,15 @@ def test_static_app_files_are_served(client):
     assert "text/html" in client.get("/").headers["content-type"]
     css = client.get("/static/styles.css")
     assert css.status_code == 200 and "text/css" in css.headers["content-type"]
+
+
+def test_pwa_files_are_served(client):
+    sw = client.get("/sw.js")
+    assert sw.status_code == 200 and "javascript" in sw.headers["content-type"]
+    assert sw.headers["cache-control"] == "no-cache"
+    manifest = client.get("/manifest.webmanifest")
+    assert manifest.status_code == 200 and "manifest+json" in manifest.headers["content-type"]
+    assert client.get("/icons/icon-192.png").status_code == 200
+    module = client.get("/static/js/main.js")
+    assert module.status_code == 200 and "javascript" in module.headers["content-type"]
+    assert client.get("/not-a-public-file").status_code == 404

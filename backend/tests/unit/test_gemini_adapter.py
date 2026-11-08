@@ -195,3 +195,21 @@ def test_history_is_included_in_prompt():
     adapter.understand(text="sabah 9-da", history=history, now=NOW)
     context = models.calls[0]["contents"][0]
     assert "Nə vaxt xatırladım?" in context and "2026-11-09T14:30" in context
+
+
+def test_silent_audio_with_browser_hint_reuses_the_text():
+    class TwoReplies(FakeModels):
+        def generate_content(self, *, model, contents, config):
+            self.reply = understanding(transcript="", intent="UNKNOWN") if not self.calls else understanding(
+                transcript="Taksi çağır", intent="ORDER_TAXI")
+            return super().generate_content(model=model, contents=contents, config=config)
+
+    models = TwoReplies(None)
+    adapter = GeminiLLMAdapter(client=SimpleNamespace(models=models), model="m")
+    out = adapter.understand(text="Taksi çağır", audio=b"RIFF", mime_type="audio/wav", now=NOW)
+    assert out["intent"] == "ORDER_TAXI" and len(models.calls) == 2
+
+
+def test_capabilities_endpoint(client):
+    data = client.get("/api/v1/assistant/capabilities").json()
+    assert data["engine"] == "rule_based" and data["audio_understanding"] is False

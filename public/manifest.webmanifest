@@ -1,0 +1,24 @@
+{
+  "name": "HUG — Səsli Köməkçi",
+  "short_name": "HUG",
+  "description": "Azərbaycan dilində səsli köməkçi: zəng, xatırlatma, sifariş və fırıldaq yoxlaması.",
+  "lang": "az",
+  "dir": "ltr",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EBF3E8",
+  "theme_color": "#EBF3E8",
+  "categories": ["lifestyle", "utilities", "health"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Xatırlatmalar", "url": "/?open=reminders", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

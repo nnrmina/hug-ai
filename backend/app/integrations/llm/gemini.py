@@ -219,6 +219,10 @@ class GeminiLLMAdapter(BaseLLMAdapter):
 
         logger.info("gemini ok model=%s intent=%s %.0fms", self.model, parsed.intent,
                     (time.monotonic() - started) * 1000)
+        if audio and text and not (parsed.transcript or "").strip():
+            # Audio came through silent (e.g. the phone gave the mic to browser speech
+            # recognition) but the browser heard words: understand those instead.
+            return self.understand(text=text, history=history, now=now)
         return self._to_action(parsed, text, now)
 
     # -- fallback & mapping ------------------------------------------------

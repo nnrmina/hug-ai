@@ -27,6 +27,23 @@ ALLOWED_AUDIO_TYPES = {
 # instead of stalling the event loop.
 
 
+@router.get("/assistant/capabilities")
+def capabilities():
+    """What the client can rely on: whether server-side audio understanding (Gemini) is on."""
+    from app.core.config import settings
+    from app.integrations.llm.gemini import GeminiLLMAdapter
+    from app.integrations.llm.provider import get_llm_adapter
+
+    gemini = isinstance(get_llm_adapter(), GeminiLLMAdapter)
+    return {
+        "engine": "gemini" if gemini else "rule_based",
+        "model": settings.LLM_MODEL_NAME if gemini else None,
+        "audio_understanding": gemini,
+        "neural_tts": True,
+        "max_audio_bytes": MAX_AUDIO_BYTES,
+    }
+
+
 @router.post("/assistant/message", response_model=AssistantResponse)
 def process_message(request: AssistantRequest, db: Session = Depends(get_db)):
     return AssistantService(db).process_message(request)
