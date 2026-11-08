@@ -35,6 +35,14 @@ class ReminderRepository:
     def get_by_id(self, reminder_id: str) -> Optional[Reminder]:
         return self.db.query(Reminder).filter(Reminder.id == reminder_id).first()
 
+    def get_for_user(self, reminder_id: str, user_id: str) -> Optional[Reminder]:
+        """Fetch a reminder only if it belongs to user_id (both ids checked in the query)."""
+        return (
+            self.db.query(Reminder)
+            .filter(Reminder.id == reminder_id, Reminder.user_id == user_id)
+            .first()
+        )
+
     def update(self, reminder: Reminder, data: ReminderUpdate) -> Reminder:
         update_dict = data.model_dump(exclude_unset=True)
         for field, value in update_dict.items():

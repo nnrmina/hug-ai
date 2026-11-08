@@ -1,19 +1,43 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from app.api.router import api_router
+from app.core.config import settings
 from app.core.database import init_db
+from app.core.logging import logger
 
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+# Refuse to start with an insecure production configuration (SQLite, missing JWT_SECRET, CORS "*").
+settings.validate_for_production()
+
+
+def _resolve_web_dir() -> Path:
+    """Single source of truth for the web UI: the repository's public/ folder.
+
+    Locally: <repo>/public. In Docker the folder is copied to /public (see backend/Dockerfile).
+    """
+    here = Path(__file__).resolve()
+    for candidate in (here.parents[2] / "public", Path("/public")):
+        if (candidate / "index.html").exists():
+            return candidate
+    return here.parents[2] / "public"
+
+
+WEB_DIR = _resolve_web_dir()
+STATIC_DIR = WEB_DIR / "static"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
     yield
+
+
+# Serverless runtimes (Vercel) may not run lifespan events, so tables are ensured at import too.
+# create_all only creates missing tables; existing tables and data are never touched.
+init_db()
 
 
 app = FastAPI(
@@ -23,40 +47,44 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Credentials (cookies) are never used by this API, so they are not allowed cross-origin.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.allowed_origins_list,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key", "Authorization"],
 )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    # Log the details server-side; never leak stack traces or internals to clients.
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Daxili server xətası baş verdi. Zəhmət olmasa bir az sonra yenidən cəhd edin."},
+    )
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Permissions-Policy", "microphone=(self), camera=(), geolocation=()")
+    return response
+
 
 app.include_router(api_router, prefix="/api/v1")
 
 
 def _load_index_html() -> str:
-    index_path = STATIC_DIR / "index.html"
+    index_path = WEB_DIR / "index.html"
     if index_path.exists():
         return index_path.read_text(encoding="utf-8")
     return "<h1>YAXIN AI</h1>"
-
-
-@app.get("/static/styles.css", include_in_schema=False)
-async def serve_css():
-    css_path = STATIC_DIR / "styles.css"
-    return Response(
-        content=css_path.read_text(encoding="utf-8") if css_path.exists() else "",
-        media_type="text/css; charset=utf-8",
-    )
-
-
-@app.get("/static/app.js", include_in_schema=False)
-async def serve_js():
-    js_path = STATIC_DIR / "app.js"
-    return Response(
-        content=js_path.read_text(encoding="utf-8") if js_path.exists() else "",
-        media_type="application/javascript; charset=utf-8",
-    )
 
 
 if STATIC_DIR.exists():

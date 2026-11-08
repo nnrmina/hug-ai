@@ -1,273 +1,259 @@
 import 'package:flutter/material.dart';
-import '../../../app/routes.dart';
-import '../../../core/constants/app_strings.dart';
+
+import '../../../core/errors/app_exception.dart';
+import '../../../core/permissions/permission_service.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../contacts/data/local_contact_matcher.dart';
-import '../../contacts/domain/local_contact_alias.dart';
+import '../../../shared/models/assistant_response_model.dart';
+import '../../../shared/widgets/confirmation_panel.dart';
 import '../../home/widgets/big_microphone_button.dart';
 import '../data/speech_engine_service.dart';
-import '../data/voice_assistant_repository.dart';
+import 'assistant_flow.dart';
 
+/// Type or dictate a command (fallback when hands-free mode is not enough).
 class VoiceAssistantScreen extends StatefulWidget {
-  const VoiceAssistantScreen({super.key});
+  final AssistantFlow? flow;
+
+  const VoiceAssistantScreen({super.key, this.flow});
 
   @override
   State<VoiceAssistantScreen> createState() => _VoiceAssistantScreenState();
 }
 
 class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
-  final VoiceAssistantRepository _repository = VoiceAssistantRepository();
-  final SpeechEngineService _speechService = SpeechEngineService();
-  final LocalContactMatcher _contactMatcher = LocalContactMatcher();
-  final TextEditingController _textController =
-      TextEditingController(text: 'Qızıma zəng et');
+  final SpeechEngineService _speech = SpeechEngineService();
+  late final AssistantFlow _flow = widget.flow ?? AssistantFlow();
+  final TextEditingController _textController = TextEditingController();
 
   bool _isListening = false;
   bool _isLoading = false;
-  String _intent = 'MAKE_CALL';
-  String _assistantReply =
-      '"qızım" (Aysel Ibrahimova) kontaktına zəng etmək istəyirsiniz?';
-  bool _needsConfirmation = true;
-  String? _activeActionId;
-  LocalContactAlias? _matchedContact;
+  String _assistantReply = 'Əmrinizi yazın və ya mikrofona toxunub danışın.';
+  AssistantResponseModel? _pending;
 
   @override
   void initState() {
     super.initState();
-    _matchedContact = _contactMatcher.findByAliasOrName('qızım');
+    _speech.onListeningChanged = (value) {
+      if (mounted) setState(() => _isListening = value);
+    };
+    _speech.onError = (message) {
+      if (mounted) setState(() => _assistantReply = message);
+    };
+  }
+
+  @override
+  void dispose() {
+    _speech.dispose();
+    _textController.dispose();
+    super.dispose();
   }
 
   Future<void> _sendCommand(String commandText) async {
-    if (commandText.trim().isEmpty) return;
+    final text = commandText.trim();
+    if (text.isEmpty || _isLoading) return;
+    FocusScope.of(context).unfocus();
+    await _speech.stopListening();
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
+      _pending = null;
     });
 
+    final AssistantResponseModel result;
     try {
-      final result = await _repository.sendCommand(commandText.trim());
-      LocalContactAlias? matched;
-      if (result.intent == 'MAKE_CALL' ||
-          result.intent == 'SEND_VOICE_MESSAGE') {
-        final alias =
-            result.actionData?['contact_alias']?.toString() ?? 'qızım';
-        matched = _contactMatcher.findByAliasOrName(alias);
-      }
-
-      setState(() {
-        _intent = result.intent;
-        _assistantReply = result.response;
-        _needsConfirmation = result.status == 'needs_confirmation';
-        _activeActionId = result.actionId;
-        _matchedContact = matched;
-        _isLoading = false;
-      });
-      await _speechService.speak(result.response);
-    } catch (_) {
-      // Offline / local fallback
-      final lower = commandText.toLowerCase();
+      result = await _flow.repository.sendCommand(text);
+    } on AppException catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
-        if (lower.contains('zəng')) {
-          _intent = 'MAKE_CALL';
-          _matchedContact = _contactMatcher.findByAliasOrName('qızım');
-          _assistantReply =
-              '"qızım" (${_matchedContact?.displayName}) kontaktına zəng etmək istəyirsiniz?';
-          _needsConfirmation = true;
-        } else if (lower.contains('xatırlat') || lower.contains('oyat')) {
-          _intent = 'CREATE_REMINDER';
-          _matchedContact = null;
-          _assistantReply =
-              '"$commandText" üçün xatırlatma yaradılsın?';
-          _needsConfirmation = true;
-        } else {
-          _intent = 'ANALYZE_MESSAGE';
-          _matchedContact = null;
-          _assistantReply = 'Əmriniz emal edildi.';
-          _needsConfirmation = false;
-        }
+        _assistantReply = e.message;
       });
+      return;
     }
+    if (!mounted) return;
+
+    if (AssistantFlow.isCallConfirmation(result)) {
+      setState(() => _assistantReply = result.response);
+      final flowResult = await _flow.runCallFlow(context, result, text);
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _assistantReply = flowResult.message;
+      });
+      if (!flowResult.dialerOpened) await _speech.speak(flowResult.message);
+      return;
+    }
+
+    setState(() {
+      _isLoading = false;
+      _assistantReply = result.response.isNotEmpty
+          ? result.response
+          : 'Bağışlayın, başa düşmədim.';
+      _pending =
+          result.needsConfirmation && result.actionId != null ? result : null;
+    });
+    await _speech.speak(_assistantReply);
   }
 
   Future<void> _confirmAction() async {
-    if (_activeActionId != null) {
-      try {
-        await _repository.confirmAction(_activeActionId!);
-      } catch (_) {}
+    final pending = _pending;
+    if (pending?.actionId == null || _isLoading) return;
+    setState(() => _isLoading = true);
+    String message;
+    var keepPending = false;
+    try {
+      final r = await _flow.repository.confirmAction(pending!.actionId!);
+      message = r.response.isNotEmpty ? r.response : 'Təsdiqləndi.';
+    } on AppException catch (e) {
+      message = e.message;
+      keepPending = e.statusCode == null;
     }
     if (!mounted) return;
-    if (_intent == 'MAKE_CALL') {
-      Navigator.pushNamed(context, AppRoutes.contactConfirmation);
-    } else {
-      setState(() {
-        _needsConfirmation = false;
-        _assistantReply = 'Əməliyyat təsdiqləndi və icra olundu.';
-      });
-    }
+    setState(() {
+      _isLoading = false;
+      if (!keepPending) _pending = null;
+      _assistantReply = message;
+    });
+    await _speech.speak(message);
   }
 
   Future<void> _cancelAction() async {
-    if (_activeActionId != null) {
-      try {
-        await _repository.cancelAction(_activeActionId!);
-      } catch (_) {}
-    }
+    final pending = _pending;
+    if (pending == null || _isLoading) return;
+    setState(() => _isLoading = true);
+    await _flow.cancelQuietly(pending.actionId);
+    if (!mounted) return;
     setState(() {
-      _needsConfirmation = false;
-      _assistantReply = 'Əməliyyat istifadəçi tərəfindən ləğv edildi.';
+      _isLoading = false;
+      _pending = null;
+      _assistantReply = 'Əməliyyat ləğv edildi.';
     });
   }
 
   Future<void> _toggleListening() async {
-    if (_isListening) {
-      await _speechService.stopListening();
-      setState(() => _isListening = false);
-      await _sendCommand(_textController.text);
-    } else {
-      setState(() => _isListening = true);
-      await _speechService.startListening(
-        onResult: (words) {
-          setState(() {
-            _textController.text = words;
-          });
-        },
-      );
+    if (_isLoading) return;
+    if (_speech.isListening) {
+      await _speech.stopListening();
+      return;
+    }
+    final outcome = await _flow.permissions.requestMicrophone();
+    if (!mounted) return;
+    if (outcome != PermissionOutcome.granted) {
+      setState(() => _assistantReply =
+          'Mikrofon icazəsi verilmədi. Əmrinizi yaza bilərsiniz.');
+      return;
+    }
+    final ok = await _speech.startListening(
+      onResult: (words, isFinal) {
+        if (!mounted) return;
+        setState(() => _textController.text = words);
+        if (isFinal && words.trim().isNotEmpty) _sendCommand(words);
+      },
+    );
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _assistantReply =
+          'Nitq tanıma əlçatan deyil. Əmrinizi yazın.');
+    } else if (_speech.localeNote != null) {
+      setState(() => _assistantReply = _speech.localeNote!);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Səsli Köməkçi (az-AZ)')),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _textController,
-                    style: const TextStyle(fontSize: 18),
-                    decoration: InputDecoration(
-                      hintText: 'Əmrinizi yazın və ya danışın...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onSubmitted: _sendCommand,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryBlue,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(64, 56),
-                  ),
-                  onPressed: () => _sendCommand(_textController.text),
-                  child: const Icon(Icons.send_rounded),
-                ),
-              ],
-            ),
-            Card(
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Niyyət (Intent): $_intent',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryBlue,
-                      ),
-                    ),
-                    const Divider(height: 24),
-                    const Text(
-                      'YAXIN AI cavabı:',
-                      style: TextStyle(fontSize: 16, color: Colors.black54),
-                    ),
-                    const SizedBox(height: 8),
-                    if (_isLoading)
-                      const Center(child: CircularProgressIndicator())
-                    else
-                      Text(
-                        _assistantReply,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                    if (_matchedContact != null) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.contact_phone,
-                                color: AppTheme.confirmGreen),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                '${_matchedContact!.displayName} (${_matchedContact!.phoneNumber})',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            BigMicrophoneButton(
-              isListening: _isListening,
-              onTap: _toggleListening,
-            ),
-            if (_needsConfirmation)
+      appBar: AppBar(title: const Text('Yazaraq əmr ver')),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Row(
                 children: [
                   Expanded(
-                    child: SizedBox(
-                      height: 60,
-                      child: OutlinedButton(
-                        onPressed: _cancelAction,
-                        child: const Text(
-                          AppStrings.cancelButton,
-                          style: TextStyle(fontSize: 18),
+                    child: TextField(
+                      controller: _textController,
+                      style: const TextStyle(fontSize: 20),
+                      textInputAction: TextInputAction.send,
+                      decoration: InputDecoration(
+                        labelText: 'Əmriniz',
+                        labelStyle: const TextStyle(fontSize: 18),
+                        hintText: 'Məsələn: Qızıma zəng et',
+                        hintStyle: const TextStyle(fontSize: 18),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
+                      onSubmitted: _sendCommand,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 60,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.confirmGreen,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: _confirmAction,
-                        child: const Text(
-                          AppStrings.confirmButton,
-                          style: TextStyle(fontSize: 18),
-                        ),
+                  const SizedBox(width: 8),
+                  Semantics(
+                    button: true,
+                    label: 'Göndər',
+                    excludeSemantics: true,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryGreen,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(64, 64),
                       ),
+                      onPressed: _isLoading
+                          ? null
+                          : () => _sendCommand(_textController.text),
+                      child: const Icon(Icons.send_rounded, size: 28),
                     ),
                   ),
                 ],
               ),
-          ],
+              const SizedBox(height: 20),
+              Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'YAXIN AI cavabı:',
+                        style: TextStyle(
+                            fontSize: 18, color: AppTheme.textSecondary),
+                      ),
+                      const SizedBox(height: 8),
+                      if (_isLoading)
+                        const Center(child: CircularProgressIndicator())
+                      else
+                        Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            _assistantReply,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (_pending != null)
+                ConfirmationPanel(
+                  message: 'Təsdiq edirsiniz?',
+                  busy: _isLoading,
+                  onConfirm: _confirmAction,
+                  onCancel: _cancelAction,
+                )
+              else
+                Center(
+                  child: BigMicrophoneButton(
+                    isListening: _isListening,
+                    onTap: _toggleListening,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

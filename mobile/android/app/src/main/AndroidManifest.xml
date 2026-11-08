@@ -1,48 +1,58 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="az.yaxin.ai">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Pre-granted permissions for immediate voice & call execution on Samsung S22+ -->
+    <!-- Least privilege: only what the app actually uses. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
-    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- No CALL_PHONE: calls go through the system dialer (ACTION_DIAL via tel: URI),
+         so the user always presses the final call button themselves. -->
 
     <queries>
+        <!-- Required by url_launcher canLaunchUrl() for tel: links (Android 11+). -->
         <intent>
-            <action android:name="android.intent.action.CALL" />
+            <action android:name="android.intent.action.VIEW" />
             <data android:scheme="tel" />
         </intent>
         <intent>
             <action android:name="android.intent.action.DIAL" />
             <data android:scheme="tel" />
         </intent>
+        <!-- Required by speech_to_text and flutter_tts on Android 11+. -->
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
     </queries>
 
     <application
-        android:label="HUG"
+        android:label="Yaxın AI"
         android:name="${applicationName}"
-        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Don't delete: used by the Flutter tool to generate GeneratedPluginRegistrant. -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

@@ -3,8 +3,12 @@ class AppStrings {
   static const String greetingSubtitle =
       'Nə etmək istədiyinizi sadəcə Azərbaycan dilində deyin.';
   static const String micTapPrompt = 'Danışmaq üçün mikrofona toxunun';
+  static const String micListening = 'Dinləyirəm... Danışın';
   static const String confirmButton = 'Bəli, təsdiqlə';
   static const String cancelButton = 'Xeyr, ləğv et';
+  static const String confirmCallButton = 'Bəli, zəng et';
+  static const String rejectButton = 'Xeyr';
+  static const String backButton = 'Geri qayıt';
 
   static const String contactPermissionTitle =
       'YAXIN AI kontaktlarınıza giriş istəyir.';
@@ -12,5 +16,8 @@ class AppStrings {
       'Bu icazə sizə kontaktlarınızı səsli əmrlə tapmağa kömək edəcək. Kontaktlarınız heç vaxt serverə göndərilmir.';
   static const String allowPermission = 'İcazə ver';
   static const String notNowPermission = 'İndi yox';
-}
 
+  static const String micPermissionDenied =
+      'Mikrofon icazəsi verilmədi. Danışmaq üçün icazə verin və mikrofona toxunun.';
+  static const String contactNotFound = 'Bu adda kontakt tapılmadı';
+}

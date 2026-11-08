@@ -1,0 +1,43 @@
+# Local development stack. Secrets come from your shell or a root .env file (never committed):
+#   POSTGRES_PASSWORD=...  API_KEY=...  OPENAI_API_KEY=...
+services:
+  db:
+    image: postgres:17
+    container_name: yaxin_db
+    environment:
+      POSTGRES_USER: yaxin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_password}
+      POSTGRES_DB: yaxin_ai
+    # Bound to localhost only so the database is not exposed on the network.
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yaxin -d yaxin_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: yaxin_backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://yaxin:${POSTGRES_PASSWORD:-local_password}@db:5432/yaxin_ai
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      API_KEY: ${API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set (>=32 chars)}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8000}
+      STT_PROVIDER: ${STT_PROVIDER:-none}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      HUG_ML_URL: ${HUG_ML_URL:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
