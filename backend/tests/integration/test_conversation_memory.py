@@ -109,3 +109,9 @@ def test_pwa_files_are_served(client):
     module = client.get("/static/js/main.js")
     assert module.status_code == 200 and "javascript" in module.headers["content-type"]
     assert client.get("/not-a-public-file").status_code == 404
+
+
+def test_service_worker_version_follows_deploy(client, monkeypatch):
+    monkeypatch.setenv("GIT_SHA", "abc1234")
+    body = client.get("/sw.js").text
+    assert 'const VERSION = "' in body and '-abc1234";' in body

@@ -1,11 +1,12 @@
 import mimetypes
 import os
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
@@ -82,4 +83,11 @@ async def root_file(filename: str):
     path = PUBLIC_DIR / filename
     if headers is None or not path.is_file():
         raise HTTPException(status_code=404)
+    if filename == "sw.js":
+        # Stamp the deployed commit into the service worker's cache name: every deploy
+        # becomes a new SW version, so installed phones drop the old cached app shell.
+        source = path.read_text(encoding="utf-8")
+        version = os.environ.get("GIT_SHA", "dev")
+        source = re.sub(r'const VERSION = "([^"]*)";', lambda m: f'const VERSION = "{m.group(1)}-{version}";', source, count=1)
+        return Response(source, media_type="application/javascript", headers=headers)
     return FileResponse(path, headers=headers)
