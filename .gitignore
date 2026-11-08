@@ -44,3 +44,9 @@ mobile/android/app/release/
 .DS_Store
 Thumbs.db
 
+
+# Local dev JWT signing secret (auto-generated)
+.dev_jwt_secret
+
+# Old duplicate of public/ (backend now serves public/ directly)
+backend/app/static/

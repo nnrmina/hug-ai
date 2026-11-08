@@ -32,6 +32,16 @@ ACTION_RISK_POLICY: Dict[str, Dict[str, Any]] = {
         "requires_confirmation": True,
         "allowed_in_mvp": True,
     },
+    "EMERGENCY_CALL": {
+        "risk_level": "high",
+        "requires_confirmation": True,
+        "allowed_in_mvp": True,
+    },
+    "UNKNOWN": {
+        "risk_level": "low",
+        "requires_confirmation": False,
+        "allowed_in_mvp": True,
+    },
     "BANK_TRANSFER": {
         "risk_level": "high",
         "requires_confirmation": True,
