@@ -15,6 +15,8 @@ from app.schemas.assistant import (
 )
 from app.schemas.reminder import ReminderCreate
 from app.integrations.notifications.local import LocalNotificationFormatter
+from app.agents.tools.order_tools import ORDER_INTENTS
+from app.utils.datetime_utils import format_az_datetime
 
 # In-memory store of workflow action states for confirmation/cancellation lifecycle
 _ACTION_STORE: Dict[str, Dict[str, Any]] = {}
@@ -116,11 +118,16 @@ class AssistantService:
                     timezone=reminder.timezone,
                 )
             )
-            record["response"] = f'"{title}" xatırlatması uğurla yaradıldı.'
+            when = format_az_datetime(reminder.scheduled_at)
+            record["response"] = f'"{title}" xatırlatması yaradıldı. {when[:1].upper()}{when[1:]} sizə xatırladacağam.'
         elif intent == "MAKE_CALL":
             alias = action_data.get("contact_alias", "kontakt")
             action_data["authorized_execution"] = "OPEN_DIALER"
             record["response"] = f'"{alias}" üçün zəng təsdiqləndi. Nömrə yığıcı açılır.'
+        elif intent in ORDER_INTENTS:
+            order = action_data.get("order") or {}
+            action_data["authorized_execution"] = "SIMULATED_ORDER"
+            record["response"] = order.get("done_text") or "Sifarişiniz qəbul olundu."
         elif intent == "SEND_VOICE_MESSAGE":
             alias = action_data.get("contact_alias", "kontakt")
             action_data["authorized_execution"] = "SEND_VOICE_MESSAGE"

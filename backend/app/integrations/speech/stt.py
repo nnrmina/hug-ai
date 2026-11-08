@@ -30,6 +30,6 @@ class SpeechToTextProvider:
         if not audio_bytes:
             raise ValueError("Audio fayl boşdur.")
 
-        # Default deterministic fallback transcript for hackathon demo when external API key is not configured
-        return "Qızıma zəng et"
+        # No server-side STT provider is wired up yet: never invent a transcript.
+        raise ValueError("Server tərəfində səs tanıma hələ qoşulmayıb. Mətn transkripti göndərin.")
 

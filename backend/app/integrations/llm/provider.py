@@ -8,8 +8,34 @@ INTENTS = [
     "CREATE_REMINDER",
     "ANALYZE_MESSAGE",
     "SEND_VOICE_MESSAGE",
+    "ORDER_FOOD",
+    "ORDER_PHARMACY",
+    "ORDER_TAXI",
     "GENERAL_QUESTION",
     "UNKNOWN",
+]
+
+TAXI_KEYWORDS = ["taksi", "taxi", "maşın çağır", "masin cagir"]
+PHARMACY_KEYWORDS = [
+    "aptek",
+    "kardiomaqnil",
+    "dərman sifariş",
+    "derman sifariş",
+    "derman sifaris",
+    "dərman al",
+    "dərman gətir",
+]
+FOOD_KEYWORDS = [
+    "wolt",
+    "tantuni",
+    "chef",
+    "dönər",
+    "doner",
+    "bozbaş",
+    "bozbas",
+    "yemək",
+    "yemek",
+    "ərzaq sifariş",
 ]
 
 # Azerbaijani kinship/contact relationship stems -> canonical alias
@@ -152,16 +178,6 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
                 "reason": "Real bank əməliyyatları və pul köçürmələri MVP-də dəstəklənmir.",
             }
 
-        if any(kw in lower for kw in ["wolt", "yemək sifariş", "ərzaq sifariş"]):
-            return {
-                "intent": "UNKNOWN",
-                "confidence": 0.95,
-                "blocked_action": "WOLT_ORDER",
-                "simulated": True,
-                "requires_confirmation": False,
-                "reason": "Real Wolt sifarişi MVP-də aktiv deyil (yalnız simulyasiya rejimindədir).",
-            }
-
         # 2. Reminder intent
         reminder_keywords = [
             "xatırlat",
@@ -213,7 +229,16 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
                 "requires_confirmation": False,
             }
 
-        # 4. Voice Message intent
+        # 4. Simulated Wolt orders (taxi / pharmacy / food) - checked after reminders so that
+        #    "dərmanımı xatırlat" stays a reminder, and taxi/pharmacy before the generic "wolt".
+        if any(kw in lower for kw in TAXI_KEYWORDS):
+            return {"intent": "ORDER_TAXI", "confidence": 0.93, "requires_confirmation": True}
+        if any(kw in lower for kw in PHARMACY_KEYWORDS):
+            return {"intent": "ORDER_PHARMACY", "confidence": 0.92, "requires_confirmation": True}
+        if any(kw in lower for kw in FOOD_KEYWORDS):
+            return {"intent": "ORDER_FOOD", "confidence": 0.92, "requires_confirmation": True}
+
+        # 5. Voice Message intent
         voice_msg_keywords = [
             "səs göndər",
             "ses gonder",
@@ -231,7 +256,7 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
                 "requires_confirmation": True,
             }
 
-        # 5. Make Call intent (e.g., "Almaza zəng et", "Qızıma zəng vur", "Almazı yığ")
+        # 6. Make Call intent (e.g., "Almaza zəng et", "Qızıma zəng vur", "Almazı yığ")
         call_keywords = [
             "zəng et",
             "zeng et",
@@ -244,6 +269,7 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
             "yığ",
             "yig",
             "əlaqə saxla",
+            "zvanok",
             "노mrəsini yığ",
             "nömrəsini yığ",
         ]
@@ -257,7 +283,7 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
                 "requires_confirmation": True,
             }
 
-        # 6. General Questions
+        # 7. General Questions
         general_keywords = [
             "hava necə",
             "sən kimsən",

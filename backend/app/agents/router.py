@@ -1,4 +1,5 @@
 from app.agents.state import AgentState
+from app.agents.tools.order_tools import ORDER_INTENTS
 
 
 def route_by_intent(state: AgentState) -> str:
@@ -15,6 +16,8 @@ def route_by_intent(state: AgentState) -> str:
         return "reminder_node"
     if intent == "ANALYZE_MESSAGE":
         return "security_node"
+    if intent in ORDER_INTENTS:
+        return "order_node"
 
     return "validation_node"
 

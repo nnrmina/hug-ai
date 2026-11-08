@@ -45,11 +45,17 @@ async def process_voice(
             detail="Audio fayl və ya səs transkripti təqdim edilməlidir.",
         )
 
-    text_command = speech_service.speech_to_text(
-        audio_bytes=audio_bytes,
-        filename=audio.filename if audio and audio.filename else "voice.wav",
-        fallback_transcript=transcript,
-    )
+    try:
+        text_command = speech_service.speech_to_text(
+            audio_bytes=audio_bytes,
+            filename=audio.filename if audio and audio.filename else "voice.wav",
+            fallback_transcript=transcript,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
     assistant_service = AssistantService(db)
     return assistant_service.process_message(

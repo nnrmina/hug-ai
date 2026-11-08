@@ -1,5 +1,14 @@
 from app.agents.state import AgentState
 from app.core.security import check_action_permission
+from app.agents.tools.order_tools import ORDER_INTENTS
+from app.utils.datetime_utils import format_az_datetime
+
+RISK_LEVEL_AZ = {"high": "yüksək", "medium": "orta", "low": "aşağı"}
+
+CAPABILITIES_TEXT = (
+    "Yaxınlarınıza zəng edə, xatırlatma yarada, Wolt-dan yemək, dərman və ya taksi sifariş edə, "
+    "şübhəli mesajları yoxlaya bilərəm."
+)
 
 
 def validation_node(state: AgentState) -> AgentState:
@@ -84,38 +93,45 @@ def response_node(state: AgentState) -> AgentState:
 
     if intent == "CREATE_REMINDER":
         title = action_data.get("title", "Xatırlatma")
-        scheduled_at = action_data.get("scheduled_at", "")
+        when = format_az_datetime(action_data.get("scheduled_at", ""))
         return {
             **state,
-            "response": f'"{title}" üçün ({scheduled_at}) vaxtına xatırlatma yaradılsın?',
+            "response": f'{when[:1].upper()}{when[1:]} üçün "{title}" xatırlatması yaradılsın?',
+            "status": "needs_confirmation",
+        }
+
+    if intent in ORDER_INTENTS:
+        order = action_data.get("order") or {}
+        return {
+            **state,
+            "response": order.get("confirm_text") or "Sifariş təsdiqlənsin?",
             "status": "needs_confirmation",
         }
 
     if intent == "ANALYZE_MESSAGE":
         explanation = action_data.get("explanation", "Mesaj analiz edildi.")
         recommendation = action_data.get("recommendation", "")
-        risk_level = action_data.get("risk_level", "low").upper()
+        risk_level = RISK_LEVEL_AZ.get(action_data.get("risk_level", "low"), "aşağı")
         return {
             **state,
-            "response": f"[Risk: {risk_level}] {explanation} Tövsiyə: {recommendation}".strip(),
+            "response": f"Risk səviyyəsi: {risk_level}. {explanation} Tövsiyə: {recommendation}".strip(),
             "status": "completed",
         }
 
     if intent == "GENERAL_QUESTION":
+        is_greeting = "salam" in (state.get("user_message") or "").lower()
+        prefix = "Salam! Sizə necə kömək edə bilərəm? " if is_greeting else "Mən sizin səsli köməkçinizəm. "
         return {
             **state,
-            "response": (
-                "Mən YAXIN AI-yəm — Azərbaycan dilində səsli köməkçiniz. "
-                "Sizə yaxınlarınıza zəng etməkdə, xatırlatma yaratmaqda və şübhəli mesajları yoxlamaqda kömək edə bilərəm."
-            ),
+            "response": prefix + CAPABILITIES_TEXT,
             "status": "completed",
         }
 
     return {
         **state,
         "response": (
-            f'Mesajınızı aldım: "{state.get("user_message", "")}". '
-            "Zəhmət olmasa nə etmək istədiyinizi dəqiqləşdirin (məsələn: \"Qızıma zəng et\", \"Sabah saat 9-da məni oyat\" və ya \"Bu mesajı yoxla\")."
+            "Bağışlayın, sizi tam başa düşmədim. "
+            "Məsələn belə deyə bilərsiniz: “Qızıma zəng et” və ya “Sabah saat 10-da dərmanımı xatırlat”."
         ),
         "status": "needs_clarification",
     }

@@ -1,5 +1,5 @@
 // HUG — AI Voice Life Assistant for Samsung Galaxy S22+
-// Real Microphone Recording, Natural Azerbaijani Voice & Zero Fake Auto-Executions
+// Voice/typed commands → FastAPI agent (/api/v1) → confirmation → on-device action
 
 const INITIAL_CONTACTS = [
   {
@@ -10,9 +10,7 @@ const INITIAL_CONTACTS = [
     short_name: "Almaz xala",
     relation_title: "Bacınız Almaz xalaya",
     phone_number: "+994 50 456 78 90",
-    initial: "A",
-    audio_confirm: "call_sister_confirm",
-    audio_active: "call_sister_active"
+    initial: "A"
   },
   {
     id: "daughter",
@@ -22,9 +20,7 @@ const INITIAL_CONTACTS = [
     short_name: "Sevinc",
     relation_title: "Qızınız Sevincə",
     phone_number: "+994 50 123 45 67",
-    initial: "S",
-    audio_confirm: "call_daughter_confirm",
-    audio_active: "call_daughter_active"
+    initial: "S"
   },
   {
     id: "mother",
@@ -34,9 +30,7 @@ const INITIAL_CONTACTS = [
     short_name: "Mama",
     relation_title: "Mamanıza",
     phone_number: "+994 55 234 56 78",
-    initial: "M",
-    audio_confirm: "call_mother_confirm",
-    audio_active: "call_mother_active"
+    initial: "M"
   },
   {
     id: "son",
@@ -46,9 +40,7 @@ const INITIAL_CONTACTS = [
     short_name: "Murad",
     relation_title: "Oğlunuz Murada",
     phone_number: "+994 70 345 67 89",
-    initial: "M",
-    audio_confirm: "call_mother_confirm",
-    audio_active: "call_mother_active"
+    initial: "M"
   },
   {
     id: "doctor",
@@ -58,30 +50,15 @@ const INITIAL_CONTACTS = [
     short_name: "Dr. Nigar",
     relation_title: "Dr. Nigar Həkimə",
     phone_number: "+994 50 765 43 21",
-    initial: "H",
-    audio_confirm: "call_doctor_confirm",
-    audio_active: "call_mother_active"
+    initial: "H"
   }
 ];
 
-// Pre-rendered Studio Neural Azerbaijani Voice Files (az-AZ-BanuNeural)
+// Pre-rendered neural Azerbaijani clips (az-AZ-BanuNeural) for fixed phrases.
+// Everything dynamic is spoken via the backend /api/v1/tts endpoint (speakText).
 const AZ_AUDIO_MAP = {
   listen: "/static/audio/listen.mp3",
-  call_sister_confirm: "/static/audio/call_sister_confirm.mp3",
-  call_daughter_confirm: "/static/audio/call_daughter_confirm.mp3",
-  call_mother_confirm: "/static/audio/call_mother_confirm.mp3",
-  call_doctor_confirm: "/static/audio/call_doctor_confirm.mp3",
-  call_sister_active: "/static/audio/call_sister_active.mp3",
-  call_daughter_active: "/static/audio/call_daughter_active.mp3",
-  call_mother_active: "/static/audio/call_mother_active.mp3",
   call_end: "/static/audio/call_end.mp3",
-  chef_tantuni_confirm: "/static/audio/chef_tantuni_confirm.mp3",
-  chef_tantuni_active: "/static/audio/chef_tantuni_active.mp3",
-  pharmacy_confirm: "/static/audio/pharmacy_confirm.mp3",
-  pharmacy_active: "/static/audio/pharmacy_active.mp3",
-  taxi_confirm: "/static/audio/taxi_confirm.mp3",
-  taxi_active: "/static/audio/taxi_active.mp3",
-  reminders: "/static/audio/reminders.mp3",
   order_done: "/static/audio/order_done.mp3",
   action_cancel: "/static/audio/action_cancel.mp3"
 };
@@ -273,307 +250,383 @@ function clearConfirmWorkflow() {
   }
 }
 
-// Confirmation Workflow: Only proceeds when the user ACTUALLY speaks "Bəli" or clicks the button!
-function startConfirmation(audioKey, questionVoicePrompt, onConfirmCallback) {
+// ----------------------------------------------------
+// Backend API (FastAPI agent at /api/v1)
+// ----------------------------------------------------
+const API_BASE = "/api/v1";
+let currentActionId = null;
+
+async function apiRequest(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...options
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// Speak any Azerbaijani sentence with the server's neural voice (az-AZ-BanuNeural),
+// falling back to the browser's own speechSynthesis if the server can't synthesize.
+function speakText(text, onEnded = null) {
+  unlockAudio();
+  if (currentAudio) {
+    try { currentAudio.pause(); } catch (_) {}
+    currentAudio = null;
+  }
+  if (!text) {
+    if (onEnded) onEnded();
+    return;
+  }
+
+  const audio = new Audio(`${API_BASE}/tts?text=${encodeURIComponent(text.slice(0, 600))}`);
+  currentAudio = audio;
+  let finished = false;
+  const done = () => {
+    if (finished) return;
+    finished = true;
+    if (currentAudio === audio) currentAudio = null;
+    if (onEnded) onEnded();
+  };
+  const fallback = (err) => {
+    if (finished || currentAudio !== audio) return;
+    console.warn("Neural TTS unavailable, using browser voice:", err);
+    finished = true;
+    currentAudio = null;
+    speakAz(text, onEnded);
+  };
+  audio.onended = done;
+  audio.onerror = fallback;
+  const playPromise = audio.play();
+  if (playPromise !== undefined) playPromise.catch(fallback);
+}
+
+// Word-level yes/no detection (substring checks matched "he" inside "həkim" etc.)
+const YES_WORDS = new Set(["bəli", "beli", "hə", "he", "həri", "heri", "oldu", "aha", "yes", "ok", "okay", "təsdiq", "təsdiqlə", "təsdiqləyirəm", "razıyam", "razıyam."]);
+const NO_WORDS = new Set(["xeyr", "yox", "ləğv", "legv", "no", "dayan", "saxla"]);
+
+function classifyConfirmation(spoken) {
+  const words = spoken.toLowerCase().split(/[\s,.!?;:]+/).filter(Boolean);
+  if (words.some((w) => NO_WORDS.has(w)) || spoken.toLowerCase().includes("lazım deyil")) return "no";
+  if (words.some((w) => YES_WORDS.has(w))) return "yes";
+  return null;
+}
+
+// Confirmation Workflow: Only proceeds when the user ACTUALLY says "Bəli" or taps the button.
+// Listening starts only after the question has finished playing, so the assistant's own
+// "Bəli deyin" can't be picked up by the microphone and auto-confirm the action.
+function startConfirmation(questionText) {
   clearConfirmWorkflow();
   showScreen("screen-confirm");
 
   const voiceLabelEl = document.getElementById("confirm-voice-label");
-  if (voiceLabelEl) {
-    voiceLabelEl.textContent = "“Bəli” və ya “Xeyr” deyin...";
-  }
+  if (voiceLabelEl) voiceLabelEl.textContent = "“Bəli” və ya “Xeyr” deyin...";
 
-  // 1. Play Studio-Quality Native Azerbaijani Audio
-  playAzAudio(audioKey, questionVoicePrompt, () => {
-    if (voiceLabelEl) {
-      voiceLabelEl.textContent = "🎙️ Eşidirəm... “Bəli” deyin";
-    }
+  speakText(`${questionText} Bəli və ya xeyr deyin.`, () => {
+    if (!document.getElementById("screen-confirm").classList.contains("active")) return;
+    if (voiceLabelEl) voiceLabelEl.textContent = "🎙️ Eşidirəm... “Bəli” deyin";
+    listenForConfirmation(voiceLabelEl);
   });
+}
 
-  // 2. Listen for voice confirmation (Bəli / Xeyr)
+function listenForConfirmation(voiceLabelEl) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SpeechRecognition) {
-    try {
-      confirmRecognition = new SpeechRecognition();
-      confirmRecognition.lang = "az-AZ";
-      confirmRecognition.interimResults = false;
-      confirmRecognition.maxAlternatives = 1;
+  if (!SpeechRecognition) return;
+  try {
+    confirmRecognition = new SpeechRecognition();
+    confirmRecognition.lang = "az-AZ";
+    confirmRecognition.interimResults = false;
+    confirmRecognition.maxAlternatives = 3;
 
-      confirmRecognition.onresult = (event) => {
-        const spoken = (event.results[0][0].transcript || "").toLowerCase();
-        console.log("Confirmation heard:", spoken);
-
-        if (
-          spoken.includes("bəli") ||
-          spoken.includes("beli") ||
-          spoken.includes("hə") ||
-          spoken.includes("he") ||
-          spoken.includes("həri") ||
-          spoken.includes("oldu") ||
-          spoken.includes("təsdiq") ||
-          spoken.includes("zəng") ||
-          spoken.includes("sifariş") ||
-          spoken.includes("aha") ||
-          spoken.includes("yes")
-        ) {
-          clearConfirmWorkflow();
-          if (voiceLabelEl) voiceLabelEl.textContent = "✓ Səslə təsdiqləndi!";
-          onConfirmCallback();
-        } else if (
-          spoken.includes("xeyr") ||
-          spoken.includes("yox") ||
-          spoken.includes("ləğv") ||
-          spoken.includes("lazım deyil") ||
-          spoken.includes("saxla") ||
-          spoken.includes("no")
-        ) {
-          clearConfirmWorkflow();
-          showScreen("screen-home");
-          playAzAudio("action_cancel", "Əməliyyat ləğv edildi.");
-        }
-      };
-
-      confirmRecognition.onerror = () => {
-        // If voice confirmation is silent, wait for user to click or speak again
-        console.log("Confirmation mic silent");
-      };
-
-      setTimeout(() => {
-        if (confirmRecognition) {
-          try { confirmRecognition.start(); } catch (_) {}
-        }
-      }, 1500);
-    } catch (_) {}
-  }
+    confirmRecognition.onresult = (event) => {
+      const alternatives = Array.from(event.results[0]).map((r) => r.transcript || "");
+      const decision = alternatives.map(classifyConfirmation).find(Boolean);
+      console.log("Confirmation heard:", alternatives, "→", decision);
+      if (decision === "yes") {
+        if (voiceLabelEl) voiceLabelEl.textContent = "✓ Səslə təsdiqləndi!";
+        executeConfirmedAction();
+      } else if (decision === "no") {
+        cancelCurrentAction();
+      } else if (voiceLabelEl) {
+        voiceLabelEl.textContent = "Başa düşmədim. Düyməyə toxunun və ya “Bəli” deyin.";
+      }
+    };
+    confirmRecognition.onerror = () => console.log("Confirmation mic silent");
+    confirmRecognition.start();
+  } catch (_) {}
 }
 
-// Executes the confirmed action
-function executeConfirmedAction() {
+// Executes the confirmed action: tell the backend first, then run the on-device part.
+async function executeConfirmedAction() {
   clearConfirmWorkflow();
-  if (!currentActionPayload) return;
+  if (!currentActionPayload || !currentActionId) return;
+  const payload = currentActionPayload;
 
-  if (currentActionPayload.type === "CALL") {
-    startCall(currentActionPayload.contact);
-  } else if (
-    currentActionPayload.type === "ORDER" ||
-    currentActionPayload.type === "ORDER_FOOD" ||
-    currentActionPayload.type === "ORDER_PHARMACY"
-  ) {
-    startOrderTracking();
-  } else if (currentActionPayload.type === "ORDER_TAXI") {
-    startTaxiTracking();
+  let result;
+  try {
+    result = await apiRequest(`/assistant/confirm/${currentActionId}`, { method: "POST" });
+  } catch (err) {
+    showReply({ title: "Xəta baş verdi", text: `Əməliyyat təsdiqlənmədi: ${err.message}`, icon: "!", tone: "muted" });
+    return;
+  }
+  currentActionId = null;
+
+  if (payload.type === "CALL") {
+    startCall(payload.contact);
+  } else if (payload.type === "ORDER_FOOD" || payload.type === "ORDER_PHARMACY") {
+    startOrderTracking(payload.order, result.response);
+  } else if (payload.type === "ORDER_TAXI") {
+    startTaxiTracking(result.response);
+  } else if (payload.type === "CREATE_REMINDER") {
+    await openReminders(result.response);
   } else {
-    document.getElementById("done-message-subtext").textContent = "Əməliyyatınız uğurla yerinə yetirildi.";
+    document.getElementById("done-message-subtext").textContent = result.response;
     showScreen("screen-done");
+    speakText(result.response);
   }
 }
 
-// Process Real Spoken Voice Text
-function handleProcessedVoice(text) {
+async function cancelCurrentAction() {
+  clearConfirmWorkflow();
+  const actionId = currentActionId;
+  currentActionId = null;
+  currentActionPayload = null;
+  showScreen("screen-home");
+  playAzAudio("action_cancel", "Əməliyyat ləğv edildi.");
+  if (actionId) {
+    apiRequest(`/assistant/cancel/${actionId}`, { method: "POST" }).catch(() => {});
+  }
+}
+
+// Generic answer screen (greetings, scam analysis, clarification, rejections)
+function showReply({ title, text, heard = "", icon = "✦", tone = "" }) {
+  clearConfirmWorkflow();
+  document.getElementById("reply-title").textContent = title;
+  document.getElementById("reply-text").textContent = text;
+  document.getElementById("reply-heard").textContent = heard ? `Siz: “${heard}”` : "";
+  const iconEl = document.getElementById("reply-icon");
+  iconEl.textContent = icon;
+  iconEl.className = `reply-icon${tone ? " " + tone : ""}`;
+  showScreen("screen-reply");
+  speakText(text);
+}
+
+function fillConfirmScreen({ badge, title, primary, secondary, yesLabel }) {
+  document.getElementById("confirm-avatar-badge").textContent = badge;
+  document.getElementById("confirm-question-title").textContent = title;
+  document.getElementById("confirm-details-primary").textContent = primary;
+  document.getElementById("confirm-details-secondary").textContent = secondary;
+  document.getElementById("btn-confirm-yes").textContent = yesLabel;
+}
+
+// Backend may return Baku wall-clock time without an offset (SQLite); treat it as +04:00
+function parseBakuTime(iso) {
+  if (!iso) return new Date(NaN);
+  const hasZone = /[zZ]|[+-]\d{2}:?\d{2}$/.test(iso);
+  return new Date(hasZone ? iso : `${iso}+04:00`);
+}
+
+const AZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avqust", "sentyabr", "oktyabr", "noyabr", "dekabr"];
+
+// Formatted by hand: many browsers ship without Azerbaijani locale data ("M11 10")
+function formatReminderTime(iso) {
+  const d = parseBakuTime(iso);
+  if (Number.isNaN(d.getTime())) return iso || "";
+  const baku = new Date(d.getTime() + 4 * 3600 * 1000); // read UTC fields as Baku (+04:00, no DST)
+  const hh = String(baku.getUTCHours()).padStart(2, "0");
+  const mm = String(baku.getUTCMinutes()).padStart(2, "0");
+  return `${baku.getUTCDate()} ${AZ_MONTHS[baku.getUTCMonth()]} · ${hh}:${mm}`;
+}
+
+// Process recognized speech or typed text through the backend agent
+async function handleProcessedVoice(text) {
   if (!text || !text.trim()) {
     showMicError("Heç bir səs eşidilmədi. Zəhmət olmasa təkrar danışın.");
     return;
   }
+  text = text.trim();
 
   const quoteEl = document.getElementById("recognized-speech-quote");
-  if (quoteEl) {
-    quoteEl.textContent = `“${text}”`;
-  }
-
+  if (quoteEl) quoteEl.textContent = `“${text}”`;
   const badgeEl = document.getElementById("listening-status-badge");
-  if (badgeEl) {
-    badgeEl.textContent = "✓ Eşidildi";
+  if (badgeEl) badgeEl.textContent = "⏳ Düşünürəm...";
+
+  let data;
+  try {
+    data = await apiRequest("/assistant/message", {
+      method: "POST",
+      body: JSON.stringify({ message: text })
+    });
+  } catch (err) {
+    console.error("Assistant request failed:", err);
+    showMicError("Serverlə əlaqə qurulmadı. Bir az sonra təkrar cəhd edin.");
+    return;
   }
 
-  const lowered = text.toLowerCase();
+  if (badgeEl) badgeEl.textContent = "✓ Eşidildi";
+  routeAssistantResponse(data, text);
+}
 
-  // ----------------------------------------------------
-  // SCENARIO 1: CALL (Bacı, Qızım, Mama, Həkim)
-  // ----------------------------------------------------
-  if (
-    lowered.includes("zəng") ||
-    lowered.includes("zeng") ||
-    lowered.includes("yığ") ||
-    lowered.includes("yig") ||
-    lowered.includes("zvanok") ||
-    lowered.includes("telefon") ||
-    lowered.includes("bacı") ||
-    lowered.includes("baci") ||
-    lowered.includes("qızım") ||
-    lowered.includes("qizim") ||
-    lowered.includes("mama")
-  ) {
-    let matchedContact = findContact(lowered);
-    if (!matchedContact) {
-      matchedContact = INITIAL_CONTACTS[1]; // Default to Qızım (Sevinc)
+function routeAssistantResponse(data, heardText) {
+  const intent = data.intent;
+  const action = data.action_data || {};
+  currentActionId = data.action_id || null;
+  currentActionPayload = null;
+
+  if (data.status === "needs_confirmation") {
+    // ---- Calls: contact is resolved ON THE DEVICE from the alias (contacts never leave the phone)
+    if (intent === "MAKE_CALL" || intent === "SEND_VOICE_MESSAGE") {
+      const candidates = [action.contact_alias, ...(action.search_candidates || [])].filter(Boolean);
+      const contact = candidates.map(findContact).find(Boolean);
+      if (!contact) {
+        const alias = action.contact_alias || "bu şəxs";
+        if (currentActionId) {
+          apiRequest(`/assistant/cancel/${currentActionId}`, { method: "POST" }).catch(() => {});
+        }
+        currentActionId = null;
+        showReply({
+          title: "Kontakt tapılmadı",
+          text: `“${alias}” adlı kontakt telefonunuzda tapılmadı. Adı bir daha deyin.`,
+          heard: heardText,
+          icon: "?",
+          tone: "muted"
+        });
+        return;
+      }
+
+      const isCall = intent === "MAKE_CALL";
+      currentActionPayload = { type: isCall ? "CALL" : "VOICE_MESSAGE", contact };
+      fillConfirmScreen({
+        badge: contact.initial,
+        title: isCall ? `${contact.relation_title} zəng edilsin?` : `${contact.relation_title} səsli mesaj göndərilsin?`,
+        primary: contact.display_name,
+        secondary: `Mobil · ${contact.phone_number}`,
+        yesLabel: isCall ? "Bəli, zəng et" : "Bəli, göndər"
+      });
+      startConfirmation(isCall ? `${contact.relation_title} zəng edilsin?` : `${contact.relation_title} səsli mesaj göndərilsin?`);
+      return;
     }
 
-    currentActionPayload = {
-      type: "CALL",
-      contact: matchedContact
-    };
+    // ---- Reminders
+    if (intent === "CREATE_REMINDER") {
+      currentActionPayload = { type: "CREATE_REMINDER" };
+      fillConfirmScreen({
+        badge: "⏰",
+        title: "Xatırlatma yaradılsın?",
+        primary: action.title || "Xatırlatma",
+        secondary: formatReminderTime(action.scheduled_at),
+        yesLabel: "Bəli, yarat"
+      });
+      startConfirmation(data.response);
+      return;
+    }
 
-    setTimeout(() => {
-      document.getElementById("confirm-avatar-badge").textContent = matchedContact.initial;
-      document.getElementById("confirm-question-title").textContent = `${matchedContact.relation_title} zəng edilsin?`;
-      document.getElementById("confirm-details-primary").textContent = matchedContact.display_name;
-      document.getElementById("confirm-details-secondary").textContent = `Mobil · ${matchedContact.phone_number}`;
-      document.getElementById("btn-confirm-yes").textContent = "Bəli, zəng et";
+    // ---- Simulated Wolt orders
+    if (intent === "ORDER_FOOD" || intent === "ORDER_PHARMACY" || intent === "ORDER_TAXI") {
+      const order = action.order || {};
+      currentActionPayload = { type: intent, order };
+      const isTaxi = intent === "ORDER_TAXI";
+      fillConfirmScreen({
+        badge: order.emoji || "🛍️",
+        title: isTaxi ? "Taksi çağırılsın?" : `${order.vendor} sifarişi təsdiqlənsin?`,
+        primary: order.item || "",
+        secondary: `Cəmi ${order.price || ""} · ${order.vendor || "Wolt"} (demo)`,
+        yesLabel: isTaxi ? "Bəli, taksi çağır" : "Bəli, sifariş et"
+      });
+      startConfirmation(data.response);
+      return;
+    }
 
-      startConfirmation(
-        matchedContact.audio_confirm || "call_sister_confirm",
-        `${matchedContact.relation_title} zəng edilsin? Bəli deyin.`,
-        executeConfirmedAction
-      );
-    }, 600);
+    // ---- Anything else that needs confirmation
+    currentActionPayload = { type: "GENERAL" };
+    fillConfirmScreen({
+      badge: "✦",
+      title: "Əməliyyat icra edilsin?",
+      primary: `“${heardText}”`,
+      secondary: data.response,
+      yesLabel: "Bəli, icra et"
+    });
+    startConfirmation(data.response);
     return;
   }
 
-  // ----------------------------------------------------
-  // SCENARIO 2: WOLT FOOD (Chef Tantuni / Yemek)
-  // ----------------------------------------------------
-  if (
-    lowered.includes("chef") ||
-    lowered.includes("tantuni") ||
-    lowered.includes("bozbaş") ||
-    lowered.includes("yemək") ||
-    lowered.includes("yemek") ||
-    lowered.includes("dönər") ||
-    lowered.includes("doner")
-  ) {
-    const isTantuni = lowered.includes("tantuni") || lowered.includes("chef");
+  // ---- No confirmation needed: just answer
+  currentActionId = null;
+  if (intent === "ANALYZE_MESSAGE") {
+    const risk = action.risk_level || "low";
+    showReply({
+      title: risk === "high" ? "Diqqət: fırıldaq riski!" : risk === "medium" ? "Ehtiyatlı olun" : "Təhlükə görünmür",
+      text: data.response,
+      icon: risk === "low" ? "✓" : "!",
+      tone: risk === "high" ? "risk-high" : risk === "medium" ? "risk-medium" : ""
+    });
+    return;
+  }
+  if (data.status === "rejected") {
+    showReply({ title: "Bunu edə bilmərəm", text: data.response, heard: heardText, icon: "✕", tone: "muted" });
+    return;
+  }
+  if (data.status === "needs_clarification") {
+    showReply({ title: "Başa düşmədim", text: data.response, heard: heardText, icon: "?", tone: "muted" });
+    return;
+  }
+  showReply({ title: "HUG", text: data.response, heard: heardText });
+}
 
-    currentActionPayload = {
-      type: "ORDER_FOOD",
-      vendor: isTantuni ? "Chef Tantuni" : "Wolt Restoran",
-      item: isTantuni ? "Tantuni · 1 pors" : "Bozbaş · Orta pors",
-      price: isTantuni ? "8.50 AZN" : "12.00 AZN",
-      breakdown: isTantuni ? "Yemək 6.50 AZN + Wolt Çatdırılma 2.00 AZN" : "Yemək 10.00 AZN + Wolt Çatdırılma 2.00 AZN",
-      emoji: isTantuni ? "🌯" : "🍲",
-      deepLink: isTantuni
-        ? "https://wolt.com/az/aze/baku/search?q=chef+tantuni"
-        : "https://wolt.com/az/aze/baku/search?q=bozbas"
-    };
+// Reminders screen backed by GET /api/v1/reminders
+async function openReminders(spokenText = "Xatırlatmalarınız ekrandadır.") {
+  clearConfirmWorkflow();
+  showScreen("screen-reminders");
+  const listEl = document.getElementById("reminders-list");
+  if (listEl) listEl.innerHTML = '<p class="reminders-empty">Yüklənir...</p>';
+  speakText(spokenText);
 
-    setTimeout(() => {
-      document.getElementById("confirm-avatar-badge").textContent = currentActionPayload.emoji;
-      document.getElementById("confirm-question-title").textContent = `${currentActionPayload.vendor} sifarişiniz təsdiqlənsin?`;
-      document.getElementById("confirm-details-primary").textContent = currentActionPayload.item;
-      document.getElementById("confirm-details-secondary").textContent = `Cəmi ${currentActionPayload.price} (${currentActionPayload.vendor} · Wolt)`;
-      document.getElementById("btn-confirm-yes").textContent = "Bəli, sifariş et";
+  let reminders = [];
+  try {
+    reminders = await apiRequest("/reminders");
+  } catch (err) {
+    if (listEl) listEl.innerHTML = '<p class="reminders-empty">Xatırlatmalar yüklənmədi.</p>';
+    return;
+  }
+  if (!listEl) return;
 
-      startConfirmation(
-        "chef_tantuni_confirm",
-        "Chef Tantunidən bir pors Tantuni sifarişiniz təsdiqlənsin? Cəmi səkkiz manat əlli qəpik. Bəli deyin.",
-        executeConfirmedAction
-      );
-    }, 600);
+  const upcoming = reminders
+    .filter((r) => r.status === "pending")
+    .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+  if (upcoming.length === 0) {
+    listEl.innerHTML = '<p class="reminders-empty">Hələ xatırlatma yoxdur. Məsələn deyin: “Sabah saat 10-da dərmanımı xatırlat”.</p>';
     return;
   }
 
-  // ----------------------------------------------------
-  // SCENARIO 3: WOLT PHARMACY (Aptek / Dərman)
-  // ----------------------------------------------------
-  if (
-    lowered.includes("aptek") ||
-    lowered.includes("dərman") ||
-    lowered.includes("derman") ||
-    lowered.includes("kardiomaqnil") ||
-    lowered.includes("təzyiq")
-  ) {
-    currentActionPayload = {
-      type: "ORDER_PHARMACY",
-      vendor: "Zəfəran Aptek",
-      item: "Kardiomaqnil 75 mq",
-      price: "6.20 AZN",
-      breakdown: "Dərman 4.20 AZN + Wolt Çatdırılma 2.00 AZN",
-      emoji: "💊",
-      deepLink: "https://wolt.com/az/aze/baku/search?q=kardiomaqnil"
-    };
-
-    setTimeout(() => {
-      document.getElementById("confirm-avatar-badge").textContent = "💊";
-      document.getElementById("confirm-question-title").textContent = "Aptekdən sifarişiniz təsdiqlənsin?";
-      document.getElementById("confirm-details-primary").textContent = "Kardiomaqnil 75 mq (Zəfəran Aptek)";
-      document.getElementById("confirm-details-secondary").textContent = "Cəmi 6.20 AZN (Wolt Çatdırılma ilə)";
-      document.getElementById("btn-confirm-yes").textContent = "Bəli, sifariş et";
-
-      startConfirmation(
-        "pharmacy_confirm",
-        "Aptekdən kardiomaqnil dərmanı sifarişiniz təsdiqlənsin? Cəmi altı manat iyirmi qəpik. Bəli deyin.",
-        executeConfirmedAction
-      );
-    }, 600);
-    return;
+  listEl.innerHTML = "";
+  for (const r of upcoming) {
+    const card = document.createElement("div");
+    card.className = "reminder-item-card samsung-card";
+    const info = document.createElement("div");
+    const h4 = document.createElement("h4");
+    h4.textContent = r.title;
+    const p = document.createElement("p");
+    p.textContent = formatReminderTime(r.scheduled_at);
+    info.append(h4, p);
+    const badge = document.createElement("span");
+    badge.className = "time-badge";
+    badge.textContent = relativeTimeAz(r.scheduled_at);
+    card.append(info, badge);
+    listEl.append(card);
   }
+}
 
-  // ----------------------------------------------------
-  // SCENARIO 4: TAXI (Wolt Taxi / Şəhər mərkəzinə)
-  // ----------------------------------------------------
-  if (
-    lowered.includes("taksi") ||
-    lowered.includes("taxi") ||
-    lowered.includes("maşın") ||
-    lowered.includes("masin")
-  ) {
-    currentActionPayload = {
-      type: "ORDER_TAXI",
-      route: "Nizami küç. → Şəhər mərkəzi",
-      car: "Toyota Camry · 10-AB-123",
-      driver: "Rəşad M.",
-      price: "5.00 AZN",
-      eta: "3 dəq"
-    };
-
-    setTimeout(() => {
-      document.getElementById("confirm-avatar-badge").textContent = "🚕";
-      document.getElementById("confirm-question-title").textContent = "Taksi çağırılsın?";
-      document.getElementById("confirm-details-primary").textContent = "Nizami küç. → Şəhər mərkəzi";
-      document.getElementById("confirm-details-secondary").textContent = "Toyota Camry · Ekonom 5 AZN";
-      document.getElementById("btn-confirm-yes").textContent = "Bəli, taksi çağır";
-
-      startConfirmation(
-        "taxi_confirm",
-        "Nizami küçəsindən şəhər mərkəzinə taksi çağırılsın? Qiymət beş manat. Bəli deyin.",
-        executeConfirmedAction
-      );
-    }, 600);
-    return;
-  }
-
-  // ----------------------------------------------------
-  // SCENARIO 5: REMINDERS / CALENDAR
-  // ----------------------------------------------------
-  if (
-    lowered.includes("xatırla") ||
-    lowered.includes("xatirlat") ||
-    lowered.includes("yadıma sal") ||
-    lowered.includes("yadima sal") ||
-    lowered.includes("təqvim") ||
-    lowered.includes("teqvim")
-  ) {
-    setTimeout(() => {
-      showScreen("screen-reminders");
-      playAzAudio("reminders", "Xatırlatmalarınız ekrandadır.");
-    }, 600);
-    return;
-  }
-
-  // General fallback
-  currentActionPayload = {
-    type: "GENERAL",
-    text: text
-  };
-
-  setTimeout(() => {
-    document.getElementById("confirm-avatar-badge").textContent = "✦";
-    document.getElementById("confirm-question-title").textContent = "Əməliyyat icra edilsin?";
-    document.getElementById("confirm-details-primary").textContent = `“${text}”`;
-    document.getElementById("confirm-details-secondary").textContent = "HUG Səsli Köməkçi Sistemi";
-    document.getElementById("btn-confirm-yes").textContent = "Bəli, icra et";
-
-    startConfirmation("chef_tantuni_confirm", "Əməliyyatı icra edim? Bəli deyin.", executeConfirmedAction);
-  }, 600);
+function relativeTimeAz(iso) {
+  const target = parseBakuTime(iso);
+  const diffMin = Math.round((target - new Date()) / 60000);
+  if (Number.isNaN(diffMin)) return "";
+  if (diffMin < 0) return "keçib";
+  if (diffMin < 60) return `${diffMin} dəq sonra`;
+  const hours = Math.round(diffMin / 60);
+  if (hours < 24) return `${hours} saat sonra`;
+  return `${Math.round(hours / 24)} gün sonra`;
 }
 
 // Show clear message when microphone was silent (NO FAKE AUTO EXECUTION)
@@ -770,7 +823,7 @@ function startCall(contact) {
     timerEl.textContent = `Zəng edilir... · ${mins}:${secs}`;
   }, 1000);
 
-  playAzAudio(contact.audio_active || "call_sister_active", `${contact.short_name} ilə əlaqə qurulur`);
+  speakText(`${contact.short_name} ilə əlaqə qurulur.`);
 
   // Direct trigger to native Samsung Phone dialer
   try {
@@ -785,45 +838,30 @@ function endCall() {
   playAzAudio("call_end", "Zəng başa çatdı.");
 }
 
-// Wolt Order Tracking Workflow
-function startOrderTracking() {
+// Wolt Order Tracking Workflow (simulated – order details come from the backend)
+function startOrderTracking(order = {}, spokenText = "") {
   showScreen("screen-order-tracking");
 
-  if (currentActionPayload && currentActionPayload.item) {
-    const emojiEl = document.getElementById("order-food-emoji");
-    if (emojiEl && currentActionPayload.emoji) {
-      emojiEl.textContent = currentActionPayload.emoji;
-    }
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el && value) el.textContent = value;
+  };
+  setText("order-food-emoji", order.emoji);
+  setText("order-card-title", order.item);
+  setText("order-card-subtitle", order.vendor ? `${order.vendor} (Wolt)` : "");
+  setText("order-card-price", order.price);
+  setText("order-card-breakdown", order.breakdown);
 
-    const titleEl = document.getElementById("order-card-title");
-    if (titleEl) titleEl.textContent = currentActionPayload.item;
+  const woltBtn = document.getElementById("btn-wolt-deep-link");
+  if (woltBtn && order.deep_link) woltBtn.href = order.deep_link;
 
-    const subEl = document.getElementById("order-card-subtitle");
-    if (subEl) subEl.textContent = `${currentActionPayload.vendor} (Wolt)`;
-
-    const priceEl = document.getElementById("order-card-price");
-    if (priceEl) priceEl.textContent = currentActionPayload.price;
-
-    const breakEl = document.getElementById("order-card-breakdown");
-    if (breakEl) breakEl.textContent = currentActionPayload.breakdown;
-
-    const woltBtn = document.getElementById("btn-wolt-deep-link");
-    if (woltBtn && currentActionPayload.deepLink) {
-      woltBtn.href = currentActionPayload.deepLink;
-    }
-  }
-
-  if (currentActionPayload && currentActionPayload.type === "ORDER_PHARMACY") {
-    playAzAudio("pharmacy_active", "Aptekdən sifarişiniz qəbul olundu. Kuryer yoldadır.");
-  } else {
-    playAzAudio("chef_tantuni_active", "Chef Tantunidən sifarişiniz qəbul olundu. Kuryer yoldadır.");
-  }
+  speakText(spokenText || "Sifarişiniz qəbul olundu. Kuryer yoldadır.");
 }
 
-// Wolt Taxi Tracking Workflow
-function startTaxiTracking() {
+// Wolt Taxi Tracking Workflow (simulated)
+function startTaxiTracking(spokenText = "") {
   showScreen("screen-taxi-tracking");
-  playAzAudio("taxi_active", "Taksi təsdiqləndi. Toyota Camry üç dəqiqəyə çatır.");
+  speakText(spokenText || "Taksi təsdiqləndi.");
 }
 
 // Initialize Application DOM Events
@@ -847,6 +885,31 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   if (tapToTalkBtn) {
     tapToTalkBtn.addEventListener("click", () => startListeningWorkflow());
+  }
+
+  // 1b. Typed command (same backend path as voice)
+  const textForm = document.getElementById("text-command-form");
+  const textInput = document.getElementById("text-command-input");
+  if (textForm && textInput) {
+    textForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const value = textInput.value.trim();
+      if (!value) return;
+      textInput.value = "";
+      clearConfirmWorkflow();
+      unlockAudio();
+      showScreen("screen-listening");
+      const retryBtn = document.getElementById("btn-retry-listening");
+      const finishBtn = document.getElementById("btn-finish-recording");
+      if (retryBtn) retryBtn.style.display = "none";
+      if (finishBtn) finishBtn.style.display = "none";
+      handleProcessedVoice(value);
+    });
+  }
+
+  const btnReplyTalk = document.getElementById("btn-reply-talk");
+  if (btnReplyTalk) {
+    btnReplyTalk.addEventListener("click", () => startListeningWorkflow());
   }
 
   // 2. Listening Screen Actions
@@ -887,6 +950,10 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => {
       clearConfirmWorkflow();
       stopCurrentRecording();
+      if (currentActionId) {
+        apiRequest(`/assistant/cancel/${currentActionId}`, { method: "POST" }).catch(() => {});
+        currentActionId = null;
+      }
       clearInterval(callTimerInterval);
       showScreen("screen-home");
     });
@@ -896,9 +963,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnReminders = document.getElementById("btn-open-reminders");
   if (btnReminders) {
     btnReminders.addEventListener("click", () => {
-      clearConfirmWorkflow();
-      showScreen("screen-reminders");
-      playAzAudio("reminders", "Xatırlatmalarınız ekrandadır.");
+      openReminders();
     });
   }
 
@@ -984,9 +1049,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnConfirmCancel) {
     btnConfirmCancel.addEventListener("click", () => {
-      clearConfirmWorkflow();
-      showScreen("screen-home");
-      playAzAudio("action_cancel", "Əməliyyat ləğv edildi.");
+      cancelCurrentAction();
     });
   }
 

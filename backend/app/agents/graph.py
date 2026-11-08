@@ -4,6 +4,7 @@ from app.agents.nodes.intent_node import input_node, intent_node
 from app.agents.nodes.contact_node import contact_node
 from app.agents.nodes.reminder_node import reminder_node
 from app.agents.nodes.security_node import security_node
+from app.agents.nodes.order_node import order_node
 from app.agents.nodes.response_node import (
     validation_node,
     confirmation_node,
@@ -31,6 +32,8 @@ class _FallbackCompiledGraph:
             state = reminder_node(state)
         elif next_node == "security_node":
             state = security_node(state)
+        elif next_node == "order_node":
+            state = order_node(state)
         state = validation_node(state)
         state = confirmation_node(state)
         state = response_node(state)
@@ -49,6 +52,7 @@ def build_agent_graph():
     workflow.add_node("contact_node", contact_node)
     workflow.add_node("reminder_node", reminder_node)
     workflow.add_node("security_node", security_node)
+    workflow.add_node("order_node", order_node)
     workflow.add_node("validation_node", validation_node)
     workflow.add_node("confirmation_node", confirmation_node)
     workflow.add_node("response_node", response_node)
@@ -63,6 +67,7 @@ def build_agent_graph():
             "contact_node": "contact_node",
             "reminder_node": "reminder_node",
             "security_node": "security_node",
+            "order_node": "order_node",
             "validation_node": "validation_node",
         },
     )
@@ -70,6 +75,7 @@ def build_agent_graph():
     workflow.add_edge("contact_node", "validation_node")
     workflow.add_edge("reminder_node", "validation_node")
     workflow.add_edge("security_node", "validation_node")
+    workflow.add_edge("order_node", "validation_node")
     workflow.add_edge("validation_node", "confirmation_node")
     workflow.add_edge("confirmation_node", "response_node")
     workflow.add_edge("response_node", END)

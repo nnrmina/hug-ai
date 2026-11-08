@@ -1,7 +1,7 @@
 def test_root_and_health(client):
     r_root = client.get("/")
     assert r_root.status_code == 200
-    assert r_root.json()["message"] == "Welcome to YAXIN AI"
+    assert "text/html" in r_root.headers["content-type"]
 
     r_health = client.get("/health")
     assert r_health.status_code == 200
@@ -111,3 +111,33 @@ def test_user_and_preferences_endpoints(client):
     assert pref_res.json()["voice_speed"] == 0.9
     assert pref_res.json()["theme"] == "high_contrast"
 
+
+
+def test_order_confirmation_flow(client):
+    res = client.post("/api/v1/assistant/message", json={"message": "Taksi çağır"})
+    data = res.json()
+    assert data["intent"] == "ORDER_TAXI"
+    assert data["status"] == "needs_confirmation"
+
+    confirmed = client.post(f"/api/v1/assistant/confirm/{data['action_id']}").json()
+    assert confirmed["status"] == "completed"
+    assert confirmed["action_data"]["authorized_execution"] == "SIMULATED_ORDER"
+    assert "Taksi" in confirmed["response"]
+
+
+def test_reminder_confirmation_persists(client):
+    data = client.post(
+        "/api/v1/assistant/message",
+        json={"message": "Sabah saat 10-da dərmanımı xatırlat"},
+    ).json()
+    client.post(f"/api/v1/assistant/confirm/{data['action_id']}")
+    reminders = client.get("/api/v1/reminders").json()
+    assert any(r["title"] == data["action_data"]["title"] for r in reminders)
+
+
+def test_voice_endpoint_does_not_invent_transcripts(client):
+    res = client.post(
+        "/api/v1/assistant/voice",
+        files={"audio": ("voice.webm", bytes([0xFF, 0xFE, 0x00, 0x81]), "audio/webm")},
+    )
+    assert res.status_code == 422

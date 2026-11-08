@@ -154,3 +154,35 @@ def extract_reminder_title(text: str) -> str:
         return "Xatırlatma"
     return cleaned[0].upper() + cleaned[1:]
 
+
+
+AZ_MONTHS = [
+    "yanvar", "fevral", "mart", "aprel", "may", "iyun",
+    "iyul", "avqust", "sentyabr", "oktyabr", "noyabr", "dekabr",
+]
+
+
+def format_az_datetime(value, reference_time: Optional[datetime] = None) -> str:
+    """Human, speakable Azerbaijani form of a datetime, e.g. 'sabah saat 10:00'."""
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return value
+    if not isinstance(value, datetime):
+        return ""
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=BAKU_TZ)
+    local = value.astimezone(BAKU_TZ)
+    today = (reference_time or now_baku()).astimezone(BAKU_TZ).date()
+
+    delta_days = (local.date() - today).days
+    if delta_days == 0:
+        day = "bu gün"
+    elif delta_days == 1:
+        day = "sabah"
+    elif delta_days == 2:
+        day = "birigün"
+    else:
+        day = f"{local.day} {AZ_MONTHS[local.month - 1]}"
+    return f"{day} saat {local:%H:%M}"

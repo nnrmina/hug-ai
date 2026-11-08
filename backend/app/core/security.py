@@ -32,6 +32,24 @@ ACTION_RISK_POLICY: Dict[str, Dict[str, Any]] = {
         "requires_confirmation": True,
         "allowed_in_mvp": True,
     },
+    "ORDER_FOOD": {
+        "risk_level": "medium",
+        "requires_confirmation": True,
+        "allowed_in_mvp": True,
+        "simulated": True,
+    },
+    "ORDER_PHARMACY": {
+        "risk_level": "medium",
+        "requires_confirmation": True,
+        "allowed_in_mvp": True,
+        "simulated": True,
+    },
+    "ORDER_TAXI": {
+        "risk_level": "medium",
+        "requires_confirmation": True,
+        "allowed_in_mvp": True,
+        "simulated": True,
+    },
     "BANK_TRANSFER": {
         "risk_level": "high",
         "requires_confirmation": True,

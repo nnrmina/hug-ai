@@ -18,6 +18,7 @@ env/
 *.db
 *.sqlite3
 postgres_data/
+.tts_cache/
 
 # Testing & coverage
 .pytest_cache/

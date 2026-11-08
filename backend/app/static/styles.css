@@ -1408,3 +1408,113 @@ body {
 .done-actions {
   width: 100%;
 }
+
+/* ==========================================================================
+   Typed command input (home)
+   ========================================================================== */
+.text-command-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.text-command-input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 16px;
+  border: 1.5px solid #d4e3d3;
+  border-radius: 23px;
+  background: #ffffff;
+  font-size: 15px;
+  color: #121913;
+  outline: none;
+}
+
+.text-command-input:focus {
+  border-color: #2ea13f;
+}
+
+.text-command-send {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 23px;
+  background: #e6f6e8;
+  color: #239439;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.text-command-send:hover {
+  background: #d6efd9;
+}
+
+/* ==========================================================================
+   SCREEN: ASSISTANT REPLY
+   ========================================================================== */
+.reply-main {
+  justify-content: flex-start;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.reply-icon {
+  width: 84px;
+  height: 84px;
+  border-radius: 42px;
+  background: #2ea13f;
+  color: #ffffff;
+  font-size: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 32px rgba(46, 161, 63, 0.35);
+  flex-shrink: 0;
+}
+
+.reply-icon.risk-high { background: #dc2626; box-shadow: 0 12px 32px rgba(220, 38, 38, 0.3); }
+.reply-icon.risk-medium { background: #f59e0b; box-shadow: 0 12px 32px rgba(245, 158, 11, 0.3); }
+.reply-icon.muted { background: #8a9a8c; box-shadow: none; }
+
+.reply-card {
+  width: 100%;
+  padding: 16px 18px;
+  text-align: left;
+}
+
+.reply-heard {
+  font-size: 12.5px;
+  color: #617264;
+  margin-bottom: 6px;
+}
+
+.reply-heard:empty {
+  display: none;
+}
+
+.reply-text {
+  font-size: 15.5px;
+  line-height: 1.45;
+  color: #121913;
+  white-space: pre-line;
+}
+
+.reply-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.reminders-empty {
+  font-size: 14px;
+  color: #617264;
+  text-align: center;
+  padding: 18px 0;
+}

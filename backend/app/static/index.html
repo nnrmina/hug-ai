@@ -98,6 +98,15 @@
             <button id="btn-tap-to-talk" class="samsung-primary-pill-btn">
               Danışmaq üçün toxunun
             </button>
+            <form id="text-command-form" class="text-command-form" autocomplete="off">
+              <input id="text-command-input" class="text-command-input" type="text" placeholder="və ya yazın..." aria-label="Əmri yazın" maxlength="2000" />
+              <button type="submit" class="text-command-send" aria-label="Göndər">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </button>
+            </form>
           </div>
         </main>
       </section>
@@ -486,27 +495,42 @@
             </div>
           </div>
 
-          <div class="reminders-list-container">
-            <div class="reminder-item-card samsung-card">
-              <div>
-                <h4>Həkim Qəbulu</h4>
-                <p>Sabah · 10:00 (Poliklinika)</p>
-              </div>
-              <span class="time-badge">16 saat sonra</span>
-            </div>
-
-            <div class="reminder-item-card samsung-card">
-              <div>
-                <h4>Təzyiq Dərmanı</h4>
-                <p>Bu gün · 21:00 (Kardiomaqnil)</p>
-              </div>
-              <span class="time-badge">3 saat sonra</span>
-            </div>
+          <div id="reminders-list" class="reminders-list-container">
+            <p class="reminders-empty">Yüklənir...</p>
           </div>
 
           <button class="samsung-primary-pill-btn btn-go-home">
             Ana səhifəyə qayıt
           </button>
+        </main>
+      </section>
+
+      <!-- ==============================================
+           SCREEN 6b: ASSISTANT REPLY (answers, scam check, clarification)
+           ============================================== -->
+      <section id="screen-reply" class="screen-view">
+        <header class="top-nav samsung-top-nav">
+          <button class="samsung-icon-btn btn-go-home" title="Geri">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+          <div class="center-screen-title">HUG</div>
+          <span style="width: 40px;"></span>
+        </header>
+
+        <main class="done-main reply-main">
+          <div id="reply-icon" class="reply-icon">✦</div>
+          <h2 id="reply-title" class="done-title">Cavab</h2>
+          <div class="samsung-card reply-card">
+            <p id="reply-heard" class="reply-heard"></p>
+            <p id="reply-text" class="reply-text"></p>
+          </div>
+          <div class="done-actions reply-actions">
+            <button id="btn-reply-talk" class="samsung-primary-pill-btn">Yenidən danışın</button>
+            <button class="samsung-secondary-pill-btn btn-go-home">Ana səhifəyə qayıt</button>
+          </div>
         </main>
       </section>
 
