@@ -2,49 +2,65 @@
 <html lang="az">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#EBF3E8" />
-  <title>HUG — Azərbaycan Səsli AI Köməkçi</title>
+  <title>HUG — Samsung Galaxy AI Səsli Köməkçi</title>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-  <div class="phone-shell">
-    <!-- Minimal Status Bar -->
-    <div class="status-bar">
-      <span id="status-clock" class="clock">09:41</span>
-      <div class="status-icons">
-        <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor">
-          <rect x="0" y="8" width="2.5" height="4" rx="1"/>
-          <rect x="4" y="6" width="2.5" height="6" rx="1"/>
-          <rect x="8" y="3" width="2.5" height="9" rx="1"/>
-          <rect x="12" y="0" width="2.5" height="12" rx="1"/>
+  <div class="samsung-container">
+    <!-- Samsung Galaxy S22+ Infinity-O Bezel / Status Bar (adaptive for desktop preview, hidden on mobile) -->
+    <div class="samsung-status-bar">
+      <div class="samsung-status-left">
+        <span id="status-clock" class="samsung-clock">12:45</span>
+      </div>
+
+      <!-- Samsung Galaxy S22+ Infinity-O Camera Punch-Hole Cutout -->
+      <div class="samsung-camera-hole" title="Ön kamera"></div>
+
+      <div class="samsung-status-right">
+        <!-- 5G / LTE Icon -->
+        <span class="samsung-net-type">5G</span>
+        <!-- Cellular Signal -->
+        <svg class="samsung-stat-icon" width="16" height="13" viewBox="0 0 16 13" fill="currentColor">
+          <rect x="0" y="9" width="2.5" height="4" rx="0.6"/>
+          <rect x="4" y="6" width="2.5" height="7" rx="0.6"/>
+          <rect x="8" y="3" width="2.5" height="10" rx="0.6"/>
+          <rect x="12" y="0" width="2.5" height="13" rx="0.6"/>
         </svg>
-        <svg width="15" height="12" viewBox="0 0 16 12" fill="currentColor">
-          <path d="M8 9.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm-3.6-2a5.2 5.2 0 017.2 0l1.2-1.2a7 7 0 00-9.6 0l1.2 1.2zm-2.8-2.8a9.2 9.2 0 0112.8 0l1.2-1.2a11 11 0 00-15.2 0l1.2 1.2z"/>
+        <!-- Samsung WiFi Icon -->
+        <svg class="samsung-stat-icon" width="16" height="13" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98C20.93 5.9 16.69 4 12 4zm0 3.5c3.78 0 7.21 1.48 9.77 3.91L12 18.23 2.23 11.41C4.79 8.98 8.22 7.5 12 7.5z"/>
         </svg>
-        <div class="battery-icon"><div class="battery-level"></div></div>
+        <!-- Samsung Battery with Percentage -->
+        <div class="samsung-battery-wrap">
+          <span class="samsung-battery-text">85%</span>
+          <div class="samsung-battery-body">
+            <div class="samsung-battery-fill"></div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- SCREENS CONTAINER (Smooth transitions without bottom categories) -->
+    <!-- SCREENS CONTAINER (Clean Samsung One UI transitions without bottom categories) -->
     <div class="screens-viewport">
 
       <!-- ==============================================
-           SCREEN 1: HOME (Idle)
+           SCREEN 1: HOME (Samsung One UI Idle)
            ============================================== -->
       <section id="screen-home" class="screen-view active">
-        <header class="top-nav">
-          <button id="btn-open-contacts" class="circle-icon-btn" title="Kontaktlar">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-              <line x1="4" y1="7" x2="20" y2="7"/>
-              <line x1="4" y1="12" x2="16" y2="12"/>
-              <line x1="4" y1="17" x2="20" y2="17"/>
+        <header class="top-nav samsung-top-nav">
+          <button id="btn-open-contacts" class="samsung-icon-btn" title="Kontaktlar">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="16" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
           </button>
 
-          <div class="center-brand-title">HUG</div>
+          <div class="samsung-brand-logo">HUG</div>
 
-          <button id="btn-open-reminders" class="user-avatar-pill" title="Xatırlatmalar və Profil">
+          <button id="btn-open-reminders" class="samsung-avatar-btn" title="Xatırlatmalar və Profil">
             A
           </button>
         </header>
@@ -57,7 +73,7 @@
             <p id="live-mic-warning" class="mic-warning-text hidden"></p>
           </div>
 
-          <!-- Big 3D Glossy Green Orb with soft concentric glowing aura -->
+          <!-- Samsung One UI 3D Glossy Green Orb with soft concentric glowing aura -->
           <div class="orb-stage">
             <div class="orb-aura-ring ring-outer"></div>
             <div class="orb-aura-ring ring-inner"></div>
@@ -69,9 +85,9 @@
             <div class="orb-reflection"></div>
           </div>
 
-          <!-- Tap to talk primary button -->
+          <!-- Tap to talk primary button (No bottom categories, strictly clean) -->
           <div class="home-action-container">
-            <button id="btn-tap-to-talk" class="primary-pill-btn">
+            <button id="btn-tap-to-talk" class="samsung-primary-pill-btn">
               Danışmaq üçün toxunun
             </button>
           </div>
@@ -79,20 +95,27 @@
       </section>
 
       <!-- ==============================================
-           SCREEN 2: LISTENING / PROCESSING
+           SCREEN 2: LISTENING / PROCESSING (Samsung Style)
            ============================================== -->
       <section id="screen-listening" class="screen-view">
-        <header class="top-nav">
-          <button class="circle-icon-btn btn-go-home" title="Geri">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
+        <header class="top-nav samsung-top-nav">
+          <button class="samsung-icon-btn btn-go-home" title="Geri">
+            <!-- Samsung Android Straight Back Arrow -->
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
 
           <div class="center-screen-title">Dinlənilir...</div>
 
-          <button class="circle-icon-btn btn-more-options" title="Seçimlər">
-            <span class="dots-icon">•••</span>
+          <button class="samsung-icon-btn btn-more-options" title="Seçimlər">
+            <!-- Samsung Vertical 3 Dots (more_vert) -->
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="2"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+              <circle cx="12" cy="19" r="2"></circle>
+            </svg>
           </button>
         </header>
 
@@ -104,7 +127,7 @@
             </div>
           </div>
 
-          <!-- Animated Audio Waveform (Green bars pulsing) -->
+          <!-- Animated Audio Waveform -->
           <div class="waveform-container" id="audio-waveform">
             <span class="wave-bar"></span>
             <span class="wave-bar"></span>
@@ -121,7 +144,7 @@
           </div>
 
           <!-- Transcript Card -->
-          <div class="transcript-card">
+          <div class="transcript-card samsung-card">
             <span class="transcript-label">Siz dediniz:</span>
             <p id="recognized-speech-quote" class="transcript-quote">“Mamama zəng et”</p>
           </div>
@@ -131,20 +154,25 @@
       </section>
 
       <!-- ==============================================
-           SCREEN 3: CONFIRMATION (Təsdiqləmə)
+           SCREEN 3: CONFIRMATION (Samsung One UI Style)
            ============================================== -->
       <section id="screen-confirm" class="screen-view">
-        <header class="top-nav">
-          <button class="circle-icon-btn btn-go-home" title="Geri">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
+        <header class="top-nav samsung-top-nav">
+          <button class="samsung-icon-btn btn-go-home" title="Geri">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
 
           <div class="center-screen-title">Təsdiqləyin</div>
 
-          <button class="circle-icon-btn btn-more-options" title="Seçimlər">
-            <span class="dots-icon">•••</span>
+          <button class="samsung-icon-btn btn-more-options" title="Seçimlər">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="2"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+              <circle cx="12" cy="19" r="2"></circle>
+            </svg>
           </button>
         </header>
 
@@ -154,21 +182,18 @@
             <div id="confirm-avatar-badge" class="confirm-avatar-inner">S</div>
           </div>
 
-          <!-- Bold question -->
           <h2 id="confirm-question-title" class="confirm-question">Qızınıza zəng edilsin?</h2>
 
-          <!-- Subtext Details Card -->
-          <div class="confirm-details-card">
+          <div class="confirm-details-card samsung-card">
             <p id="confirm-details-primary" class="confirm-name">Sevinc Məmmədova</p>
             <p id="confirm-details-secondary" class="confirm-meta">Mobil · +994 50 123 45 67</p>
           </div>
 
-          <!-- Dual Pill Action Buttons -->
           <div class="confirm-actions-group">
-            <button id="btn-confirm-yes" class="primary-pill-btn">
+            <button id="btn-confirm-yes" class="samsung-primary-pill-btn">
               Bəli, zəng et
             </button>
-            <button id="btn-confirm-cancel" class="secondary-pill-btn">
+            <button id="btn-confirm-cancel" class="samsung-secondary-pill-btn">
               Ləğv et
             </button>
           </div>
@@ -176,20 +201,25 @@
       </section>
 
       <!-- ==============================================
-           SCREEN 4: CALLING (Aktiv Zəng)
+           SCREEN 4: CALLING (Samsung Active Call UI)
            ============================================== -->
       <section id="screen-calling" class="screen-view">
-        <header class="top-nav">
-          <button class="circle-icon-btn btn-go-home" title="Geri">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
+        <header class="top-nav samsung-top-nav">
+          <button class="samsung-icon-btn btn-go-home" title="Geri">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
 
           <div class="center-screen-title">Zəng</div>
 
-          <button class="circle-icon-btn btn-more-options" title="Seçimlər">
-            <span class="dots-icon">•••</span>
+          <button class="samsung-icon-btn btn-more-options" title="Seçimlər">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="2"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+              <circle cx="12" cy="19" r="2"></circle>
+            </svg>
           </button>
         </header>
 
@@ -213,10 +243,10 @@
           </div>
 
           <div class="call-action-buttons">
-            <a id="native-dialer-btn" href="tel:+994501234567" class="dialer-native-link">
-              📞 Telefonda Yığ
+            <a id="native-dialer-btn" href="tel:+994501234567" class="dialer-native-link samsung-card">
+              📞 Nömrəni Telefonda Yığ
             </a>
-            <button id="btn-end-active-call" class="danger-pill-btn">
+            <button id="btn-end-active-call" class="samsung-danger-pill-btn">
               Zəngi Bitir
             </button>
           </div>
@@ -227,27 +257,27 @@
            SCREEN 5: FOOD / GROCERY ORDER TRACKING
            ============================================== -->
       <section id="screen-order-tracking" class="screen-view">
-        <header class="top-nav">
-          <button class="circle-icon-btn btn-go-home" title="Geri">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
+        <header class="top-nav samsung-top-nav">
+          <button class="samsung-icon-btn btn-go-home" title="Geri">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
 
           <div class="center-screen-title">Sifarişiniz</div>
 
-          <button class="circle-icon-btn" title="Sifariş məlumatı">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <path d="M16 10a4 4 0 0 1-8 0"></path>
+          <button class="samsung-icon-btn" title="Məlumat">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
           </button>
         </header>
 
         <main class="order-main">
-          <!-- Item Card -->
-          <div class="order-summary-card">
+          <div class="order-summary-card samsung-card">
             <div class="order-header-row">
               <div class="order-item-left">
                 <span class="order-food-emoji">🍲</span>
@@ -261,8 +291,7 @@
             <p id="order-card-breakdown" class="order-breakdown">Yemək 10 AZN + Çatdırılma 2 AZN</p>
           </div>
 
-          <!-- Stepper Card -->
-          <div class="order-tracking-card">
+          <div class="order-tracking-card samsung-card">
             <div class="tracking-top-row">
               <span class="tracking-eta-label">Çatır:</span>
               <span id="order-eta-countdown" class="tracking-eta-timer">08:24</span>
@@ -297,7 +326,7 @@
           </div>
 
           <div class="order-actions-bottom">
-            <button id="btn-order-finish" class="primary-pill-btn">
+            <button id="btn-order-finish" class="samsung-primary-pill-btn">
               Sifarişi Tamamla
             </button>
           </div>
@@ -305,20 +334,21 @@
       </section>
 
       <!-- ==============================================
-           SCREEN 6: REMINDERS & CALENDAR
+           SCREEN 6: REMINDERS & CALENDAR (Samsung Style)
            ============================================== -->
       <section id="screen-reminders" class="screen-view">
-        <header class="top-nav">
-          <button class="circle-icon-btn btn-go-home" title="Geri">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
+        <header class="top-nav samsung-top-nav">
+          <button class="samsung-icon-btn btn-go-home" title="Geri">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
           </button>
 
           <div class="center-screen-title">Xatırlatmalar</div>
 
-          <button class="circle-icon-btn" title="Bildirişlər">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button class="samsung-icon-btn" title="Bildirişlər">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
             </svg>
@@ -326,8 +356,7 @@
         </header>
 
         <main class="reminders-main">
-          <!-- Calendar Widget -->
-          <div class="calendar-card">
+          <div class="calendar-card samsung-card">
             <div class="calendar-header">
               <span class="cal-month-title">Noyabr 2026</span>
             </div>
@@ -343,9 +372,8 @@
             </div>
           </div>
 
-          <!-- Reminder List Items -->
           <div class="reminders-list-container">
-            <div class="reminder-item-card">
+            <div class="reminder-item-card samsung-card">
               <div>
                 <h4>Həkim Qəbulu</h4>
                 <p>Sabah · 10:00 (Poliklinika)</p>
@@ -353,7 +381,7 @@
               <span class="time-badge">16 saat sonra</span>
             </div>
 
-            <div class="reminder-item-card">
+            <div class="reminder-item-card samsung-card">
               <div>
                 <h4>Təzyiq Dərmanı</h4>
                 <p>Bu gün · 21:00 (Kardiomaqnil)</p>
@@ -362,24 +390,23 @@
             </div>
           </div>
 
-          <button class="primary-pill-btn btn-go-home">
+          <button class="samsung-primary-pill-btn btn-go-home">
             Ana səhifəyə qayıt
           </button>
         </main>
       </section>
 
       <!-- ==============================================
-           SCREEN 7: DONE (Tamamlandı)
+           SCREEN 7: DONE (Samsung One UI Tamamlandı)
            ============================================== -->
       <section id="screen-done" class="screen-view">
-        <header class="top-nav">
+        <header class="top-nav samsung-top-nav">
           <div class="center-screen-title" style="margin: 0 auto;">Tamamlandı</div>
         </header>
 
         <main class="done-main">
-          <!-- Big Checkmark -->
           <div class="done-check-ring">
-            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
           </div>
@@ -387,13 +414,13 @@
           <h2 class="done-title">Hər şey hazırdır</h2>
           <p id="done-message-subtext" class="done-subtext">Əməliyyatınız uğurla başa çatdı.</p>
 
-          <div class="done-info-banner">
+          <div class="done-info-banner samsung-card">
             <h4>Əgər nəsə lazım olsa</h4>
             <p>Köməkçiniz yaşıl kürəciklə bir toxunuş uzaqlıqdadır.</p>
           </div>
 
           <div class="done-actions">
-            <button class="primary-pill-btn btn-go-home">
+            <button class="samsung-primary-pill-btn btn-go-home">
               Ana səhifəyə qayıt
             </button>
           </div>

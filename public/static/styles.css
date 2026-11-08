@@ -1,85 +1,164 @@
+/* ==========================================================================
+   HUG — Samsung Galaxy One UI Design System (Tailored for Samsung S22+)
+   ========================================================================== */
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
+  font-family: "Samsung One", "Samsung Sans", "Roboto", "Segoe UI", -apple-system, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: #f0f3ee;
+  background: #eef2ec;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  color: #111812;
+  padding: 0;
+  margin: 0;
+  color: #121913;
 }
 
-/* Phone Bezel & Screen */
-.phone-shell {
-  width: 396px;
+/* Samsung S22+ Phone Container */
+.samsung-container {
+  width: 412px;
   max-width: 100%;
-  height: 824px;
+  height: 860px;
   max-height: 96vh;
-  background: linear-gradient(180deg, #ebf3e8 0%, #e6efe3 100%);
-  border-radius: 50px;
-  border: 10px solid #ffffff;
+  background: linear-gradient(180deg, #ebf3e8 0%, #e6f0e3 100%);
+  border-radius: 40px;
+  border: 4px solid #d4ddd2;
   box-shadow:
-    0 24px 60px rgba(22, 40, 20, 0.10),
-    0 4px 14px rgba(0, 0, 0, 0.04);
+    0 24px 64px rgba(20, 38, 20, 0.12),
+    0 4px 16px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
-  padding: 16px 20px 22px;
+  padding: 12px 18px 20px;
   position: relative;
   overflow: hidden;
 }
 
-/* Minimal Status Bar */
-.status-bar {
+/* ==========================================================================
+   ON MOBILE (Samsung S22+ Native Full-Screen Edge-to-Edge)
+   ========================================================================== */
+@media (max-width: 600px) {
+  body {
+    background: #ebf3e8;
+  }
+
+  .samsung-container {
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    padding: calc(env(safe-area-inset-top, 8px) + 8px) 16px calc(env(safe-area-inset-bottom, 12px) + 12px);
+  }
+
+  /* Hide the simulated desktop status bar on real phone so it doesn't double with Samsung's real status bar */
+  .samsung-status-bar {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   Samsung One UI Status Bar (Desktop Mockup)
+   ========================================================================== */
+.samsung-status-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2px 8px 10px;
-  font-size: 14px;
+  padding: 4px 6px 12px;
+  font-size: 13.5px;
   font-weight: 700;
-  color: #111812;
+  color: #121913;
 }
 
-.status-icons {
+.samsung-status-left {
+  display: flex;
+  align-items: center;
+  min-width: 65px;
+}
+
+.samsung-clock {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+/* Samsung Galaxy S22+ Infinity-O Camera Punch Hole */
+.samsung-camera-hole {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #111812;
+  box-shadow: inset 0 0 2px rgba(255, 255, 255, 0.25);
+  margin: 0 auto;
+}
+
+.samsung-status-right {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 65px;
+  justify-content: flex-end;
 }
 
-.battery-icon {
-  width: 22px;
-  height: 11px;
-  border: 1.5px solid #111812;
-  border-radius: 3.5px;
-  padding: 1.5px;
+.samsung-net-type {
+  font-size: 11px;
+  font-weight: 800;
+  color: #121913;
+  letter-spacing: -0.2px;
+}
+
+.samsung-stat-icon {
+  color: #121913;
+}
+
+.samsung-battery-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.samsung-battery-text {
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.samsung-battery-body {
+  width: 19px;
+  height: 10px;
+  border: 1.5px solid #121913;
+  border-radius: 3px;
+  padding: 1px;
   position: relative;
 }
 
-.battery-icon::after {
+.samsung-battery-body::after {
   content: "";
   position: absolute;
-  right: -3.5px;
-  top: 2.5px;
-  width: 2px;
-  height: 4px;
-  background: #111812;
+  right: -3px;
+  top: 2px;
+  width: 1.5px;
+  height: 3px;
+  background: #121913;
   border-radius: 1px;
 }
 
-.battery-level {
-  width: 100%;
+.samsung-battery-fill {
+  width: 85%;
   height: 100%;
-  background: #111812;
+  background: #121913;
   border-radius: 1px;
 }
 
-/* Screens Viewport */
+/* ==========================================================================
+   Screens Viewport & Transitions
+   ========================================================================== */
 .screens-viewport {
   flex: 1;
   display: flex;
@@ -93,8 +172,8 @@ body {
   flex-direction: column;
   height: 100%;
   opacity: 0;
-  transform: translateY(12px);
-  transition: opacity 0.26s ease, transform 0.26s ease;
+  transform: translateY(8px);
+  transition: opacity 0.24s ease, transform 0.24s ease;
 }
 
 .screen-view.active {
@@ -103,22 +182,22 @@ body {
   transform: translateY(0);
 }
 
-/* Top Navigation Header across screens */
-.top-nav {
+/* Samsung One UI Header */
+.samsung-top-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 8px;
+  padding-bottom: 6px;
 }
 
-.circle-icon-btn {
+.samsung-icon-btn {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: 22px;
   border: none;
   background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  color: #1a221b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  color: #182219;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -126,30 +205,30 @@ body {
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.circle-icon-btn:hover {
+.samsung-icon-btn:hover {
   background: #ffffff;
-  transform: scale(1.05);
+  transform: scale(1.04);
 }
 
-.center-brand-title {
+.samsung-brand-logo {
   font-size: 19px;
   font-weight: 800;
-  color: #1a231b;
+  color: #151e16;
   letter-spacing: -0.2px;
 }
 
 .center-screen-title {
-  font-size: 17px;
+  font-size: 17.5px;
   font-weight: 700;
-  color: #1a231b;
+  color: #151e16;
 }
 
-.user-avatar-pill {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+.samsung-avatar-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 21px;
   border: none;
-  background: #50b848;
+  background: #2ea13f;
   color: #ffffff;
   font-size: 17px;
   font-weight: 700;
@@ -157,91 +236,88 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(80, 184, 72, 0.35);
+  box-shadow: 0 4px 12px rgba(46, 161, 63, 0.35);
   transition: transform 0.15s ease;
 }
 
-.user-avatar-pill:hover {
+.samsung-avatar-btn:hover {
   transform: scale(1.05);
 }
 
-.dots-icon {
-  font-size: 14px;
-  letter-spacing: 1px;
-  color: #556257;
+/* Samsung One UI Cards */
+.samsung-card {
+  background: #ffffff;
+  border-radius: 22px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.035);
 }
 
-/* Buttons System */
-.primary-pill-btn {
+/* Samsung One UI Button System */
+.samsung-primary-pill-btn {
   width: 100%;
   height: 56px;
-  background: #38b44a;
+  background: #2ea13f;
   color: #ffffff;
   border: none;
   border-radius: 28px;
-  font-size: 16px;
+  font-size: 16.5px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(56, 180, 74, 0.32);
+  box-shadow: 0 8px 20px rgba(46, 161, 63, 0.32);
   transition: background 0.18s ease, transform 0.15s ease;
 }
 
-.primary-pill-btn:hover {
-  background: #2ea13f;
+.samsung-primary-pill-btn:hover {
+  background: #268e37;
   transform: translateY(-1px);
 }
 
-.primary-pill-btn:active {
+.samsung-primary-pill-btn:active {
   transform: scale(0.98);
 }
 
-.secondary-pill-btn {
+.samsung-secondary-pill-btn {
   width: 100%;
   height: 56px;
   background: #ffffff;
-  color: #1b241c;
-  border: 1.5px solid #dce8db;
+  color: #151e16;
+  border: 1.5px solid #d4e3d3;
   border-radius: 28px;
-  font-size: 16px;
+  font-size: 16.5px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-  transition: background 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease;
 }
 
-.secondary-pill-btn:hover {
-  background: #f9fbf8;
+.samsung-secondary-pill-btn:hover {
+  background: #f7faf6;
 }
 
-.secondary-pill-btn:active {
-  transform: scale(0.98);
-}
-
-.danger-pill-btn {
+.samsung-danger-pill-btn {
   width: 100%;
   height: 56px;
-  background: #eb5757;
+  background: #e04f4f;
   color: #ffffff;
   border: none;
   border-radius: 28px;
-  font-size: 16px;
+  font-size: 16.5px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(235, 87, 87, 0.30);
-  transition: background 0.18s ease, transform 0.15s ease;
+  box-shadow: 0 8px 20px rgba(224, 79, 79, 0.30);
+  transition: background 0.18s ease;
 }
 
-.danger-pill-btn:hover {
-  background: #db4444;
+.samsung-danger-pill-btn:hover {
+  background: #cd3e3e;
 }
 
 /* ==========================================================================
@@ -253,24 +329,24 @@ body {
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0 12px;
+  padding: 10px 0 16px;
   text-align: center;
 }
 
 .headline-block {
-  margin-top: 10px;
+  margin-top: 6px;
 }
 
 .hero-title {
   font-size: 26px;
   line-height: 1.30;
   font-weight: 800;
-  color: #141b15;
-  letter-spacing: -0.4px;
+  color: #121913;
+  letter-spacing: -0.3px;
 }
 
 .accent-word {
-  color: #38b44a;
+  color: #2ea13f;
 }
 
 .mic-warning-text {
@@ -283,7 +359,7 @@ body {
   display: none;
 }
 
-/* 3D Glossy Green Orb with Concentric Glow Rings */
+/* 3D Glossy Green Orb with Samsung Concentric Aura */
 .orb-stage {
   position: relative;
   width: 250px;
@@ -297,7 +373,7 @@ body {
 .orb-aura-ring {
   position: absolute;
   border-radius: 50%;
-  border: 1.5px solid rgba(80, 184, 72, 0.22);
+  border: 1.5px solid rgba(46, 161, 63, 0.24);
   pointer-events: none;
 }
 
@@ -320,7 +396,7 @@ body {
   }
   50% {
     transform: scale(1.04);
-    opacity: 0.75;
+    opacity: 0.80;
   }
 }
 
@@ -331,10 +407,10 @@ body {
   border: none;
   cursor: pointer;
   position: relative;
-  background: radial-gradient(circle at 35% 28%, #b2eec0 0%, #6cd580 32%, #38b44a 70%, #208030 100%);
+  background: radial-gradient(circle at 35% 28%, #b2eec0 0%, #6cd580 32%, #2ea13f 70%, #1c782b 100%);
   box-shadow:
-    0 18px 36px rgba(40, 130, 50, 0.30),
-    0 4px 12px rgba(40, 130, 50, 0.20),
+    0 18px 36px rgba(35, 125, 45, 0.32),
+    0 4px 12px rgba(35, 125, 45, 0.20),
     inset 0 -8px 22px rgba(10, 60, 20, 0.45),
     inset 0 4px 10px rgba(255, 255, 255, 0.70);
   animation: floatOrb 5s ease-in-out infinite;
@@ -386,44 +462,22 @@ body {
   width: 140px;
   height: 24px;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(40, 100, 45, 0.20) 0%, rgba(0, 0, 0, 0) 72%);
+  background: radial-gradient(ellipse at center, rgba(35, 100, 45, 0.20) 0%, rgba(0, 0, 0, 0) 72%);
   filter: blur(4px);
   pointer-events: none;
 }
 
 @keyframes floatOrb {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-7px);
-  }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
 }
 
 .home-action-container {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.assistant-status-row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #3b503f;
-}
-
-.status-dot {
-  color: #38b44a;
-  font-size: 14px;
 }
 
 /* ==========================================================================
-   SCREEN 2: LISTENING / PROCESSING STYLES
+   SCREEN 2: LISTENING / PROCESSING
    ========================================================================== */
 .listening-main {
   flex: 1;
@@ -443,16 +497,15 @@ body {
   width: 86px;
   height: 86px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 28%, #b2eec0 0%, #6cd580 32%, #38b44a 70%, #208030 100%);
+  background: radial-gradient(circle at 35% 28%, #b2eec0 0%, #6cd580 32%, #2ea13f 70%, #1c782b 100%);
   box-shadow:
-    0 10px 24px rgba(40, 130, 50, 0.25),
+    0 10px 24px rgba(35, 125, 45, 0.25),
     inset 0 -4px 12px rgba(10, 60, 20, 0.40),
     inset 0 3px 6px rgba(255, 255, 255, 0.60);
   position: relative;
   animation: floatOrb 4s ease-in-out infinite;
 }
 
-/* Live Waveform */
 .waveform-container {
   display: flex;
   align-items: center;
@@ -465,7 +518,7 @@ body {
 .wave-bar {
   width: 4px;
   height: 12px;
-  background: #38b44a;
+  background: #2ea13f;
   border-radius: 3px;
   animation: wavePulse 1.2s ease-in-out infinite;
 }
@@ -484,20 +537,13 @@ body {
 .wave-bar:nth-child(12) { animation-delay: 0.2s; height: 12px; }
 
 @keyframes wavePulse {
-  0%, 100% {
-    transform: scaleY(0.4);
-  }
-  50% {
-    transform: scaleY(1.3);
-  }
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1.3); }
 }
 
 .transcript-card {
   width: 100%;
-  background: #ffffff;
-  border-radius: 24px;
   padding: 20px 22px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
   margin-bottom: 18px;
 }
 
@@ -505,7 +551,7 @@ body {
   display: block;
   font-size: 13px;
   font-weight: 600;
-  color: #7d8c80;
+  color: #728275;
   margin-bottom: 8px;
 }
 
@@ -518,11 +564,11 @@ body {
 
 .speak-hint-text {
   font-size: 14px;
-  color: #657568;
+  color: #5c6c5f;
 }
 
 /* ==========================================================================
-   SCREEN 3: CONFIRMATION STYLES
+   SCREEN 3: CONFIRMATION
    ========================================================================== */
 .confirm-main {
   flex: 1;
@@ -530,33 +576,33 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 4px 12px;
+  padding: 16px 4px 12px;
   text-align: center;
 }
 
 .confirm-avatar-ring {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  background: rgba(80, 184, 72, 0.15);
+  width: 96px;
+  height: 96px;
+  border-radius: 48px;
+  background: rgba(46, 161, 63, 0.14);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .confirm-avatar-inner {
-  width: 78px;
-  height: 78px;
-  border-radius: 50%;
-  background: #38b44a;
+  width: 76px;
+  height: 76px;
+  border-radius: 38px;
+  background: #2ea13f;
   color: #ffffff;
-  font-size: 34px;
+  font-size: 32px;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 18px rgba(56, 180, 74, 0.35);
+  box-shadow: 0 6px 18px rgba(46, 161, 63, 0.35);
 }
 
 .confirm-question {
@@ -568,10 +614,7 @@ body {
 
 .confirm-details-card {
   width: 100%;
-  background: #ffffff;
-  border-radius: 22px;
   padding: 16px 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
   margin-bottom: 24px;
 }
 
@@ -584,7 +627,7 @@ body {
 
 .confirm-meta {
   font-size: 14px;
-  color: #6a7a6c;
+  color: #617264;
 }
 
 .confirm-actions-group {
@@ -595,7 +638,7 @@ body {
 }
 
 /* ==========================================================================
-   SCREEN 4: CALLING STYLES
+   SCREEN 4: CALLING
    ========================================================================== */
 .calling-main {
   flex: 1;
@@ -603,15 +646,15 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 4px 12px;
+  padding: 16px 4px 12px;
   text-align: center;
 }
 
 .call-avatar-ring {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: rgba(80, 184, 72, 0.18);
+  width: 116px;
+  height: 116px;
+  border-radius: 58px;
+  background: rgba(46, 161, 63, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -619,23 +662,23 @@ body {
 }
 
 .call-avatar-circle {
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
-  background: #38b44a;
+  width: 94px;
+  height: 94px;
+  border-radius: 47px;
+  background: #2ea13f;
   color: #ffffff;
-  font-size: 42px;
+  font-size: 40px;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(56, 180, 74, 0.40);
+  box-shadow: 0 8px 24px rgba(46, 161, 63, 0.40);
 }
 
 .calling-name {
   font-size: 26px;
   font-weight: 800;
-  color: #111812;
+  color: #121913;
   margin-top: 14px;
 }
 
@@ -646,7 +689,7 @@ body {
 }
 
 .calling-wave {
-  margin: 20px 0;
+  margin: 18px 0;
 }
 
 .call-action-buttons {
@@ -659,36 +702,31 @@ body {
 .dialer-native-link {
   width: 100%;
   height: 52px;
-  background: #ffffff;
-  border: 1.5px solid #dce8db;
+  border: 1.5px solid #d4e3d3;
   border-radius: 26px;
   font-size: 15px;
   font-weight: 700;
-  color: #1e261f;
+  color: #151e16;
   text-decoration: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
 }
 
 /* ==========================================================================
-   SCREEN 5: FOOD / GROCERY ORDER TRACKING STYLES
+   SCREEN 5: FOOD / GROCERY ORDER TRACKING
    ========================================================================== */
 .order-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 12px 4px;
+  padding: 10px 4px;
 }
 
 .order-summary-card {
-  background: #ffffff;
-  border-radius: 22px;
   padding: 16px 18px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .order-header-row {
@@ -705,7 +743,7 @@ body {
 }
 
 .order-food-emoji {
-  font-size: 30px;
+  font-size: 28px;
 }
 
 .order-item-left h3 {
@@ -716,12 +754,12 @@ body {
 
 .order-item-left p {
   font-size: 13px;
-  color: #657568;
+  color: #617264;
 }
 
 .order-price-badge {
-  background: #e8f7e8;
-  color: #2b9e3c;
+  background: #e6f6e8;
+  color: #239439;
   font-size: 13.5px;
   font-weight: 800;
   padding: 5px 12px;
@@ -730,21 +768,18 @@ body {
 
 .order-breakdown {
   font-size: 12.5px;
-  color: #7b8b7e;
-  border-top: 1px dashed #e8efe7;
+  color: #728275;
+  border-top: 1px dashed #e4ede3;
   padding-top: 8px;
 }
 
 .order-tracking-card {
-  background: #ffffff;
-  border-radius: 22px;
   padding: 18px 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .tracking-top-row {
@@ -765,7 +800,7 @@ body {
 .tracking-eta-timer {
   font-size: 20px;
   font-weight: 800;
-  color: #38b44a;
+  color: #2ea13f;
 }
 
 .stepper-list {
@@ -783,7 +818,7 @@ body {
   bottom: 8px;
   left: 17px;
   width: 2px;
-  background: #e0ece0;
+  background: #dce7db;
 }
 
 .stepper-item {
@@ -793,19 +828,19 @@ body {
   position: relative;
   font-size: 14px;
   font-weight: 600;
-  color: #7b8b7e;
+  color: #728275;
 }
 
 .step-dot {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #e0ece0;
+  background: #dce7db;
   z-index: 1;
 }
 
 .stepper-item.done .step-dot {
-  background: #38b44a;
+  background: #2ea13f;
 }
 
 .stepper-item.done .step-content {
@@ -814,17 +849,17 @@ body {
 }
 
 .stepper-item.active .step-dot {
-  background: #38b44a;
-  box-shadow: 0 0 0 4px rgba(56, 180, 74, 0.25);
+  background: #2ea13f;
+  box-shadow: 0 0 0 4px rgba(46, 161, 63, 0.25);
 }
 
 .stepper-item.active .step-content {
-  color: #38b44a;
+  color: #2ea13f;
   font-weight: 800;
 }
 
 /* ==========================================================================
-   SCREEN 6: REMINDERS & CALENDAR STYLES
+   SCREEN 6: REMINDERS & CALENDAR
    ========================================================================== */
 .reminders-main {
   flex: 1;
@@ -835,10 +870,7 @@ body {
 }
 
 .calendar-card {
-  background: #ffffff;
-  border-radius: 22px;
   padding: 16px 18px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
   margin-bottom: 12px;
 }
 
@@ -857,7 +889,7 @@ body {
   text-align: center;
   font-size: 11.5px;
   font-weight: 700;
-  color: #8b998d;
+  color: #849487;
   margin-bottom: 6px;
 }
 
@@ -871,19 +903,19 @@ body {
 .cal-day {
   font-size: 13px;
   font-weight: 600;
-  color: #1a221b;
+  color: #121913;
   padding: 6px 0;
   border-radius: 10px;
 }
 
 .cal-day.today {
-  background: #38b44a;
+  background: #2ea13f;
   color: #ffffff;
   font-weight: 800;
 }
 
 .cal-day.active-event {
-  border: 1.5px solid #38b44a;
+  border: 1.5px solid #2ea13f;
 }
 
 .reminders-list-container {
@@ -894,13 +926,10 @@ body {
 }
 
 .reminder-item-card {
-  background: #ffffff;
-  border-radius: 18px;
   padding: 14px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.02);
 }
 
 .reminder-item-card h4 {
@@ -912,12 +941,12 @@ body {
 
 .reminder-item-card p {
   font-size: 12.5px;
-  color: #657568;
+  color: #617264;
 }
 
 .time-badge {
-  background: #ebf6ea;
-  color: #2b9e3c;
+  background: #e6f6e8;
+  color: #239439;
   font-size: 11.5px;
   font-weight: 700;
   padding: 4px 10px;
@@ -925,7 +954,7 @@ body {
 }
 
 /* ==========================================================================
-   SCREEN 7: DONE STYLES
+   SCREEN 7: DONE (Tamamlandı)
    ========================================================================== */
 .done-main {
   flex: 1;
@@ -933,21 +962,21 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 40px 10px 14px;
+  padding: 36px 10px 14px;
   text-align: center;
 }
 
 .done-check-ring {
-  width: 108px;
-  height: 108px;
-  border-radius: 50%;
-  background: #38b44a;
-  box-shadow: 0 12px 32px rgba(56, 180, 74, 0.40);
+  width: 104px;
+  height: 104px;
+  border-radius: 52px;
+  background: #2ea13f;
+  box-shadow: 0 12px 32px rgba(46, 161, 63, 0.40);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-top: 10px;
-  animation: scaleCheck 0.4s ease-out;
+  animation: scaleCheck 0.35s ease-out;
 }
 
 @keyframes scaleCheck {
@@ -969,12 +998,9 @@ body {
 }
 
 .done-info-banner {
-  background: #ffffff;
   border-left: 4px solid #f59e0b;
-  border-radius: 18px;
   padding: 16px 18px;
   text-align: left;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
   width: 100%;
 }
 
@@ -987,7 +1013,7 @@ body {
 
 .done-info-banner p {
   font-size: 13px;
-  color: #657568;
+  color: #617264;
   line-height: 1.4;
 }
 
