@@ -1,0 +1,35 @@
+# HUG on the shared server: no host ports. The API joins the reverse proxy's Docker
+# network (portfelim_default) and Caddy reaches it by the alias `hug-api`.
+#   docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --build
+name: hug-ai
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: hug-ai-api:latest
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - hug-data:/data
+    networks:
+      proxy:
+        aliases: [hug-api]
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  hug-data:
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:?Set PROXY_NETWORK to the reverse proxy's Docker network}

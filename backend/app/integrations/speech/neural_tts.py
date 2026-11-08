@@ -13,8 +13,13 @@ MAX_TEXT_LENGTH = 600
 
 
 def _cache_dir() -> Path:
-    # Vercel functions can only write to /tmp
-    base = Path("/tmp/hug_tts_cache") if os.environ.get("VERCEL") else Path(__file__).resolve().parents[3] / ".tts_cache"
+    # TTS_CACHE_DIR (Docker volume) > /tmp on Vercel (read-only FS) > backend/.tts_cache locally
+    if os.environ.get("TTS_CACHE_DIR"):
+        base = Path(os.environ["TTS_CACHE_DIR"])
+    elif os.environ.get("VERCEL"):
+        base = Path("/tmp/hug_tts_cache")
+    else:
+        base = Path(__file__).resolve().parents[3] / ".tts_cache"
     base.mkdir(parents=True, exist_ok=True)
     return base
 

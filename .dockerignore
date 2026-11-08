@@ -1,0 +1,17 @@
+# Never bake secrets, local databases or virtualenvs into the image
+**/.env
+**/.env.*
+!**/.env.example
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+**/*.db
+**/*.sqlite3
+**/.tts_cache
+**/.pytest_cache
+.git
+.playwright-mcp
+mobile
+hug-ml
+docs
