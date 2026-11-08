@@ -1,0 +1,12 @@
+[Unit]
+Description=HUG auto-deploy (deploy origin/main once CI is green)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+ExecStart=/opt/hug-ai/deploy/autodeploy.sh
+TimeoutStartSec=15min
+Nice=10

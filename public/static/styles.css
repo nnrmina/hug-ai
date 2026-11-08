@@ -109,6 +109,7 @@
 body {
   background: var(--page);
   min-height: 100vh;
+  min-height: 100dvh; /* the visible area: excludes the mobile browser's address bar */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -144,10 +145,19 @@ body {
     background: var(--bg);
   }
 
+  /* Phones: the app IS the screen. The page itself never scrolls; a screen scrolls
+     internally only if its own content is genuinely too long (e.g. a very long answer). */
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   .samsung-container {
-    width: 100vw;
+    width: 100%;
     height: 100vh;
-    max-height: 100vh;
+    height: 100dvh;
+    max-height: none;
     border-radius: 0;
     border: none;
     box-shadow: none;
@@ -1960,3 +1970,43 @@ body { background: var(--page); color: var(--text); }
 .samsung-top-nav > :last-child { justify-self: end; }
 .samsung-top-nav > :only-child { grid-column: 1 / -1; justify-self: center; }
 .reply-icon.risk-high, .reply-icon.risk-medium, .reply-icon.muted { color: #ffffff; }
+
+
+/* ==========================================================================
+   No page scroll: screens fit the viewport, content area scrolls only if needed
+   ========================================================================== */
+.screens-viewport { min-height: 0; }
+.screen-view { min-height: 0; }
+.screen-view > main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.screen-view > main::-webkit-scrollbar { display: none; }
+
+/* Action buttons always stay visible at the bottom of the reply / done screens */
+.reply-main .reply-actions,
+.done-main .done-actions {
+  position: sticky;
+  bottom: 0;
+  padding-top: 10px;
+  background: linear-gradient(180deg, transparent, var(--bg-2) 30%);
+}
+
+/* Shorter phones: tighten vertical rhythm so everything fits without scrolling */
+@media (max-height: 760px) {
+  .done-main, .reply-main { padding-top: 16px; }
+  .reply-icon { width: 68px; height: 68px; font-size: 28px; }
+  .done-check-ring { width: 84px; height: 84px; }
+  .done-title { margin-top: 8px; font-size: calc(23px * var(--text-scale)); }
+  .confirm-avatar-ring { transform: scale(0.85); }
+  .samsung-primary-pill-btn, .samsung-secondary-pill-btn { height: 52px; }
+}
+
+@media (max-height: 640px) {
+  .orb-stage { transform: scale(0.8); }
+  .reply-icon { width: 56px; height: 56px; font-size: 24px; }
+  .done-info-banner { display: none; }
+}

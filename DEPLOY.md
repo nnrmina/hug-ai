@@ -13,14 +13,33 @@
 
 ## Deploy a new version
 
+**Just push to `main`.** That's it:
+
+1. GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests, a JS syntax check
+   and a Docker build for the commit.
+2. On the server, `hug-autodeploy.timer` runs `deploy/autodeploy.sh` every minute. When
+   `origin/main` has a new commit **and its CI finished green**, it runs `deploy/deploy.sh`.
+   A red build is skipped (and not retried) — production keeps the last good version.
+3. `deploy.sh` pulls, rebuilds, waits for the health check, ensures the Caddy route,
+   and smoke-tests the public URL.
+
+Typical push-to-live time: CI (~2–3 min) + up to 1 min + build (~1 min).
+
+Why pull-based: the repo's owner holds the GitHub secrets, and this way no SSH key
+lives in GitHub and nothing connects into the server.
+
 ```bash
-git push origin main                       # from your machine
-ssh portfelim-hz 'sudo -u deploy /opt/hug-ai/deploy/deploy.sh'
+ssh portfelim-hz 'journalctl -u hug-autodeploy -n 30 --no-pager'   # what auto-deploy did
+ssh portfelim-hz 'systemctl list-timers hug-autodeploy.timer'        # next check
+ssh portfelim-hz 'sudo -u deploy /opt/hug-ai/deploy/deploy.sh'       # manual deploy (skips CI)
+ssh portfelim-hz 'systemctl disable --now hug-autodeploy.timer'      # pause auto-deploy
 ```
 
-`deploy.sh` pulls `main`, rebuilds the image, waits for the container health check,
-makes sure the Caddy route exists, and smoke-tests the public URL. There is **no
-auto-deploy**: pushing alone changes nothing on the server.
+The units live in `deploy/systemd/`; install or update them as root:
+```bash
+cp /opt/hug-ai/deploy/systemd/hug-autodeploy.* /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now hug-autodeploy.timer
+```
 
 ## Things that are easy to get wrong
 

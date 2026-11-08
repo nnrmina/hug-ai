@@ -45,3 +45,6 @@ mobile/android/app/release/
 .DS_Store
 Thumbs.db
 
+
+# auto-deploy runtime state on the server
+deploy/.state/
