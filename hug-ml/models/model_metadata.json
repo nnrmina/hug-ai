@@ -1,0 +1,113 @@
+{
+  "model_type": "DecisionTreeClassifier",
+  "vectorizer": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True)",
+  "classes": [
+    "CALL",
+    "EMERGENCY",
+    "INFORMATION",
+    "ORDER",
+    "OTHER",
+    "REMINDER"
+  ],
+  "hyperparameters": {
+    "max_depth": 50,
+    "min_samples_split": 4,
+    "min_samples_leaf": 2,
+    "class_weight": null
+  },
+  "validation_search": {
+    "best_params": {
+      "max_depth": 50,
+      "min_samples_split": 4,
+      "min_samples_leaf": 2,
+      "class_weight": null
+    },
+    "best_selection_metric": 0.903256365821352,
+    "trials": [
+      {
+        "params": {
+          "max_depth": 25,
+          "min_samples_split": 2,
+          "min_samples_leaf": 1,
+          "class_weight": null
+        },
+        "val_macro_f1": 0.7921,
+        "val_weighted_f1": 0.7906,
+        "val_emergency_recall": 0.875,
+        "selection_metric": 0.8169
+      },
+      {
+        "params": {
+          "max_depth": 35,
+          "min_samples_split": 2,
+          "min_samples_leaf": 1,
+          "class_weight": null
+        },
+        "val_macro_f1": 0.8195,
+        "val_weighted_f1": 0.818,
+        "val_emergency_recall": 0.9583,
+        "selection_metric": 0.8612
+      },
+      {
+        "params": {
+          "max_depth": 50,
+          "min_samples_split": 2,
+          "min_samples_leaf": 1,
+          "class_weight": null
+        },
+        "val_macro_f1": 0.8245,
+        "val_weighted_f1": 0.8229,
+        "val_emergency_recall": 0.9583,
+        "selection_metric": 0.8646
+      },
+      {
+        "params": {
+          "max_depth": 50,
+          "min_samples_split": 4,
+          "min_samples_leaf": 2,
+          "class_weight": null
+        },
+        "val_macro_f1": 0.8797,
+        "val_weighted_f1": 0.8792,
+        "val_emergency_recall": 0.9583,
+        "selection_metric": 0.9033
+      },
+      {
+        "params": {
+          "max_depth": null,
+          "min_samples_split": 2,
+          "min_samples_leaf": 1,
+          "class_weight": null
+        },
+        "val_macro_f1": 0.8383,
+        "val_weighted_f1": 0.8368,
+        "val_emergency_recall": 0.9583,
+        "selection_metric": 0.8743
+      },
+      {
+        "params": {
+          "max_depth": null,
+          "min_samples_split": 4,
+          "min_samples_leaf": 1,
+          "class_weight": "balanced"
+        },
+        "val_macro_f1": 0.846,
+        "val_weighted_f1": 0.8446,
+        "val_emergency_recall": 1.0,
+        "selection_metric": 0.8922
+      },
+      {
+        "params": {
+          "max_depth": 40,
+          "min_samples_split": 2,
+          "min_samples_leaf": 1,
+          "class_weight": "balanced"
+        },
+        "val_macro_f1": 0.8312,
+        "val_weighted_f1": 0.8296,
+        "val_emergency_recall": 0.9583,
+        "selection_metric": 0.8694
+      }
+    ]
+  }
+}

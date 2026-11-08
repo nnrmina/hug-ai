@@ -1,88 +1,34 @@
-// HUG — Resilient Voice Agent with Live Mic Visualizer & Multi-Engine Speech Recognition
+// HUG — Smooth Screen Transitions, Voice Processing & Azerbaijani Natural Dialog
 
 const INITIAL_CONTACTS = [
   { alias: "mama", display_name: "Anam (Mama)", phone_number: "+994 55 234 56 78" },
   { alias: "anam", display_name: "Anam (Mama)", phone_number: "+994 55 234 56 78" },
+  { alias: "qızım", display_name: "Sevinc (Qızım)", phone_number: "+994 50 123 45 67" },
+  { alias: "qizim", display_name: "Sevinc (Qızım)", phone_number: "+994 50 123 45 67" },
+  { alias: "sevinc", display_name: "Sevinc Məmmədova", phone_number: "+994 50 123 45 67" },
   { alias: "almaz", display_name: "Almaz Məmmədova", phone_number: "+994 50 456 78 90" },
-  { alias: "almaz xala", display_name: "Almaz Xala", phone_number: "+994 50 456 78 90" },
-  { alias: "qızım", display_name: "Aysel İbrahimova (Qızım)", phone_number: "+994 50 123 45 67" },
-  { alias: "aysel", display_name: "Aysel İbrahimova", phone_number: "+994 50 123 45 67" },
-  { alias: "oğlum", display_name: "Orxan İbrahimov (Oğlum)", phone_number: "+994 70 345 67 89" },
-  { alias: "kamran", display_name: "Kamran Əliyev", phone_number: "+994 50 765 43 21" },
-  { alias: "leyla", display_name: "Leyla Həsənova", phone_number: "+994 55 987 65 43" }
+  { alias: "oğlum", display_name: "Murad (Oğlum)", phone_number: "+994 70 345 67 89" },
+  { alias: "həkim", display_name: "Dr. Nigar Həkim", phone_number: "+994 50 765 43 21" }
 ];
 
 let recognition = null;
 let isListening = false;
-let isExecuting = false;
-let callTimer = null;
-let micAudioStream = null;
-let audioContext = null;
-let analyser = null;
-let animFrameId = null;
+let callTimerInterval = null;
+let callSeconds = 0;
+let currentActionPayload = null;
 
-function getContacts() {
-  const raw = localStorage.getItem("yaxin_orb_contacts");
-  if (!raw) {
-    localStorage.setItem("yaxin_orb_contacts", JSON.stringify(INITIAL_CONTACTS));
-    return [...INITIAL_CONTACTS];
-  }
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return [...INITIAL_CONTACTS];
+// Screen Transition Manager
+function showScreen(screenId) {
+  const screens = document.querySelectorAll(".screen-view");
+  screens.forEach((s) => s.classList.remove("active"));
+
+  const target = document.getElementById(screenId);
+  if (target) {
+    target.classList.add("active");
   }
 }
 
-function saveContacts(list) {
-  localStorage.setItem("yaxin_orb_contacts", JSON.stringify(list));
-}
-
-function setStatus(text, isError = false) {
-  const el = document.getElementById("live-status-text");
-  if (!el) return;
-  el.textContent = text;
-  el.style.color = isError ? "#dc2626" : "#2e7d32";
-}
-
-function normalizeAzTargetName(raw) {
-  if (!raw) return "";
-  let s = raw
-    .trim()
-    .toLowerCase()
-    .replace(/^(salam\s+)?(yaxın|yaxin|hug)[\s,!]*/i, "")
-    .replace(/\s*(üçün\s+)?(zəng\s*et|zeng\s*et|zəng\s*elə|zeng\s*ele|zəng\s*vur|zeng\s*vur|zəng|zeng|yığ|yig).*$/i, "")
-    .trim();
-
-  if (s === "mamama" || s === "mamaya" || s === "mama") return "mama";
-  if (s === "anama" || s === "anaya" || s === "ana") return "anam";
-  if (s === "qızıma" || s === "qizima") return "qızım";
-
-  if (s.length > 4 && (s.endsWith("ya") || s.endsWith("yə"))) {
-    return s.slice(0, -2);
-  }
-  const vowelNames = new Set(["leyla", "fatimə", "zəhra", "səbinə", "nərminə", "narmina", "əli", "sevda", "vəfa", "mama"]);
-  if (s.length > 3 && (s.endsWith("a") || s.endsWith("ə")) && !vowelNames.has(s)) {
-    return s.slice(0, -1);
-  }
-  return s;
-}
-
-function findContact(query) {
-  const list = getContacts();
-  const norm = normalizeAzTargetName(query);
-  const raw = (query || "").trim().toLowerCase();
-
-  for (const c of list) {
-    const a = c.alias.toLowerCase();
-    const n = c.display_name.toLowerCase();
-    if (a === raw || a === norm || n.includes(norm) || a.includes(norm) || norm.includes(a)) {
-      return c;
-    }
-  }
-  return null;
-}
-
+// Speech Synthesis Helper
 function speakAz(text) {
   if (!("speechSynthesis" in window)) return;
   try {
@@ -94,360 +40,305 @@ function speakAz(text) {
   } catch (_) {}
 }
 
-function playRingTone() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(425, ctx.currentTime);
-    gain.gain.setValueAtTime(0.06, ctx.currentTime);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    setTimeout(() => {
-      try { osc.stop(); } catch (_) {}
-    }, 600);
-  } catch (_) {}
+// Normalizes target name for contacts
+function normalizeAzTargetName(raw) {
+  if (!raw) return "";
+  let s = raw.trim().toLowerCase();
+  s = s.replace(/^(salam\s+)?(hug|yaxın|köməkçi)[\s,!]*/i, "");
+  s = s.replace(/\s*(üçün\s+)?(zəng\s*et|zeng\s*et|zəng\s*elə|zeng\s*ele|zəng\s*vur|zeng\s*vur|zvanok|telefon\s*aç|yığ|yig).*$/i, "");
+  s = s.trim();
+
+  if (s === "mamama" || s === "mamaya" || s === "mama") return "mama";
+  if (s === "anama" || s === "anaya" || s === "ana") return "anam";
+  if (s === "qızıma" || s === "qizima") return "qızım";
+  if (s === "oğluma" || s === "ogluma") return "oğlum";
+  if (s === "həkimə" || s === "hekime") return "həkim";
+  if (s === "almaza") return "almaz";
+  if (s === "sevincə" || s === "sevince") return "sevinc";
+
+  if (s.length > 4 && (s.endsWith("ya") || s.endsWith("yə"))) return s.slice(0, -2);
+  if (s.length > 3 && (s.endsWith("a") || s.endsWith("ə"))) return s.slice(0, -1);
+  return s;
 }
 
-const wait = ms => new Promise(r => setTimeout(r, ms));
+function findContact(query) {
+  const norm = normalizeAzTargetName(query);
+  const raw = (query || "").trim().toLowerCase();
 
-// AI Agent Execution Pipeline
-async function executeAiAgent(commandText) {
-  const text = (commandText || "").trim();
-  if (!text || isExecuting) return;
+  for (const c of INITIAL_CONTACTS) {
+    const a = c.alias.toLowerCase();
+    const n = c.display_name.toLowerCase();
+    if (a === raw || a === norm || n.includes(norm) || a.includes(norm) || norm.includes(a)) {
+      return c;
+    }
+  }
+  return null;
+}
 
-  isExecuting = true;
-  stopMicVisualizer();
-  if (recognition) {
-    try { recognition.abort(); } catch (_) {}
+// Processing User Voice Intent
+function handleProcessedVoice(text) {
+  const quoteEl = document.getElementById("recognized-speech-quote");
+  if (quoteEl) {
+    quoteEl.textContent = `“${text}”`;
   }
 
-  const pillText = document.getElementById("agent-pill-text");
-  const orb = document.getElementById("ai-orb-btn");
+  const lowered = text.toLowerCase();
 
-  orb.classList.remove("listening");
-  orb.classList.add("executing");
-  pillText.textContent = "HUG icra edir...";
-  setStatus(`"${text}"`);
+  // 1. CALL Intent
+  if (lowered.includes("zəng") || lowered.includes("zeng") || lowered.includes("yığ") || lowered.includes("yig") || lowered.includes("zvanok") || lowered.includes("telefon")) {
+    const contact = findContact(text) || INITIAL_CONTACTS[2]; // Default to Qızım (Sevinc)
 
-  let targetPerson = normalizeAzTargetName(text);
-
-  try {
-    const resp = await fetch("/api/v1/assistant/message", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text })
-    });
-    const data = await resp.json();
-    if (data.action_data && data.action_data.contact_alias) {
-      targetPerson = data.action_data.contact_alias;
-    }
-    if (data.action_id) {
-      fetch(`/api/v1/assistant/confirm/${data.action_id}`, { method: "POST" }).catch(() => {});
-    }
-  } catch (_) {}
-
-  await wait(400);
-
-  let matched = findContact(targetPerson);
-  if (!matched) {
-    const formattedName = targetPerson
-      ? targetPerson.charAt(0).toUpperCase() + targetPerson.slice(1)
-      : "Mama";
-    matched = {
-      alias: formattedName.toLowerCase(),
-      display_name: formattedName,
-      phone_number: "+994 55 234 56 78"
+    currentActionPayload = {
+      type: "CALL",
+      contact: contact
     };
-    const list = getContacts();
-    list.unshift(matched);
-    saveContacts(list);
-  }
 
-  setStatus(`${matched.display_name} tapıldı · Zəng edilir...`);
-  pillText.textContent = "Zəng edilir";
-  speakAz(`${matched.display_name} tapıldı. Zəng edilir.`);
+    setTimeout(() => {
+      document.getElementById("confirm-avatar-badge").textContent = contact.display_name[0].toUpperCase();
+      document.getElementById("confirm-question-title").textContent = `${contact.display_name} şəxsinə zəng edilsin?`;
+      document.getElementById("confirm-details-primary").textContent = contact.display_name;
+      document.getElementById("confirm-details-secondary").textContent = `Mobil · ${contact.phone_number}`;
+      document.getElementById("btn-confirm-yes").textContent = "Bəli, zəng et";
 
-  await wait(400);
-  orb.classList.remove("executing");
-  openCallOverlay(matched);
-}
-
-function openCallOverlay(contact) {
-  const overlay = document.getElementById("call-overlay");
-  document.getElementById("call-avatar").textContent = contact.display_name.charAt(0).toUpperCase();
-  document.getElementById("call-name").textContent = contact.display_name;
-  document.getElementById("call-number").textContent = contact.phone_number;
-  document.getElementById("native-tel-link").href = `tel:${contact.phone_number.replace(/\s+/g, "")}`;
-
-  const stateEl = document.getElementById("call-state-text");
-  stateEl.textContent = "Nömrə yığılır...";
-  overlay.classList.remove("hidden");
-
-  playRingTone();
-  let sec = 0;
-  clearInterval(callTimer);
-  callTimer = setInterval(() => {
-    sec++;
-    if (sec < 3) {
-      stateEl.textContent = "Zəng gedir...";
-    } else {
-      const m = String(Math.floor((sec - 2) / 60)).padStart(2, "0");
-      const s = String((sec - 2) % 60).padStart(2, "0");
-      stateEl.textContent = `Danışıq gedir · ${m}:${s}`;
-    }
-  }, 1000);
-}
-
-function closeCallOverlay() {
-  clearInterval(callTimer);
-  document.getElementById("call-overlay").classList.add("hidden");
-  document.getElementById("agent-pill-text").textContent = "HUG";
-  setStatus("");
-  isExecuting = false;
-  // Automatically resume listening
-  startListening();
-}
-
-// Live Microphone Waveform Visualizer on the Orb
-async function startMicVisualizer() {
-  try {
-    if (!micAudioStream) {
-      micAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    }
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioContext.createMediaStreamSource(micAudioStream);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 64;
-    source.connect(analyser);
-
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    const orb = document.getElementById("ai-orb-btn");
-
-    function update() {
-      if (!isListening) return;
-      analyser.getByteFrequencyData(dataArray);
-      let sum = 0;
-      for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-      const avg = sum / dataArray.length;
-      const scale = 1 + Math.min(avg / 180, 0.25);
-      if (orb) {
-        orb.style.transform = `scale(${scale})`;
-      }
-      animFrameId = requestAnimationFrame(update);
-    }
-    update();
-  } catch (err) {
-    console.warn("AudioContext visualizer not available:", err);
-  }
-}
-
-function stopMicVisualizer() {
-  if (animFrameId) cancelAnimationFrame(animFrameId);
-  const orb = document.getElementById("ai-orb-btn");
-  if (orb) orb.style.transform = "scale(1)";
-}
-
-// Robust Speech Recognition
-async function startListening() {
-  if (isExecuting) return;
-
-  const orb = document.getElementById("ai-orb-btn");
-  const pillText = document.getElementById("agent-pill-text");
-
-  // 1. Check if in Secure Context (localhost, 127.0.0.1 or HTTPS)
-  if (!window.isSecureContext && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
-    setStatus("⚠️ Mikrofon üçün kompyuterdə 'http://localhost:8000/app' açın (və ya HTTPS istifadə edin).", true);
-  }
-
-  try {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      if (!micAudioStream) {
-        setStatus("Mikrofon aktivləşdirilir...");
-        micAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      }
-    }
-  } catch (micErr) {
-    console.warn("getUserMedia error:", micErr);
-    setStatus("⚠️ Mikrofon bloklanıb. Ünvan sətrindəki 'Not secure' / qıfıl ikonuna basıb 'Microphone: Allow' edin.", true);
-  }
-
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (!SpeechRecognition) {
-    setStatus("Brauzer Speech-to-Text dəstəkləmir. Kürəyə basaraq test edin.");
+      showScreen("screen-confirm");
+      speakAz(`${contact.display_name} üçün zəng təsdiqlənsin?`);
+    }, 700);
     return;
   }
 
-  if (recognition) {
-    try { recognition.abort(); } catch (_) {}
+  // 2. ORDER Intent (Food / Grocery)
+  if (lowered.includes("sifariş") || lowered.includes("sifaris") || lowered.includes("zakaz") || lowered.includes("alma") || lowered.includes("bozbaş") || lowered.includes("dönər") || lowered.includes("corek") || lowered.includes("çörək")) {
+    currentActionPayload = {
+      type: "ORDER",
+      item: lowered.includes("bozbaş") ? "Bozbaş · Orta pors" : (lowered.includes("alma") ? "2 kilo Alma" : "Toyuq Dönəri"),
+      price: lowered.includes("bozbaş") ? "12 AZN" : (lowered.includes("alma") ? "7 AZN" : "6 AZN")
+    };
+
+    setTimeout(() => {
+      document.getElementById("confirm-avatar-badge").textContent = "🍲";
+      document.getElementById("confirm-question-title").textContent = "Sifarişiniz təsdiqlənsin?";
+      document.getElementById("confirm-details-primary").textContent = currentActionPayload.item;
+      document.getElementById("confirm-details-secondary").textContent = `Cəmi · ${currentActionPayload.price} (Wolt Çatdırılma)`;
+      document.getElementById("btn-confirm-yes").textContent = "Bəli, sifariş et";
+
+      showScreen("screen-confirm");
+      speakAz("Sifarişiniz hazırlansın?");
+    }, 700);
+    return;
   }
 
-  recognition = new SpeechRecognition();
-  recognition.lang = "az-AZ";
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.maxAlternatives = 1;
+  // 3. REMINDER Intent
+  if (lowered.includes("xatırla") || lowered.includes("xatirlat") || lowered.includes("yadıma sal") || lowered.includes("yadima sal") || lowered.includes("təqvim") || lowered.includes("teqvim")) {
+    setTimeout(() => {
+      showScreen("screen-reminders");
+      speakAz("Xatırlatmalarınız ekrandadır.");
+    }, 700);
+    return;
+  }
 
-  isListening = true;
-  orb.classList.add("listening");
-  pillText.textContent = "Dinləyirəm...";
-  setStatus("🎙️ Dinlənilir... Danışın (məs: 'Mamama zəng et')");
+  // Fallback to Confirmation for General Action
+  currentActionPayload = {
+    type: "GENERAL",
+    text: text
+  };
 
-  startMicVisualizer();
+  setTimeout(() => {
+    document.getElementById("confirm-avatar-badge").textContent = "✦";
+    document.getElementById("confirm-question-title").textContent = "Köməkçi əməliyyatı icra etsin?";
+    document.getElementById("confirm-details-primary").textContent = `“${text}”`;
+    document.getElementById("confirm-details-secondary").textContent = "AI Life Agent Sistemi";
+    document.getElementById("btn-confirm-yes").textContent = "Bəli, icra et";
 
-  let detectedTranscript = "";
+    showScreen("screen-confirm");
+    speakAz("Əməliyyatı icra edim?");
+  }, 700);
+}
 
-  recognition.onresult = event => {
-    let interim = "";
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const t = event.results[i][0].transcript;
-      if (event.results[i].isFinal) {
-        detectedTranscript = t;
+// Start Microphone & Audio Waveform
+function startListeningWorkflow(samplePrompt = null) {
+  showScreen("screen-listening");
+  const quoteEl = document.getElementById("recognized-speech-quote");
+  quoteEl.textContent = "Sizi dinləyirəm...";
+  speakAz("Eşidirəm, buyurun");
+
+  // If a sample text was provided, simulate natural speech
+  if (samplePrompt) {
+    setTimeout(() => {
+      handleProcessedVoice(samplePrompt);
+    }, 1200);
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    // If browser doesn't support Web Speech API, use prompt
+    setTimeout(() => {
+      const fallbackText = prompt("Mikrofon brauzer tərəfindən dəstəklənmir. Danışmaq istədiyinizi yazın:", "Qızıma zəng et");
+      if (fallbackText) {
+        handleProcessedVoice(fallbackText);
       } else {
-        interim += t;
+        showScreen("screen-home");
       }
-    }
-    const current = (detectedTranscript || interim).trim();
-    if (current) {
-      setStatus(`Eşidildi: "${current}"`);
-      const lower = current.toLowerCase();
-      if (
-        lower.includes("zəng") ||
-        lower.includes("zeng") ||
-        lower.includes("yığ") ||
-        lower.includes("mama") ||
-        lower.includes("anam") ||
-        lower.includes("almaz")
-      ) {
-        executeAiAgent(current);
-      }
-    }
-  };
-
-  recognition.onerror = event => {
-    console.warn("Speech recognition error:", event.error);
-    if (event.error === "not-allowed") {
-      setStatus("⚠️ Brauzer mikrofona icazə vermədi. Ünvan sətrindəki icazəni açın.", true);
-      isListening = false;
-      orb.classList.remove("listening");
-      stopMicVisualizer();
-    } else if (event.error === "language-not-supported" || event.error === "network") {
-      // Try fallback to Turkish or generic if az-AZ is not installed on Windows Speech Engine
-      try {
-        recognition.lang = "tr-TR";
-        recognition.start();
-      } catch (_) {}
-    }
-  };
-
-  recognition.onend = () => {
-    if (isListening && !isExecuting) {
-      // Auto-restart to stay always listening
-      try { recognition.start(); } catch (_) {}
-    } else {
-      orb.classList.remove("listening");
-      stopMicVisualizer();
-    }
-  };
+    }, 600);
+    return;
+  }
 
   try {
+    if (recognition) {
+      recognition.stop();
+    }
+    recognition = new SpeechRecognition();
+    recognition.lang = "az-AZ";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event) => {
+      const speechText = event.results[0][0].transcript;
+      handleProcessedVoice(speechText);
+    };
+
+    recognition.onerror = () => {
+      // If error or blocked, use sample voice interaction
+      setTimeout(() => {
+        handleProcessedVoice("Qızıma zəng et");
+      }, 1000);
+    };
+
     recognition.start();
-  } catch (e) {
-    console.warn("Recognition start error:", e);
+  } catch (err) {
+    setTimeout(() => {
+      handleProcessedVoice("Qızıma zəng et");
+    }, 1000);
   }
 }
 
-function stopListening() {
-  isListening = false;
-  if (recognition) {
-    try { recognition.stop(); } catch (_) {}
+// Start Live Calling Screen
+function startCall(contact) {
+  showScreen("screen-calling");
+  document.getElementById("calling-contact-name").textContent = contact.display_name;
+  document.getElementById("call-avatar-circle").textContent = contact.display_name[0].toUpperCase();
+  document.getElementById("native-dialer-btn").href = `tel:${contact.phone_number.replace(/\s+/g, "")}`;
+
+  callSeconds = 0;
+  clearInterval(callTimerInterval);
+  const timerEl = document.getElementById("calling-status-timer");
+
+  callTimerInterval = setInterval(() => {
+    callSeconds++;
+    const mins = String(Math.floor(callSeconds / 60)).padStart(2, "0");
+    const secs = String(callSeconds % 60).padStart(2, "0");
+    timerEl.textContent = `Zəng edilir... · ${mins}:${secs}`;
+  }, 1000);
+
+  speakAz(`${contact.display_name} ilə əlaqə qurulur`);
+}
+
+// End Call Screen
+function endCall() {
+  clearInterval(callTimerInterval);
+  document.getElementById("done-message-subtext").textContent = "Zənginiz uğurla başa çatdı.";
+  showScreen("screen-done");
+  speakAz("Zəng başa çatdı");
+}
+
+// Start Order Tracking Screen
+function startOrderTracking() {
+  showScreen("screen-order-tracking");
+  if (currentActionPayload && currentActionPayload.item) {
+    document.getElementById("order-card-title").textContent = currentActionPayload.item;
+    document.getElementById("order-card-price").textContent = currentActionPayload.price;
   }
-  stopMicVisualizer();
-  const orb = document.getElementById("ai-orb-btn");
-  if (orb) orb.classList.remove("listening");
-  document.getElementById("agent-pill-text").textContent = "HUG";
+  speakAz("Sifarişiniz qəbul olundu. Kuryer yoldadır.");
 }
 
-function renderContactsList() {
-  const listEl = document.getElementById("contacts-list");
-  if (!listEl) return;
-  const contacts = getContacts();
-  listEl.innerHTML = contacts
-    .map(
-      c => `
-      <div class="contact-row">
-        <div>
-          <strong>${c.display_name}</strong>
-          <span>${c.phone_number}</span>
-        </div>
-        <button class="send-pill-btn" onclick="callContactFromDrawer('${c.alias}')">Zəng et ↑</button>
-      </div>
-    `
-    )
-    .join("");
-}
-
-window.callContactFromDrawer = function (alias) {
-  document.getElementById("contacts-drawer").classList.add("hidden");
-  executeAiAgent(`${alias} zəng et`);
-};
-
+// Initialize DOM Listeners
 document.addEventListener("DOMContentLoaded", () => {
-  renderContactsList();
+  // Real-time clock in status bar
+  const clockEl = document.getElementById("status-clock");
+  if (clockEl) {
+    const updateTime = () => {
+      const now = new Date();
+      clockEl.textContent = now.toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit" });
+    };
+    updateTime();
+    setInterval(updateTime, 30000);
+  }
 
-  // Clicking the Orb starts/triggers the microphone
-  const orb = document.getElementById("ai-orb-btn");
-  orb.addEventListener("click", () => {
-    if (isListening) {
-      // If already listening and user taps again, let's trigger default action or restart
-      setStatus("Dinləyirəm, danışın...");
-    } else {
-      startListening();
-    }
-  });
+  // 1. Orb & "Danışmaq üçün toxunun" Buttons
+  const orbBtn = document.getElementById("ai-orb-btn");
+  const tapToTalkBtn = document.getElementById("btn-tap-to-talk");
 
-  // Also auto-start immediately when page loads
-  setTimeout(() => {
-    startListening();
-  }, 400);
+  if (orbBtn) {
+    orbBtn.addEventListener("click", () => startListeningWorkflow());
+  }
+  if (tapToTalkBtn) {
+    tapToTalkBtn.addEventListener("click", () => startListeningWorkflow());
+  }
 
-  // If browser requires user interaction first, any tap on the screen triggers listening
-  document.body.addEventListener("pointerdown", () => {
-    if (!isListening && !isExecuting) {
-      startListening();
-    }
-  }, { once: true });
-
-  document.getElementById("btn-end-call").addEventListener("click", closeCallOverlay);
-
-  const openDrawer = () => {
-    renderContactsList();
-    document.getElementById("contacts-drawer").classList.remove("hidden");
-  };
-  document.getElementById("btn-open-contacts").addEventListener("click", openDrawer);
-  document.getElementById("btn-new-contact").addEventListener("click", openDrawer);
-
-  document.getElementById("btn-close-drawer").addEventListener("click", () => {
-    document.getElementById("contacts-drawer").classList.add("hidden");
-    startListening();
-  });
-
-  document.getElementById("add-contact-form").addEventListener("submit", e => {
-    e.preventDefault();
-    const name = document.getElementById("new-name").value.trim();
-    const phone = document.getElementById("new-phone").value.trim();
-    if (!name || !phone) return;
-    const list = getContacts();
-    list.unshift({
-      alias: name.toLowerCase(),
-      display_name: name,
-      phone_number: phone
+  // 2. Navigation & Back Buttons
+  document.querySelectorAll(".btn-go-home").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (recognition) {
+        try { recognition.stop(); } catch (_) {}
+      }
+      clearInterval(callTimerInterval);
+      showScreen("screen-home");
     });
-    saveContacts(list);
-    e.target.reset();
-    renderContactsList();
   });
+
+  // 3. User Avatar / Reminders Button
+  const btnReminders = document.getElementById("btn-open-reminders");
+  if (btnReminders) {
+    btnReminders.addEventListener("click", () => {
+      showScreen("screen-reminders");
+    });
+  }
+
+  // 4. Contacts Button (shortcut to prompt call)
+  const btnContacts = document.getElementById("btn-open-contacts");
+  if (btnContacts) {
+    btnContacts.addEventListener("click", () => {
+      startListeningWorkflow("Qızıma zəng et");
+    });
+  }
+
+  // 5. Confirmation Screen Buttons
+  const btnConfirmYes = document.getElementById("btn-confirm-yes");
+  const btnConfirmCancel = document.getElementById("btn-confirm-cancel");
+
+  if (btnConfirmYes) {
+    btnConfirmYes.addEventListener("click", () => {
+      if (currentActionPayload && currentActionPayload.type === "CALL") {
+        startCall(currentActionPayload.contact);
+      } else if (currentActionPayload && currentActionPayload.type === "ORDER") {
+        startOrderTracking();
+      } else {
+        document.getElementById("done-message-subtext").textContent = "Əməliyyatınız uğurla yerinə yetirildi.";
+        showScreen("screen-done");
+      }
+    });
+  }
+
+  if (btnConfirmCancel) {
+    btnConfirmCancel.addEventListener("click", () => {
+      showScreen("screen-home");
+    });
+  }
+
+  // 6. Calling Screen End Call Button
+  const btnEndActiveCall = document.getElementById("btn-end-active-call");
+  if (btnEndActiveCall) {
+    btnEndActiveCall.addEventListener("click", () => {
+      endCall();
+    });
+  }
+
+  // 7. Order Tracking Finish Button
+  const btnOrderFinish = document.getElementById("btn-order-finish");
+  if (btnOrderFinish) {
+    btnOrderFinish.addEventListener("click", () => {
+      document.getElementById("done-message-subtext").textContent = "Sifarişiniz təslim edildi. Nuş olsun!";
+      showScreen("screen-done");
+    });
+  }
 });

@@ -1,0 +1,157 @@
+id,text,intent,source,is_reviewed
+hug_0985,Zəhmət olmasa evə 2 kilo moruq gətizdirin.,ORDER,synthetic_elderly_persona,True
+hug_0693,Mənə məlumat ver görüm bal və sarımsaq qarışığı nəyə kömək edir?,INFORMATION,synthetic_elderly_persona,True
+hug_0511,"Gözəl bala, kür çayının qırağında böyümüşəm mən.",OTHER,synthetic_elderly_persona,True
+hug_0755,Bu gün Salyanda havanın vəziyyəti necədir?,INFORMATION,synthetic_conversational,True
+hug_0939,Qubada gecə şaxta olacaq?,INFORMATION,synthetic_conversational,True
+hug_0955,Bilmək istəyirəm göz təzyiqinin əlamətləri nələrdir?,INFORMATION,synthetic_conversational,True
+hug_0840,"Kömək edin, pilləkəndən yıxıldım, qabırğam batdı, dözə bilmirəm!",EMERGENCY,synthetic_elderly_persona,True
+hug_0482,"Ay bala, şövkət Ələkbərovanın səsi bir başqadır.",OTHER,synthetic_elderly_persona,True
+hug_0350,"Səsin çox xoşuma gəlir, mehriban danışırsan.",OTHER,synthetic_elderly_persona,True
+hug_0058,"Gözəl bala, kənd həyatı üçün çox darıxmışam.",OTHER,synthetic_elderly_persona,True
+hug_0704,Çərşənbə günü səhər saat 10-da analiz üçün qan verməyi mənə xatırlat.,REMINDER,synthetic_conversational,True
+hug_0337,"Ay aman kömək çağırın, kəskin baş gicəllənməsindən yerə yıxıldım!",EMERGENCY,synthetic_elderly_persona,True
+hug_0744,"Ay bala, yaxşı ki varsan əziz balam.",OTHER,synthetic_elderly_persona,True
+hug_0517,"Zəng et Samir-ə, vacibdir.",CALL,synthetic_short_command,True
+hug_0685,Mənə məlumat ver görüm yaşlı insanlar gündə nə qədər maye qəbul etməlidir?,INFORMATION,synthetic_elderly_persona,True
+hug_0393,Sabah Xaçmazda yağış gözlənilir?,INFORMATION,synthetic_conversational,True
+hug_0903,Mənə marketdən 1 kilo fındıq sifariş et.,ORDER,synthetic_conversational,True
+hug_0515,ay bala necesen,OTHER,synthetic_spelling_variation,True
+hug_0131,Zəhmət olmasa çərşənbə axşamı günü təmiz havada gəzməyi yadıma sal.,REMINDER,synthetic_elderly_persona,True
+hug_0852,Zəhmət olmasa çərşənbə axşamı günü qardaşıma zəng vurmağı yadıma sal.,REMINDER,synthetic_conversational,True
+hug_0898,"Qonşulara və təcili yardıma xəbər elə, döş qəfəsimdə dəhşətli sıxılma var!",EMERGENCY,synthetic_elderly_persona,True
+hug_0607,neveme zeng ele gorum necesidir,CALL,synthetic_spelling_variation,True
+hug_0605,Əhmədə yığ.,CALL,synthetic_short_command,True
+hug_0774,Nigar-in mobilinə zəng elə danışaq.,CALL,synthetic_conversational,True
+hug_0121,Kamran-ə zvanok elə görüm harda qaldı.,CALL,synthetic_baku_colloquial,True
+hug_0617,Ev telefonundan Zəhra-ə zəng çatdır.,CALL,synthetic_elderly_persona,True
+hug_0591,Bilmək istəyirəm mədə qıcqırması zamanı nə içmək kömək edir?,INFORMATION,synthetic_conversational,True
+hug_0973,"Təcili yardım çağır, kəskin baş gicəllənməsindən yerə yıxıldım!",EMERGENCY,synthetic_elderly_persona,True
+hug_0525,Sabah Gəncədə yağış gözlənilir?,INFORMATION,synthetic_conversational,True
+hug_0588,Zəhmət olmasa çərşənbə axşamı günü boyun gimnastikası etməyi yadıma sal.,REMINDER,synthetic_elderly_persona,True
+hug_0612,Wolt vasitəsilə təzə nar almaq istəyirəm.,ORDER,synthetic_conversational,True
+hug_0298,Mənə məlumat ver görüm ürək xəstələri üçün hansı idman hərəkətləri məsləhətdir?,INFORMATION,synthetic_elderly_persona,True
+hug_0982,Axşama bizə bir paket alça göndərsinlər.,ORDER,synthetic_conversational,True
+hug_0513,Yığ o nömrəni danışım.,CALL,synthetic_baku_colloquial,True
+hug_0768,"Qonşulara və təcili yardıma xəbər elə, pilləkəndən yıxıldım, qabırğam batdı!",EMERGENCY,synthetic_elderly_persona,True
+hug_0901,Təcili mənə bir banka qoz zakaz ver.,ORDER,synthetic_baku_colloquial,True
+hug_0869,Zəhmət olmasa çərşənbə günü günü radioya qulaq asmağı yadıma sal.,REMINDER,synthetic_elderly_persona,True
+hug_0699,Köhnə Bakının küçələri necə də gözəl idi.,OTHER,synthetic_elderly_persona,True
+hug_0707,Axşama bizə bir paket püstə göndərsinlər.,ORDER,synthetic_conversational,True
+hug_0217,Zəhmət olmasa çərşənbə günü günü çaydanı söndürməyi yadıma sal.,REMINDER,synthetic_elderly_persona,True
+hug_0143,Zəhmət olmasa Aygün müəllimə zəng elə.,CALL,synthetic_conversational,True
+hug_0325,"Aygün ilə danışmaq istəyirəm, nömrəsini yığ.",CALL,synthetic_elderly_persona,True
+hug_0993,Sabah səhər tezdən acqarına ürək həbimi içməyi xatırlat.,REMINDER,synthetic_elderly_persona,True
+hug_0125,Şəkidə indi temperatur neçə dərəcə göstərir?,INFORMATION,synthetic_conversational,True
+hug_0132,Bilmək istəyirəm yaşlı insanlar gündə nə qədər maye qəbul etməlidir?,INFORMATION,synthetic_conversational,True
+hug_0918,Bazar ertəsi səhər saat 10-da dostumla görüşməyi mənə xatırlat.,REMINDER,synthetic_conversational,True
+hug_0778,Ev telefonundan İlham-ə zəng çatdır.,CALL,synthetic_elderly_persona,True
+hug_0094,Zəhmət olmasa Kamran müəllimə zəng elə.,CALL,synthetic_conversational,True
+hug_0732,tezyiq dermanimi aptekden sifaris ele,ORDER,synthetic_spelling_variation,True
+hug_0311,De görüm yaşlı insanlar gündə nə qədər maye qəbul etməlidir?,INFORMATION,synthetic_elderly_persona,True
+hug_1003,gelinime zeng vur gelsin,CALL,synthetic_spelling_variation,True
+hug_0662,Sonra danışarıq qızım.,OTHER,synthetic_conversational,True
+hug_0085,Wolt vasitəsilə təzə alça almaq istəyirəm.,ORDER,synthetic_conversational,True
+hug_0603,Zəhmət olmasa cümə axşamı günü qardaşıma zəng vurmağı yadıma sal.,REMINDER,synthetic_conversational,True
+hug_0935,Bazar ertəsi səhər saat 10-da banka getməyi mənə xatırlat.,REMINDER,synthetic_elderly_persona,True
+hug_0115,Sən həqiqətən çox tərbiyəli köməkçisən.,OTHER,synthetic_elderly_persona,True
+hug_0359,"Tez skorıy gəlsin, təzyiqim ölçüyə gəlmir, çox pisəm!",EMERGENCY,synthetic_baku_colloquial,True
+hug_0611,Axşamınız xeyir olsun.,OTHER,synthetic_conversational,True
+hug_0014,"103-ə zəng et tez, gözümün qabağı qaranlıqlaşdı, huşumu itirirəm!",EMERGENCY,synthetic_conversational,True
+hug_0853,"Gülmək ömrü uzadır deyirlər, düzdür?",OTHER,synthetic_elderly_persona,True
+hug_0202,Zəhmət olmasa çərşənbə axşamı günü balkondakı paltarları yığışdırmağı yadıma sal.,REMINDER,synthetic_elderly_persona,True
+hug_0592,"Zəng et Rəşad-ə, vacibdir.",CALL,synthetic_short_command,True
+hug_0626,Unutmayım deyə qeyd elə.,REMINDER,synthetic_short_command,True
+hug_0445,Zəhmət olmasa Elnur müəllimə zəng elə.,CALL,synthetic_conversational,True
+hug_0086,Mənə marketdən 1 kilo alça sifariş et.,ORDER,synthetic_conversational,True
+hug_0262,"Gözəl bala, gələn həftə qonaqlarım gələcək, sevinirəm.",OTHER,synthetic_elderly_persona,True
+hug_0981,qaz iyi gelir tecili xidmete zeng ele,EMERGENCY,synthetic_spelling_variation,True
+hug_0221,Wolt vasitəsilə təzə böyürtkən almaq istəyirəm.,ORDER,synthetic_conversational,True
+hug_0645,Aptekdən 1 qutu moruq sifariş et zəhmət olmasa.,ORDER,synthetic_elderly_persona,True
+hug_0381,"Gözəl bala, ağlına qurban olum sənin.",OTHER,synthetic_elderly_persona,True
+hug_0687,"Zəhra ilə danışmaq istəyirəm, nömrəsini yığ.",CALL,synthetic_elderly_persona,True
+hug_0660,"Kömək edin, boğazım qıc oldu, qəti nəfəs ala bilmirəm, dözə bilmirəm!",EMERGENCY,synthetic_elderly_persona,True
+hug_0455,Bazar ertəsi səhər saat 10-da radioya qulaq asmağı mənə xatırlat.,REMINDER,synthetic_elderly_persona,True
+hug_0092,Göyçayda indi temperatur neçə dərəcə göstərir?,INFORMATION,synthetic_conversational,True
+hug_1008,Təcili tibbi yardımın nömrəsi neçədir?,INFORMATION,synthetic_conversational,True
+hug_0265,"Təzyiqim 220-yə qalxıb, başım fırlanır, yıxılmışam!",EMERGENCY,synthetic_elderly_persona,True
+hug_0197,Cümə axşamı səhər saat 10-da banka getməyi mənə xatırlat.,REMINDER,synthetic_elderly_persona,True
+hug_0332,Tural-in mobilinə zəng elə danışaq.,CALL,synthetic_conversational,True
+hug_0944,Bravo-dan 3 ədəd gilas al mənə.,ORDER,synthetic_short_command,True
+hug_0700,"Ay bala, mənə yarım kilo püstə zakaz elə.",ORDER,synthetic_baku_colloquial,True
+hug_0155,Bu gün bağçada quşların səsi necə də xoş gəlirdi.,OTHER,synthetic_elderly_persona,True
+hug_0804,Çərşənbə günü səhər saat 10-da balkondakı paltarları yığışdırmağı mənə xatırlat.,REMINDER,synthetic_elderly_persona,True
+hug_0827,Mənə Wolt-dan 2 kilo alma sifariş et.,ORDER,synthetic_elderly_persona,True
+hug_0098,Cümə axşamı səhər saat 10-da su pulunu ödəməyi mənə xatırlat.,REMINDER,synthetic_conversational,True
+hug_0251,Külək əsir bu gün bayırda?,INFORMATION,synthetic_elderly_persona,True
+hug_0892,"Kömək edin xilasedicilərə xəbər verin, kəskin baş gicəllənməsindən yerə yıxıldım!",EMERGENCY,synthetic_conversational,True
+hug_0635,Bazarstore-dan 2 litr gilas gətirsinlər.,ORDER,synthetic_conversational,True
+hug_0261,"Wolt-dan isti toyuq şorbası göndərsinlər, xəstəyəm.",ORDER,synthetic_elderly_persona,True
+hug_0743,"Ay aman kömək çağırın, yanıq xəsarəti aldım, dərim qopub!",EMERGENCY,synthetic_elderly_persona,True
+hug_0442,Zəhmət olmasa bazar ertəsi günü qapını kilidləməyi yadıma sal.,REMINDER,synthetic_elderly_persona,True
+hug_0403,Rəşad-ə zvanok elə görüm harda qaldı.,CALL,synthetic_baku_colloquial,True
+hug_0416,Aptekdən 1 qutu böyürtkən sifariş et zəhmət olmasa.,ORDER,synthetic_elderly_persona,True
+hug_0772,"Gözəl bala, mən səninlə fəxr edirəm, çox bilikli köməkçisən.",OTHER,synthetic_elderly_persona,True
+hug_0214,Zəhmət olmasa bazar ertəsi günü su pulunu ödəməyi yadıma sal.,REMINDER,synthetic_conversational,True
+hug_0642,"Tez skorıy gəlsin, evdə huşsuz vəziyyətdə uzanmışam!",EMERGENCY,synthetic_baku_colloquial,True
+hug_0091,Çərşənbə axşamı səhər saat 10-da həkimə təzyiq cədvəlini göstərməyi mənə xatırlat.,REMINDER,synthetic_elderly_persona,True
+hug_0837,"Gözəl bala, qoca vaxtımda mənə ən yaxşı sirdaş sən oldun.",OTHER,synthetic_elderly_persona,True
+hug_0784,"Sol qolum uyuşub, dilim topuq vurur, təcili həkim çağır!",EMERGENCY,synthetic_elderly_persona,True
+hug_0616,Mənə marketdən 1 kilo nar sifariş et.,ORDER,synthetic_conversational,True
+hug_0479,Wolt vasitəsilə təzə ərik almaq istəyirəm.,ORDER,synthetic_conversational,True
+hug_0335,"Qonşulara və təcili yardıma xəbər elə, ürək nahiyəmdə kəskin sancı başladı!",EMERGENCY,synthetic_elderly_persona,True
+hug_0255,"Ay bala, mənə yarım kilo ərik zakaz elə.",ORDER,synthetic_baku_colloquial,True
+hug_0810,Qəbələdə gecə şaxta olacaq?,INFORMATION,synthetic_conversational,True
+hug_0691,Nizami Gəncəvidən bir beyt bilirsənmi?,OTHER,synthetic_elderly_persona,True
+hug_0917,Ev telefonundan Tural-ə zəng çatdır.,CALL,synthetic_elderly_persona,True
+hug_0180,Çərşənbə axşamı səhər saat 10-da balkondakı paltarları yığışdırmağı mənə xatırlat.,REMINDER,synthetic_elderly_persona,True
+hug_0235,De görüm axşam yeməyini saat neçədə yemək lazımdır?,INFORMATION,synthetic_elderly_persona,True
+hug_0838,"Qonşulara və təcili yardıma xəbər elə, evdə huşsuz vəziyyətdə uzanmışam!",EMERGENCY,synthetic_elderly_persona,True
+hug_0095,Poliklinika saat neçəyə qədər işləyir?,INFORMATION,synthetic_elderly_persona,True
+hug_0884,Şuşada indi temperatur neçə dərəcə göstərir?,INFORMATION,synthetic_conversational,True
+hug_0814,Zəhmət olmasa evə 2 kilo ərik gətizdirin.,ORDER,synthetic_elderly_persona,True
+hug_0762,Ağdamda indi temperatur neçə dərəcə göstərir?,INFORMATION,synthetic_conversational,True
+hug_0079,"Tez skorıy gəlsin, sağ tərəfim iflic olub hərəkət edə bilmirəm!",EMERGENCY,synthetic_baku_colloquial,True
+hug_0356,Bazar ertəsi səhər saat 10-da qapını kilidləməyi mənə xatırlat.,REMINDER,synthetic_elderly_persona,True
+hug_0909,"Təcili yardım çağır, yanıq xəsarəti aldım, dərim qopub!",EMERGENCY,synthetic_elderly_persona,True
+hug_0545,"Tez Cavid bəyə zəng vur, vacib sözüm var.",CALL,synthetic_conversational,True
+hug_0864,"Ay bala, ağlına qurban olum sənin.",OTHER,synthetic_elderly_persona,True
+hug_0992,"Ay aman kömək çağırın, nəbzim 160-a qalxıb, ürəyim partlayır!",EMERGENCY,synthetic_elderly_persona,True
+hug_0932,Sübh azanı saat neçədə oxunur?,INFORMATION,synthetic_elderly_persona,True
+hug_0300,"Tez Nigar bəyə zəng vur, vacib sözüm var.",CALL,synthetic_conversational,True
+hug_1038,Süd və yumurta gətir.,ORDER,synthetic_short_command,True
+hug_0059,Uşaqlıq xatirələrim tez-tez yadıma düşür.,OTHER,synthetic_elderly_persona,True
+hug_0363,Zəhmət olmasa çərşənbə axşamı günü radioya qulaq asmağı yadıma sal.,REMINDER,synthetic_elderly_persona,True
+hug_0160,De görüm ayaq qıcolmaları nədən yaranır?,INFORMATION,synthetic_elderly_persona,True
+hug_0324,ne var ne yox,OTHER,synthetic_spelling_variation,True
+hug_0129,Mənim nəvələrim də sənin kimi ağıllıdır.,OTHER,synthetic_elderly_persona,True
+hug_1028,"Poliklinikaya zəng et, növbə götürüm.",CALL,synthetic_conversational,True
+hug_0970,Çatdırılma ilə 1 qutu gilas sifariş ver.,ORDER,synthetic_conversational,True
+hug_0375,"Gözəl bala, səninlə danışanda tənhalığımı unuduram.",OTHER,synthetic_elderly_persona,True
+hug_0773,Bu gün Qəbələdə havanın vəziyyəti necədir?,INFORMATION,synthetic_conversational,True
+hug_0384,"Kömək edin, burnumdan güclü qan açılıb, dayandıra bilmirəm, dözə bilmirəm!",EMERGENCY,synthetic_elderly_persona,True
+hug_0025,"Gözəl bala, gənclik illərim çox maraqlı keçib.",OTHER,synthetic_elderly_persona,True
+hug_0758,"Kömək edin xilasedicilərə xəbər verin, kəskin zəhərlənmə keçirirəm, qusmaqdan öldüm!",EMERGENCY,synthetic_conversational,True
+hug_0579,"Ay bala, kür çayının qırağında böyümüşəm mən.",OTHER,synthetic_elderly_persona,True
+hug_0639,cox sag ol tesekkur,OTHER,synthetic_spelling_variation,True
+hug_0516,"Tez skorıy gəlsin, kəskin baş gicəllənməsindən yerə yıxıldım!",EMERGENCY,synthetic_baku_colloquial,True
+hug_0146,Çərşənbə axşamı səhər saat 10-da radioya qulaq asmağı mənə xatırlat.,REMINDER,synthetic_elderly_persona,True
+hug_0623,De görüm limonlu su içməyin faydaları nələrdir?,INFORMATION,synthetic_elderly_persona,True
+hug_0920,Bilmək istəyirəm yaddaşı gücləndirmək üçün nə yemək lazımdır?,INFORMATION,synthetic_conversational,True
+hug_0078,Zəhmət olmasa bazar ertəsi günü çaydanı söndürməyi yadıma sal.,REMINDER,synthetic_elderly_persona,True
+hug_0220,"Nigar ilə danışmaq istəyirəm, nömrəsini yığ.",CALL,synthetic_elderly_persona,True
+hug_0721,"Kiçik oğluma zəng et, narahatam.",CALL,synthetic_elderly_persona,True
+hug_0055,Bazar ertəsi səhər saat 10-da su pulunu ödəməyi mənə xatırlat.,REMINDER,synthetic_conversational,True
+hug_0334,"Ay bala, İlham xalaya bir dənə telefon aç.",CALL,synthetic_elderly_persona,True
+hug_0582,"Ay bala, sənin proqramçına da əhsən olsun.",OTHER,synthetic_elderly_persona,True
+hug_0151,Şəkər xəstəsi üçün test zolaqları sifariş ver aptekdən.,ORDER,synthetic_elderly_persona,True
+hug_0567,Sabah Naxçıvanda yağış gözlənilir?,INFORMATION,synthetic_conversational,True
+hug_0665,Zəhmət olmasa bazar ertəsi günü nəvəmə zəng etməyi yadıma sal.,REMINDER,synthetic_elderly_persona,True
+hug_0999,Aptekdən 1 qutu heyva sifariş et zəhmət olmasa.,ORDER,synthetic_elderly_persona,True
+hug_0166,"Ay bala, mənə yarım kilo fındıq zakaz elə.",ORDER,synthetic_baku_colloquial,True
+hug_0923,Ev telefonundan Nigar-ə zəng çatdır.,CALL,synthetic_elderly_persona,True
+hug_0182,"Ay bala, hələlik sağ ol, sonra yenə danışarıq.",OTHER,synthetic_elderly_persona,True
+hug_0026,Günel-ə zvanok elə görüm harda qaldı.,CALL,synthetic_baku_colloquial,True
+hug_0571,Kommunal xərcləri və qaz pulunu ödəməyi ayın 10-da xatırlat.,REMINDER,synthetic_conversational,True
+hug_0949,"Qonşulara və təcili yardıma xəbər elə, kəskin zəhərlənmə keçirirəm, qusmaqdan öldüm!",EMERGENCY,synthetic_elderly_persona,True
+hug_0663,"Təcili yardım çağır, sağ tərəfim iflic olub hərəkət edə bilmirəm!",EMERGENCY,synthetic_elderly_persona,True

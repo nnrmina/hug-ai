@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#E9F2E6" />
-  <title>HUG</title>
+  <meta name="theme-color" content="#EBF3E8" />
+  <title>HUG — Azərbaycan Səsli AI Köməkçi</title>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
@@ -26,86 +26,385 @@
       </div>
     </div>
 
-    <!-- Top Navigation Row -->
-    <header class="top-nav">
-      <button id="btn-open-contacts" class="circle-icon-btn" title="Kontaktlar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <line x1="4" y1="7" x2="16" y2="7"/>
-          <line x1="4" y1="12" x2="20" y2="12"/>
-          <line x1="4" y1="17" x2="12" y2="17"/>
-        </svg>
-      </button>
+    <!-- SCREENS CONTAINER (Smooth transitions without bottom categories) -->
+    <div class="screens-viewport">
 
-      <div id="agent-pill" class="center-pill">
-        <span class="sparkle">✦</span>
-        <span id="agent-pill-text">HUG</span>
-      </div>
-
-      <button id="btn-new-contact" class="circle-icon-btn" title="Yeni Kontakt Əlavə Et">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 20h9"/>
-          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-        </svg>
-      </button>
-    </header>
-
-    <!-- Main Content (Voice-Only: Headline + 3D Green AI Orb) -->
-    <main class="screen-main">
-      <div class="headline-block">
-        <h1 id="hero-title">
-          Bu gün sizə necə <span class="accent-word">kömək</span><br />edə bilərəm?
-        </h1>
-        <p id="live-status-text" class="live-status-text"></p>
-      </div>
-
-      <!-- 3D Glossy Green AI Orb + Mirror Reflection (Interactive Voice Button) -->
-      <div class="orb-stage">
-        <button id="ai-orb-btn" class="ai-orb" aria-label="Danışmaq üçün toxunun">
-          <span class="orb-highlight-top"></span>
-          <span class="orb-highlight-inner"></span>
-          <span class="orb-crescent"></span>
-        </button>
-        <div id="orb-reflection" class="orb-reflection"></div>
-      </div>
-
-      <div class="bottom-spacer"></div>
-    </main>
-
-    <!-- Clean Minimal Calling Overlay (When AI Agent calls the contact) -->
-    <section id="call-overlay" class="call-overlay hidden">
-      <div class="call-card">
-        <span class="call-badge">✦ HUG Zəng Edir</span>
-        <div class="call-orb-avatar" id="call-avatar">A</div>
-        <h2 id="call-name">Almaz Məmmədova</h2>
-        <p id="call-number" class="call-number">+994 50 456 78 90</p>
-        <p id="call-state-text" class="call-state-text">Nömrə yığılır...</p>
-
-        <div class="call-actions">
-          <a id="native-tel-link" href="tel:+994504567890" class="dialer-btn">
-            📞 Nömrə Yığıcı
-          </a>
-          <button id="btn-end-call" class="end-call-btn">
-            Zəngi Bitir
+      <!-- ==============================================
+           SCREEN 1: HOME (Idle)
+           ============================================== -->
+      <section id="screen-home" class="screen-view active">
+        <header class="top-nav">
+          <button id="btn-open-contacts" class="circle-icon-btn" title="Kontaktlar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <line x1="4" y1="7" x2="20" y2="7"/>
+              <line x1="4" y1="12" x2="16" y2="12"/>
+              <line x1="4" y1="17" x2="20" y2="17"/>
+            </svg>
           </button>
-        </div>
-      </div>
-    </section>
 
-    <!-- Minimal Contacts Drawer -->
-    <section id="contacts-drawer" class="contacts-drawer hidden">
-      <div class="drawer-header">
-        <h3>Kontaktlar</h3>
-        <button id="btn-close-drawer" class="circle-icon-btn">✕</button>
-      </div>
+          <div class="center-brand-title">HUG</div>
 
-      <form id="add-contact-form" class="drawer-form">
-        <input type="text" id="new-name" placeholder="Ad (məs: Almaz)" required />
-        <input type="tel" id="new-phone" placeholder="+994 50 456 78 90" required />
-        <button type="submit" class="send-pill-btn">Əlavə et</button>
-      </form>
+          <button id="btn-open-reminders" class="user-avatar-pill" title="Xatırlatmalar və Profil">
+            A
+          </button>
+        </header>
 
-      <div id="contacts-list" class="contacts-list"></div>
-    </section>
+        <main class="home-main">
+          <div class="headline-block">
+            <h1 class="hero-title">
+              Bu gün sizə necə <span class="accent-word">kömək</span><br />edə bilərəm?
+            </h1>
+            <p id="live-mic-warning" class="mic-warning-text hidden"></p>
+          </div>
+
+          <!-- Big 3D Glossy Green Orb with soft concentric glowing aura -->
+          <div class="orb-stage">
+            <div class="orb-aura-ring ring-outer"></div>
+            <div class="orb-aura-ring ring-inner"></div>
+            <button id="ai-orb-btn" class="ai-orb" aria-label="Danışmaq üçün toxunun">
+              <span class="orb-highlight-top"></span>
+              <span class="orb-highlight-inner"></span>
+              <span class="orb-crescent"></span>
+            </button>
+            <div class="orb-reflection"></div>
+          </div>
+
+          <!-- Tap to talk primary button -->
+          <div class="home-action-container">
+            <button id="btn-tap-to-talk" class="primary-pill-btn">
+              Danışmaq üçün toxunun
+            </button>
+            <div class="assistant-status-row">
+              <span class="status-dot">●</span>
+              <span id="assistant-status-label">Köməkçi hazırdır</span>
+            </div>
+          </div>
+        </main>
+      </section>
+
+      <!-- ==============================================
+           SCREEN 2: LISTENING / PROCESSING
+           ============================================== -->
+      <section id="screen-listening" class="screen-view">
+        <header class="top-nav">
+          <button class="circle-icon-btn btn-go-home" title="Geri">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+
+          <div class="center-screen-title">Dinlənilir...</div>
+
+          <button class="circle-icon-btn btn-more-options" title="Seçimlər">
+            <span class="dots-icon">•••</span>
+          </button>
+        </header>
+
+        <main class="listening-main">
+          <!-- Compact Orb -->
+          <div class="compact-orb-wrap">
+            <div class="compact-ai-orb">
+              <span class="orb-highlight-top"></span>
+            </div>
+          </div>
+
+          <!-- Animated Audio Waveform (Green bars pulsing) -->
+          <div class="waveform-container" id="audio-waveform">
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+          </div>
+
+          <!-- Transcript Card -->
+          <div class="transcript-card">
+            <span class="transcript-label">Siz dediniz:</span>
+            <p id="recognized-speech-quote" class="transcript-quote">“Mamama zəng et”</p>
+          </div>
+
+          <p class="speak-hint-text">Təbii danışın – qalanını mən həll edəcəm</p>
+        </main>
+      </section>
+
+      <!-- ==============================================
+           SCREEN 3: CONFIRMATION (Təsdiqləmə)
+           ============================================== -->
+      <section id="screen-confirm" class="screen-view">
+        <header class="top-nav">
+          <button class="circle-icon-btn btn-go-home" title="Geri">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+
+          <div class="center-screen-title">Təsdiqləyin</div>
+
+          <button class="circle-icon-btn btn-more-options" title="Seçimlər">
+            <span class="dots-icon">•••</span>
+          </button>
+        </header>
+
+        <main class="confirm-main">
+          <!-- Target Avatar Circle -->
+          <div class="confirm-avatar-ring">
+            <div id="confirm-avatar-badge" class="confirm-avatar-inner">S</div>
+          </div>
+
+          <!-- Bold question -->
+          <h2 id="confirm-question-title" class="confirm-question">Qızınıza zəng edilsin?</h2>
+
+          <!-- Subtext Details Card -->
+          <div class="confirm-details-card">
+            <p id="confirm-details-primary" class="confirm-name">Sevinc Məmmədova</p>
+            <p id="confirm-details-secondary" class="confirm-meta">Mobil · +994 50 123 45 67</p>
+          </div>
+
+          <!-- Dual Pill Action Buttons -->
+          <div class="confirm-actions-group">
+            <button id="btn-confirm-yes" class="primary-pill-btn">
+              Bəli, zəng et
+            </button>
+            <button id="btn-confirm-cancel" class="secondary-pill-btn">
+              Ləğv et
+            </button>
+          </div>
+        </main>
+      </section>
+
+      <!-- ==============================================
+           SCREEN 4: CALLING (Aktiv Zəng)
+           ============================================== -->
+      <section id="screen-calling" class="screen-view">
+        <header class="top-nav">
+          <button class="circle-icon-btn btn-go-home" title="Geri">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+
+          <div class="center-screen-title">Zəng</div>
+
+          <button class="circle-icon-btn btn-more-options" title="Seçimlər">
+            <span class="dots-icon">•••</span>
+          </button>
+        </header>
+
+        <main class="calling-main">
+          <div class="call-avatar-ring">
+            <div id="call-avatar-circle" class="call-avatar-circle">S</div>
+          </div>
+
+          <h2 id="calling-contact-name" class="calling-name">Sevinc</h2>
+          <p id="calling-status-timer" class="calling-timer">Zəng edilir... · 00:12</p>
+
+          <div class="waveform-container calling-wave">
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+          </div>
+
+          <div class="call-action-buttons">
+            <a id="native-dialer-btn" href="tel:+994501234567" class="dialer-native-link">
+              📞 Telefonda Yığ
+            </a>
+            <button id="btn-end-active-call" class="danger-pill-btn">
+              Zəngi Bitir
+            </button>
+          </div>
+        </main>
+      </section>
+
+      <!-- ==============================================
+           SCREEN 5: FOOD / GROCERY ORDER TRACKING
+           ============================================== -->
+      <section id="screen-order-tracking" class="screen-view">
+        <header class="top-nav">
+          <button class="circle-icon-btn btn-go-home" title="Geri">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+
+          <div class="center-screen-title">Sifarişiniz</div>
+
+          <button class="circle-icon-btn" title="Sifariş məlumatı">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+          </button>
+        </header>
+
+        <main class="order-main">
+          <!-- Item Card -->
+          <div class="order-summary-card">
+            <div class="order-header-row">
+              <div class="order-item-left">
+                <span class="order-food-emoji">🍲</span>
+                <div>
+                  <h3 id="order-card-title">Bozbaş · Orta pors</h3>
+                  <p id="order-card-subtitle">Wolt Restoran X</p>
+                </div>
+              </div>
+              <span id="order-card-price" class="order-price-badge">12 AZN</span>
+            </div>
+            <p id="order-card-breakdown" class="order-breakdown">Yemək 10 AZN + Çatdırılma 2 AZN</p>
+          </div>
+
+          <!-- Stepper Card -->
+          <div class="order-tracking-card">
+            <div class="tracking-top-row">
+              <span class="tracking-eta-label">Çatır:</span>
+              <span id="order-eta-countdown" class="tracking-eta-timer">08:24</span>
+            </div>
+
+            <div class="stepper-list">
+              <div class="stepper-item done">
+                <div class="step-dot"></div>
+                <div class="step-content">Sifariş təsdiqləndi</div>
+              </div>
+              <div class="stepper-item done">
+                <div class="step-dot"></div>
+                <div class="step-content">Restoranda hazırlanır</div>
+              </div>
+              <div class="stepper-item done">
+                <div class="step-dot"></div>
+                <div class="step-content">Kuryer təyin olundu</div>
+              </div>
+              <div class="stepper-item done">
+                <div class="step-dot"></div>
+                <div class="step-content">Kuryer götürdü</div>
+              </div>
+              <div class="stepper-item active">
+                <div class="step-dot"></div>
+                <div class="step-content">Yoldadır</div>
+              </div>
+              <div class="stepper-item pending">
+                <div class="step-dot"></div>
+                <div class="step-content">Çatdırıldı</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="order-actions-bottom">
+            <button id="btn-order-finish" class="primary-pill-btn">
+              Sifarişi Tamamla
+            </button>
+          </div>
+        </main>
+      </section>
+
+      <!-- ==============================================
+           SCREEN 6: REMINDERS & CALENDAR
+           ============================================== -->
+      <section id="screen-reminders" class="screen-view">
+        <header class="top-nav">
+          <button class="circle-icon-btn btn-go-home" title="Geri">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+
+          <div class="center-screen-title">Xatırlatmalar</div>
+
+          <button class="circle-icon-btn" title="Bildirişlər">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+          </button>
+        </header>
+
+        <main class="reminders-main">
+          <!-- Calendar Widget -->
+          <div class="calendar-card">
+            <div class="calendar-header">
+              <span class="cal-month-title">Noyabr 2026</span>
+            </div>
+            <div class="calendar-weekdays">
+              <span>B.E</span><span>Ç.A</span><span>Ç</span><span>C.A</span><span>C</span><span>Ş</span><span>B</span>
+            </div>
+            <div class="calendar-grid">
+              <span class="cal-day dim"></span><span class="cal-day">1</span><span class="cal-day">2</span><span class="cal-day">3</span><span class="cal-day">4</span><span class="cal-day">5</span><span class="cal-day">6</span>
+              <span class="cal-day">7</span><span class="cal-day today">8</span><span class="cal-day active-event">9</span><span class="cal-day">10</span><span class="cal-day">11</span><span class="cal-day">12</span><span class="cal-day active-event">13</span>
+              <span class="cal-day">14</span><span class="cal-day">15</span><span class="cal-day">16</span><span class="cal-day">17</span><span class="cal-day">18</span><span class="cal-day">19</span><span class="cal-day active-event">20</span>
+              <span class="cal-day">21</span><span class="cal-day">22</span><span class="cal-day">23</span><span class="cal-day">24</span><span class="cal-day">25</span><span class="cal-day">26</span><span class="cal-day">27</span>
+              <span class="cal-day">28</span><span class="cal-day">29</span><span class="cal-day">30</span>
+            </div>
+          </div>
+
+          <!-- Reminder List Items -->
+          <div class="reminders-list-container">
+            <div class="reminder-item-card">
+              <div>
+                <h4>Həkim Qəbulu</h4>
+                <p>Sabah · 10:00 (Poliklinika)</p>
+              </div>
+              <span class="time-badge">16 saat sonra</span>
+            </div>
+
+            <div class="reminder-item-card">
+              <div>
+                <h4>Təzyiq Dərmanı</h4>
+                <p>Bu gün · 21:00 (Kardiomaqnil)</p>
+              </div>
+              <span class="time-badge">3 saat sonra</span>
+            </div>
+          </div>
+
+          <button class="primary-pill-btn btn-go-home">
+            Ana səhifəyə qayıt
+          </button>
+        </main>
+      </section>
+
+      <!-- ==============================================
+           SCREEN 7: DONE (Tamamlandı)
+           ============================================== -->
+      <section id="screen-done" class="screen-view">
+        <header class="top-nav">
+          <div class="center-screen-title" style="margin: 0 auto;">Tamamlandı</div>
+        </header>
+
+        <main class="done-main">
+          <!-- Big Checkmark -->
+          <div class="done-check-ring">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+
+          <h2 class="done-title">Hər şey hazırdır</h2>
+          <p id="done-message-subtext" class="done-subtext">Əməliyyatınız uğurla başa çatdı.</p>
+
+          <div class="done-info-banner">
+            <h4>Əgər nəsə lazım olsa</h4>
+            <p>Köməkçiniz yaşıl kürəciklə bir toxunuş uzaqlıqdadır.</p>
+          </div>
+
+          <div class="done-actions">
+            <button class="primary-pill-btn btn-go-home">
+              Ana səhifəyə qayıt
+            </button>
+          </div>
+        </main>
+      </section>
+
+    </div>
   </div>
 
   <script src="/static/app.js"></script>

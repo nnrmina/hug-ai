@@ -1,0 +1,91 @@
+{"text": "Mənə Wolt-dan 2 kilo alma sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "alma", "quantity": 2.0, "unit": "kg"}]}}
+{"text": "Mənə 2 kilo alma və 1 kilo pomidor sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "alma", "quantity": 2.0, "unit": "kg"}, {"product": "pomidor", "quantity": 1.0, "unit": "kg"}]}}
+{"text": "Bazarstore-dan bir litr süd və 2 dənə çörək gətirsinlər.", "intent": "ORDER", "entities": {"items": [{"product": "süd", "quantity": 1.0, "unit": "litr"}, {"product": "çörək", "quantity": 2.0, "unit": "ədəd"}]}}
+{"text": "3 paket kərə yağı və 1 qutu çay zakaz elə.", "intent": "ORDER", "entities": {"items": [{"product": "kərə yağı", "quantity": 3.0, "unit": "paket"}, {"product": "çay", "quantity": 1.0, "unit": "qutu"}]}}
+{"text": "Evə 5 litr su sifariş ver.", "intent": "ORDER", "entities": {"items": [{"product": "su", "quantity": 5.0, "unit": "litr"}]}}
+{"text": "Aptekdən 2 qutu parasetamol və 1 şüşə spirt gətizdir.", "intent": "ORDER", "entities": {"items": [{"product": "parasetamol", "quantity": 2.0, "unit": "qutu"}, {"product": "spirt", "quantity": 1.0, "unit": "şüşə"}]}}
+{"text": "Wolt-dan bir toyuq dönəri və 2 ayran sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "toyuq dönəri", "quantity": 1.0, "unit": "ədəd"}, {"product": "ayran", "quantity": 2.0, "unit": "ədəd"}]}}
+{"text": "500 qram qoz ləpəsi və 1 kilo naringi zakaz ver.", "intent": "ORDER", "entities": {"items": [{"product": "qoz ləpəsi", "quantity": 500.0, "unit": "qram"}, {"product": "naringi", "quantity": 1.0, "unit": "kg"}]}}
+{"text": "2 pors lülə kabab və 1 pors paytaxt salatı gətirsinlər.", "intent": "ORDER", "entities": {"items": [{"product": "lülə kabab", "quantity": 2.0, "unit": "pors"}, {"product": "paytaxt salatı", "quantity": 1.0, "unit": "pors"}]}}
+{"text": "10 dənə kənd yumurtası və 1 kilo kəsmik al.", "intent": "ORDER", "entities": {"items": [{"product": "kənd yumurtası", "quantity": 10.0, "unit": "ədəd"}, {"product": "kəsmik", "quantity": 1.0, "unit": "kg"}]}}
+{"text": "Mənə alma sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "alma", "quantity": null, "unit": null}]}}
+{"text": "Wolt-dan çörək gətirsinlər.", "intent": "ORDER", "entities": {"items": [{"product": "çörək", "quantity": null, "unit": null}]}}
+{"text": "Aptekdən təzyiq dərmanı zakaz ver.", "intent": "ORDER", "entities": {"items": [{"product": "təzyiq dərmanı", "quantity": null, "unit": null}]}}
+{"text": "Mənə 5 kilo portağal sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "portağal", "quantity": 5.0, "unit": "kg"}]}}
+{"text": "Mənə 1 kilo portağal sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "portağal", "quantity": 1.0, "unit": "kg"}]}}
+{"text": "Mənə 2 kilo portağal sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "portağal", "quantity": 2.0, "unit": "kg"}]}}
+{"text": "Mənə 4 kq armud sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "armud", "quantity": 4.0, "unit": "kg"}]}}
+{"text": "Mənə 5 kq armud sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "armud", "quantity": 5.0, "unit": "kg"}]}}
+{"text": "Mənə 10 kq armud sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "armud", "quantity": 10.0, "unit": "kg"}]}}
+{"text": "Mənə 4 kilo kartof sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "kartof", "quantity": 4.0, "unit": "kg"}]}}
+{"text": "Mənə 3 kilo kartof sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "kartof", "quantity": 3.0, "unit": "kg"}]}}
+{"text": "Mənə 2 kilo kartof sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "kartof", "quantity": 2.0, "unit": "kg"}]}}
+{"text": "Mənə 5 kilo soğan sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "soğan", "quantity": 5.0, "unit": "kg"}]}}
+{"text": "Mənə 4 kilo soğan sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "soğan", "quantity": 4.0, "unit": "kg"}]}}
+{"text": "Mənə 10 kilo soğan sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "soğan", "quantity": 10.0, "unit": "kg"}]}}
+{"text": "Mənə 4 paket düyü sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "düyü", "quantity": 4.0, "unit": "paket"}]}}
+{"text": "Mənə 1 paket düyü sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "düyü", "quantity": 1.0, "unit": "paket"}]}}
+{"text": "Mənə 4 paket düyü sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "düyü", "quantity": 4.0, "unit": "paket"}]}}
+{"text": "Mənə 3 kilo un sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "un", "quantity": 3.0, "unit": "kg"}]}}
+{"text": "Mənə 4 kilo un sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "un", "quantity": 4.0, "unit": "kg"}]}}
+{"text": "Mənə 3 kilo un sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "un", "quantity": 3.0, "unit": "kg"}]}}
+{"text": "Mənə 3 kilo qənd sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "qənd", "quantity": 3.0, "unit": "kg"}]}}
+{"text": "Mənə 10 kilo qənd sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "qənd", "quantity": 10.0, "unit": "kg"}]}}
+{"text": "Mənə 1 kilo qənd sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "qənd", "quantity": 1.0, "unit": "kg"}]}}
+{"text": "Mənə 2 kilo şəkər tozu sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "şəkər tozu", "quantity": 2.0, "unit": "kg"}]}}
+{"text": "Mənə 3 kilo şəkər tozu sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "şəkər tozu", "quantity": 3.0, "unit": "kg"}]}}
+{"text": "Mənə 4 kilo şəkər tozu sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "şəkər tozu", "quantity": 4.0, "unit": "kg"}]}}
+{"text": "Mənə 10 kilo pendir sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "pendir", "quantity": 10.0, "unit": "kg"}]}}
+{"text": "Mənə 4 kilo pendir sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "pendir", "quantity": 4.0, "unit": "kg"}]}}
+{"text": "Mənə 3 kilo pendir sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "pendir", "quantity": 3.0, "unit": "kg"}]}}
+{"text": "Mənə 10 banka xama sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "xama", "quantity": 10.0, "unit": "banka"}]}}
+{"text": "Mənə 4 banka xama sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "xama", "quantity": 4.0, "unit": "banka"}]}}
+{"text": "Mənə 5 banka xama sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "xama", "quantity": 5.0, "unit": "banka"}]}}
+{"text": "Mənə 1 litr qatıq sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "qatıq", "quantity": 1.0, "unit": "litr"}]}}
+{"text": "Mənə 4 litr qatıq sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "qatıq", "quantity": 4.0, "unit": "litr"}]}}
+{"text": "Mənə 1 litr qatıq sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "qatıq", "quantity": 1.0, "unit": "litr"}]}}
+{"text": "Mənə 3 paket kərə yağı sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "kərə yağı", "quantity": 3.0, "unit": "paket"}]}}
+{"text": "Mənə 3 paket kərə yağı sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "kərə yağı", "quantity": 3.0, "unit": "paket"}]}}
+{"text": "Mənə 3 paket kərə yağı sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "kərə yağı", "quantity": 3.0, "unit": "paket"}]}}
+{"text": "Mənə 1 şüşə zeytun yağı sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "zeytun yağı", "quantity": 1.0, "unit": "şüşə"}]}}
+{"text": "Mənə 4 şüşə zeytun yağı sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "zeytun yağı", "quantity": 4.0, "unit": "şüşə"}]}}
+{"text": "Mənə 5 şüşə zeytun yağı sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "zeytun yağı", "quantity": 5.0, "unit": "şüşə"}]}}
+{"text": "Mənə 1 litr günəbaxan yağı sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "günəbaxan yağı", "quantity": 1.0, "unit": "litr"}]}}
+{"text": "Mənə 10 litr günəbaxan yağı sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "günəbaxan yağı", "quantity": 10.0, "unit": "litr"}]}}
+{"text": "Mənə 5 litr günəbaxan yağı sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "günəbaxan yağı", "quantity": 5.0, "unit": "litr"}]}}
+{"text": "Mənə 4 paket makaron sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "makaron", "quantity": 4.0, "unit": "paket"}]}}
+{"text": "Mənə 4 paket makaron sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "makaron", "quantity": 4.0, "unit": "paket"}]}}
+{"text": "Mənə 1 paket makaron sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "makaron", "quantity": 1.0, "unit": "paket"}]}}
+{"text": "Mənə 2 pors düşbərə sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "düşbərə", "quantity": 2.0, "unit": "pors"}]}}
+{"text": "Mənə 5 pors düşbərə sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "düşbərə", "quantity": 5.0, "unit": "pors"}]}}
+{"text": "Mənə 3 pors düşbərə sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "düşbərə", "quantity": 3.0, "unit": "pors"}]}}
+{"text": "Mənə 5 pors aş sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "aş", "quantity": 5.0, "unit": "pors"}]}}
+{"text": "Mənə 4 pors aş sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "aş", "quantity": 4.0, "unit": "pors"}]}}
+{"text": "Mənə 10 pors aş sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "aş", "quantity": 10.0, "unit": "pors"}]}}
+{"text": "Mənə 4 ədəd pizza sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "pizza", "quantity": 4.0, "unit": "ədəd"}]}}
+{"text": "Mənə 1 ədəd pizza sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "pizza", "quantity": 1.0, "unit": "ədəd"}]}}
+{"text": "Mənə 2 ədəd pizza sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "pizza", "quantity": 2.0, "unit": "ədəd"}]}}
+{"text": "Mənə 3 ədəd lahmacun sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "lahmacun", "quantity": 3.0, "unit": "ədəd"}]}}
+{"text": "Mənə 5 ədəd lahmacun sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "lahmacun", "quantity": 5.0, "unit": "ədəd"}]}}
+{"text": "Mənə 2 ədəd lahmacun sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "lahmacun", "quantity": 2.0, "unit": "ədəd"}]}}
+{"text": "Mənə 3 pors mərci şorbası sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "mərci şorbası", "quantity": 3.0, "unit": "pors"}]}}
+{"text": "Mənə 4 pors mərci şorbası sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "mərci şorbası", "quantity": 4.0, "unit": "pors"}]}}
+{"text": "Mənə 10 pors mərci şorbası sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "mərci şorbası", "quantity": 10.0, "unit": "pors"}]}}
+{"text": "Mənə 4 ədəd təndir çörəyi sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "təndir çörəyi", "quantity": 4.0, "unit": "ədəd"}]}}
+{"text": "Mənə 1 ədəd təndir çörəyi sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "təndir çörəyi", "quantity": 1.0, "unit": "ədəd"}]}}
+{"text": "Mənə 1 ədəd təndir çörəyi sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "təndir çörəyi", "quantity": 1.0, "unit": "ədəd"}]}}
+{"text": "Mənə 10 qutu kardiomaqnil sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "kardiomaqnil", "quantity": 10.0, "unit": "qutu"}]}}
+{"text": "Mənə 5 qutu kardiomaqnil sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "kardiomaqnil", "quantity": 5.0, "unit": "qutu"}]}}
+{"text": "Mənə 2 qutu kardiomaqnil sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "kardiomaqnil", "quantity": 2.0, "unit": "qutu"}]}}
+{"text": "Mənə 10 qutu analqin sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "analqin", "quantity": 10.0, "unit": "qutu"}]}}
+{"text": "Mənə 2 qutu analqin sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "analqin", "quantity": 2.0, "unit": "qutu"}]}}
+{"text": "Mənə 3 qutu analqin sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "analqin", "quantity": 3.0, "unit": "qutu"}]}}
+{"text": "Mənə 5 qutu validol sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "validol", "quantity": 5.0, "unit": "qutu"}]}}
+{"text": "Mənə 1 qutu validol sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "validol", "quantity": 1.0, "unit": "qutu"}]}}
+{"text": "Mənə 5 qutu validol sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "validol", "quantity": 5.0, "unit": "qutu"}]}}
+{"text": "Mənə 4 şüşə öskürək siropu sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "öskürək siropu", "quantity": 4.0, "unit": "şüşə"}]}}
+{"text": "Mənə 1 şüşə öskürək siropu sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "öskürək siropu", "quantity": 1.0, "unit": "şüşə"}]}}
+{"text": "Mənə 2 şüşə öskürək siropu sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "öskürək siropu", "quantity": 2.0, "unit": "şüşə"}]}}
+{"text": "Mənə 1 qutu vitamin C sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "vitamin C", "quantity": 1.0, "unit": "qutu"}]}}
+{"text": "Mənə 4 qutu vitamin C sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "vitamin C", "quantity": 4.0, "unit": "qutu"}]}}
+{"text": "Mənə 1 qutu vitamin C sifariş et.", "intent": "ORDER", "entities": {"items": [{"product": "vitamin C", "quantity": 1.0, "unit": "qutu"}]}}

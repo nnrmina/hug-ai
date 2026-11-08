@@ -1,0 +1,54 @@
+=== HUG DECISION TREE INTENT CLASSIFICATION REPORT ===
+
+Test Dataset Samples: 156
+Overall Accuracy:     0.9359
+Macro F1-Score:       0.9357
+Weighted F1-Score:    0.9358
+Macro Recall:         0.9358
+EMERGENCY Recall:     0.9167
+
+              precision    recall  f1-score   support
+
+        CALL       0.96      1.00      0.98        26
+   EMERGENCY       0.92      0.92      0.92        24
+ INFORMATION       0.88      0.88      0.88        26
+       ORDER       1.00      0.96      0.98        26
+       OTHER       0.92      0.89      0.91        27
+    REMINDER       0.93      0.96      0.95        27
+
+    accuracy                           0.94       156
+   macro avg       0.94      0.94      0.94       156
+weighted avg       0.94      0.94      0.94       156
+
+
+=== CONFUSED EXAMPLES ANALYSIS ===
+- True: REMINDER | Pred: INFORMATION (Conf: 1.00)
+  Text: "Sabah səhər tezdən acqarına ürək həbimi içməyi xatırlat."
+
+- True: EMERGENCY | Pred: CALL (Conf: 1.00)
+  Text: "qaz iyi gelir tecili xidmete zeng ele"
+
+- True: INFORMATION | Pred: EMERGENCY (Conf: 1.00)
+  Text: "Təcili tibbi yardımın nömrəsi neçədir?"
+
+- True: EMERGENCY | Pred: OTHER (Conf: 0.85)
+  Text: "Təzyiqim 220-yə qalxıb, başım fırlanır, yıxılmışam!"
+
+- True: OTHER | Pred: INFORMATION (Conf: 1.00)
+  Text: "Bu gün bağçada quşların səsi necə də xoş gəlirdi."
+
+- True: INFORMATION | Pred: REMINDER (Conf: 0.67)
+  Text: "Poliklinika saat neçəyə qədər işləyir?"
+
+- True: INFORMATION | Pred: REMINDER (Conf: 0.67)
+  Text: "Sübh azanı saat neçədə oxunur?"
+
+- True: ORDER | Pred: OTHER (Conf: 0.85)
+  Text: "Süd və yumurta gətir."
+
+- True: OTHER | Pred: EMERGENCY (Conf: 0.50)
+  Text: "Uşaqlıq xatirələrim tez-tez yadıma düşür."
+
+- True: OTHER | Pred: INFORMATION (Conf: 1.00)
+  Text: "ne var ne yox"
+
