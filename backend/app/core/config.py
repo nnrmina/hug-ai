@@ -1,6 +1,14 @@
+import os
 from functools import lru_cache
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _get_default_sqlite_url() -> str:
+    # Vercel serverless functions have a read-only filesystem except for /tmp
+    if os.environ.get("VERCEL"):
+        return "sqlite:////tmp/yaxin_ai.db"
+    return "sqlite:///./yaxin_ai.db"
 
 
 class Settings(BaseSettings):
@@ -11,8 +19,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     # Database configuration (defaults to local SQLite fallback if Postgres is unavailable)
-    DATABASE_URL: str = "sqlite:///./yaxin_ai.db"
-    FALLBACK_SQLITE_URL: str = "sqlite:///./yaxin_ai.db"
+    DATABASE_URL: str = _get_default_sqlite_url()
+    FALLBACK_SQLITE_URL: str = _get_default_sqlite_url()
 
     # AI / LLM Provider settings
     LLM_PROVIDER: str = "rule_based"  # rule_based | openai | gemini | llama
