@@ -19,7 +19,7 @@ class SecurityAnalysisEntity {
     return SecurityAnalysisEntity(
       analysisId: json['analysis_id'] as String? ?? '',
       riskLevel: json['risk_level'] as String? ?? 'low',
-      riskScore: json['risk_score'] as int? ?? 0,
+      riskScore: (json['risk_score'] as num?)?.toInt() ?? 0,
       indicators: (json['indicators'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
