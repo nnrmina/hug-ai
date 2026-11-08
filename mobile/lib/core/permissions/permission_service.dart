@@ -1,44 +1,67 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 import '../constants/app_strings.dart';
 
-/// Least-privilege & Explicit Consent permission manager (Section 11.4 & 12.1).
-/// Never requests SMS, WhatsApp, Call History, Photos, or GPS permissions.
+enum PermissionOutcome { granted, denied, permanentlyDenied }
+
+/// Least-privilege runtime permissions (microphone + contacts only).
+/// Never requests SMS, call log, photos or location.
 class PermissionService {
-  bool _contactsPermissionGranted = false;
-  bool _microphonePermissionGranted = false;
+  Future<PermissionOutcome> requestMicrophone() =>
+      _request(Permission.microphone);
 
-  bool get hasContactsPermission => _contactsPermissionGranted;
-  bool get hasMicrophonePermission => _microphonePermissionGranted;
+  /// Shows an explanation first, then the real system permission dialog.
+  Future<PermissionOutcome> requestContacts(BuildContext context) async {
+    try {
+      if (await Permission.contacts.isGranted) return PermissionOutcome.granted;
+    } catch (_) {
+      return PermissionOutcome.denied;
+    }
+    if (!context.mounted) return PermissionOutcome.denied;
 
-  Future<bool> requestMicrophoneConsent() async {
-    _microphonePermissionGranted = true;
-    return _microphonePermissionGranted;
-  }
-
-  Future<bool> requestContactsConsentDialog(BuildContext context) async {
-    if (_contactsPermissionGranted) return true;
-
-    final result = await showDialog<bool>(
+    final agreed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: const Text(AppStrings.contactPermissionTitle),
-        content: const Text(AppStrings.contactPermissionMessage),
+        title: const Text(AppStrings.contactPermissionTitle,
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+        content: const Text(AppStrings.contactPermissionMessage,
+            style: TextStyle(fontSize: 18)),
         actions: [
           TextButton(
+            style: TextButton.styleFrom(minimumSize: const Size(88, 56)),
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text(AppStrings.notNowPermission),
+            child: const Text(AppStrings.notNowPermission,
+                style: TextStyle(fontSize: 18)),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(minimumSize: const Size(88, 56)),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(AppStrings.allowPermission),
+            child: const Text(AppStrings.allowPermission,
+                style: TextStyle(fontSize: 18)),
           ),
         ],
       ),
     );
+    if (agreed != true) return PermissionOutcome.denied;
+    return _request(Permission.contacts);
+  }
 
-    _contactsPermissionGranted = result ?? false;
-    return _contactsPermissionGranted;
+  Future<bool> openSettings() => openAppSettings();
+
+  Future<PermissionOutcome> _request(Permission permission) async {
+    try {
+      final status = await permission.request();
+      if (status.isGranted || status.isLimited) {
+        return PermissionOutcome.granted;
+      }
+      if (status.isPermanentlyDenied) {
+        return PermissionOutcome.permanentlyDenied;
+      }
+      return PermissionOutcome.denied;
+    } catch (_) {
+      return PermissionOutcome.denied;
+    }
   }
 }
-
