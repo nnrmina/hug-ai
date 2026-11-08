@@ -2,6 +2,7 @@
 // dictated text pre-filled. The user always presses send/call in the native app.
 import { playClip, speak } from "../audio/tts.js";
 import { smsHref, telHref } from "../contacts.js";
+import { directCall } from "../native.js";
 import { announce, setText, showScreen } from "../ui/screens.js";
 
 let timer = null;
@@ -27,8 +28,8 @@ export function startCall(contact) {
 
   announce(`${contact.short_name} ilə əlaqə qurulur`);
   speak(`${contact.short_name} ilə əlaqə qurulur.`).then(() => {
-    // Hand off to the phone's own dialer (no-op on desktop browsers without a handler)
-    try { window.location.href = telHref(contact); } catch (_) {}
+    // Android app: calls directly (the user already said "Bəli"); browser: opens the dialer
+    directCall(contact.phone_number);
   });
 }
 

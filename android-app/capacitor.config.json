@@ -1,0 +1,20 @@
+{
+  "appId": "az.hug.assistant",
+  "appName": "HUG",
+  "webDir": "www",
+  "server": {
+    "url": "https://hug.46-224-126-66.sslip.io/",
+    "cleartext": false,
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#EBF3E8"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_hug",
+      "iconColor": "#2ea13f"
+    }
+  }
+}

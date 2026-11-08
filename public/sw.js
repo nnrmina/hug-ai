@@ -25,6 +25,7 @@ const SHELL = [
   "/static/js/reminders/alerts.js",
   "/static/js/device.js",
   "/static/js/push.js",
+  "/static/js/native.js",
   "/static/js/care/care.js",
   "/static/js/family.js",
   "/family.html",

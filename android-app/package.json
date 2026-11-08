@@ -1,0 +1,16 @@
+{
+  "name": "hug-android",
+  "private": true,
+  "version": "1.0.0",
+  "description": "HUG Android shell (Capacitor): loads the live web app, adds direct calls and native medicine alarms",
+  "scripts": {
+    "sync": "cap sync android",
+    "build:debug": "cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/cli": "^7.6.10",
+    "@capacitor/core": "^7.6.10",
+    "@capacitor/local-notifications": "^7.0.7"
+  }
+}

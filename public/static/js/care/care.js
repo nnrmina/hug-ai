@@ -7,6 +7,7 @@ import {
 import { playClip, speak, stopSpeaking } from "../audio/tts.js";
 import { RELATION_OPTIONS, getFamily, setFamily, telHref } from "../contacts.js";
 import { ensurePushSubscription, pushSupported } from "../push.js";
+import { directCall, isNativeApp, nativeNotificationsReady, onNativeAlarmTap, scheduleMedicineAlarms } from "../native.js";
 import { haptic } from "../ui/haptics.js";
 import { announce, setText, showScreen } from "../ui/screens.js";
 import { toast } from "../ui/toast.js";
@@ -29,6 +30,7 @@ export async function refreshCare() {
     return state;
   }
   setFamily(state.family);
+  scheduleMedicineAlarms(state.medications);
   renderCareCard();
   renderFamilySheet();
   if (document.getElementById("screen-meds")?.classList.contains("active")) renderMeds();
@@ -170,7 +172,7 @@ function showSosSent(result, hadLocation) {
   haptic("success");
   say(first ? `Xəbər verdim. İndi ${first.name} ilə əlaqə saxlayıram.` : "Xəbər verdim. Lazım olsa 103-ə zəng edin.");
   // Hand off to the dialer automatically when there is someone to call
-  if (first) setTimeout(() => { try { window.location.href = `tel:${first.phone}`; } catch (_) {} }, 2500);
+  if (first) setTimeout(() => directCall(first.phone), 2500);
 }
 
 // ------------------------------------------------------------------ medicines
@@ -456,6 +458,12 @@ async function onOnboardSubmit(e) {
 
 // ------------------------------------------------------------------ notifications
 export async function ensureNotifications({ quiet = false } = {}) {
+  if (isNativeApp()) {
+    const ok = await nativeNotificationsReady();
+    if (ok) scheduleMedicineAlarms(state?.medications || []);
+    if (!quiet) toast(ok ? "Xatırlatmalar açıqdır 🔔" : "Bildirişlərə icazə verilmədi", { type: ok ? "success" : "error" });
+    return ok;
+  }
   if (!state?.push?.enabled || !pushSupported()) return false;
   try {
     const r = await ensurePushSubscription(state.push.public_key, subscribeElderPush);
@@ -470,6 +478,11 @@ export async function ensureNotifications({ quiet = false } = {}) {
 // ------------------------------------------------------------------ wiring
 export function initCare() {
   armSosButton();
+  onNativeAlarmTap(async () => {
+    await refreshCare();
+    const dose = nextDose();
+    if (dose && dose.status !== "taken") showDoseAlert(dose);
+  });
   document.getElementById("care-checkin")?.addEventListener("click", showCheckin);
   document.getElementById("care-open-meds")?.addEventListener("click", openMeds);
   document.getElementById("care-dose-taken")?.addEventListener("click", (e) => {

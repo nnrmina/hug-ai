@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HUG</string>
+    <string name="title_activity_main">HUG</string>
+    <string name="package_name">az.hug.assistant</string>
+    <string name="custom_url_scheme">az.hug.assistant</string>
+</resources>
