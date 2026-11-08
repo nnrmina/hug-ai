@@ -25,3 +25,16 @@
 - `agent_events` cədvəlində yalnız əməliyyatın növü (`intent`), statusu (`status`) və vaxtı saxlanılır.
 - Tam səs yazıları, kontakt siyahısı və istifadəçinin yoxlamaq üçün göndərdiyi həssas mesaj məzmunları daimi olaraq bazada saxlanılmır.
 
+
+## 4. Süni İntellekt və Üçüncü Tərəf Xidmətləri (AI & Third-Party Processing)
+
+| Xidmət | Nə göndərilir | Nə göndərilmir |
+|---|---|---|
+| **Google Gemini** (əmrləri başa düşmə, `GEMINI_API_KEY` qoşulduqda) | İstifadəçinin dediyi/yazdığı əmr (səs və ya mətn), son ~6 söhbət növbəsi, cari Bakı vaxtı | Kontakt siyahısı, telefon nömrələri, saxlanmış xatırlatmalar |
+| **Microsoft Edge neural TTS** (`az-AZ-BanuNeural`) | Köməkçinin oxuyacağı cavab mətni | İstifadəçinin səsi, şəxsi məlumatlar |
+| **Brauzerin səs tanıması** (Web Speech, ehtiyat rejim) | Chrome-da səs Google-un nitq xidmətinə göndərilir | — |
+
+- **Pulsuz Gemini rejimi:** Google AI Studio-nun pulsuz səviyyəsində göndərilən sorğular Google tərəfindən məhsulları təkmilləşdirmək üçün istifadə oluna bilər. Real istifadəçilər üçün ödənişli səviyyə (sorğular modelin öyrədilməsinə istifadə olunmur) tövsiyə olunur.
+- **Kontaktlar cihazda qalır:** server yalnız `contact_alias` qaytarır (məs. *"qızım"*); uyğunlaşdırma brauzerdə/telefonda aparılır.
+- **Ehtiyat rejim:** açar olmadıqda və ya Gemini əlçatan olmadıqda sistem avtomatik olaraq yerli qayda əsaslı analizə keçir — heç bir məlumat Gemini-yə göndərilmir.
+- **Söhbət yaddaşı** serverin yaddaşında maksimum 15 dəqiqə saxlanılır və verilənlər bazasına yazılmır.

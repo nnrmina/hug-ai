@@ -60,6 +60,14 @@ cp .env.example .env          # GEMINI_API_KEY əlavə edin (opsional)
 
 Heç bir açar olmadan da işləyir: SQLite, qayda əsaslı niyyət analizi və pulsuz neural səs (edge-tts) standartdır.
 
+**Gemini (tövsiyə olunur, pulsuz):** [aistudio.google.com/apikey](https://aistudio.google.com/apikey) ünvanından açar alın və `backend/.env` faylına yazın:
+```bash
+GEMINI_API_KEY=...
+```
+Server yenidən başladıqda ana səhifədə **✦ Gemini AI** nişanı görünəcək: səs birbaşa Gemini-yə göndərilir, Azərbaycan dilində transkripsiya + niyyət + parametrlər bir sorğuda çıxarılır. Gemini əlçatan olmadıqda (limit, şəbəkə) sistem avtomatik qayda əsaslı rejimə keçir.
+
+**Web tətbiqi (PWA):** `public/` qovluğu yeganə frontend mənbəyidir (ES modulları, build addımı yoxdur). Telefonda “Ana ekrana əlavə et” ilə tətbiq kimi quraşdırıla bilər.
+
 ### 4.2. Docker
 ```bash
 docker build -f backend/Dockerfile -t hug-ai .
