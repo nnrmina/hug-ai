@@ -3,34 +3,44 @@ Entity Extraction Module for HUG AI Voice Assistant.
 
 Extracts structured items from Azerbaijani order queries:
 - Products / groceries / medicines / dishes
-- Quantities (digits or Azerbaijani number words: "bir", "iki", "yarım", etc.)
-- Measurement units (kg, litr, ədəd, paket, qutu, banka, pors)
+- Quantities (digits or Azerbaijani number words, including multi-word numbers:
+  "bir", "iki", "yarım", "beş yüz", "iki yüz əlli", "min iki yüz")
+- Measurement units (kg, qram, litr, ədəd, paket, qutu, banka, pors)
 
-Identifies incomplete orders that require user clarification.
+Identifies incomplete orders that require user clarification. When the user does
+not state a unit, the unit is left as None (it is never silently defaulted).
 """
 
 import re
-from typing import Dict, List, Optional, Tuple, Any
+import sys
+import unicodedata
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-# Number words mapping in Azerbaijani
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from src.preprocessing.text_preprocessing import az_lower  # noqa: E402
+
+# Number words in Azerbaijani, split by role so multi-word numbers can be composed
+# ("beş yüz" -> 500, "iki yüz əlli" -> 250, "min iki yüz" -> 1200).
+AZ_DIGIT_WORDS = {
+    "sıfır": 0.0, "bir": 1.0, "iki": 2.0, "üç": 3.0, "dörd": 4.0, "beş": 5.0,
+    "altı": 6.0, "yeddi": 7.0, "səkkiz": 8.0, "doqquz": 9.0,
+}
+AZ_TENS_WORDS = {
+    "on": 10.0, "iyirmi": 20.0, "otuz": 30.0, "qırx": 40.0, "əlli": 50.0,
+    "altmış": 60.0, "yetmiş": 70.0, "səksən": 80.0, "doxsan": 90.0,
+}
+AZ_HUNDRED_WORD = "yüz"
+AZ_THOUSAND_WORD = "min"
+AZ_HALF_WORD = "yarım"
+
+# Flat lookup of single-word values (kept for backwards compatibility).
 AZ_NUMBER_WORDS = {
-    "yarım": 0.5,
-    "bir": 1.0,
-    "iki": 2.0,
-    "üç": 3.0,
-    "dörd": 4.0,
-    "beş": 5.0,
-    "altı": 6.0,
-    "yeddi": 7.0,
-    "səkkiz": 8.0,
-    "doqquz": 9.0,
-    "on": 10.0,
-    "iyirmi": 20.0,
-    "otuz": 30.0,
-    "əlli": 50.0,
-    "yüz": 100.0,
-    "beş yüz": 500.0,
-    "min": 1000.0,
+    AZ_HALF_WORD: 0.5,
+    **AZ_DIGIT_WORDS,
+    **AZ_TENS_WORDS,
+    AZ_HUNDRED_WORD: 100.0,
+    AZ_THOUSAND_WORD: 1000.0,
 }
 
 # Unit normalizations
@@ -38,8 +48,10 @@ UNIT_NORMALIZATION = {
     "kilo": "kg",
     "kq": "kg",
     "kilogram": "kg",
+    "kiloluq": "kg",
     "kg": "kg",
     "qram": "qram",
+    "qramlıq": "qram",
     "qr": "qram",
     "gr": "qram",
     "g": "qram",
@@ -85,10 +97,12 @@ KNOWN_PRODUCTS = [
     "düşbərə", "aş", "plov", "pizza", "lahmacun", "qutab", "ət qutabı",
     "göy qutabı", "yarpaq dolması", "dolma", "paytaxt salatı", "salat",
     "ayran", "dovğa",
+    # Bakery / sweets (explicit so that e.g. "kökə" is never read as "kök")
+    "kökə", "piroq", "paxlava", "şəkərbura", "halva", "burger",
     # Pharmacy & Medical
     "kardiomaqnil", "analqin", "parasetamol", "aspirin kardio", "aspirin",
     "validol", "noşpa", "vitamin c", "vitamin", "göz damcısı", "öskürək siropu",
-    "boğaz spreyi", "steril bint", "bint", "spirt", "təzyiq dərmanı", "dərman"
+    "boğaz spreyi", "steril bint", "bint", "spirt", "təzyiq dərmanı", "dərman",
 ]
 
 ORDER_STOPWORDS = {
@@ -101,48 +115,161 @@ ORDER_STOPWORDS = {
     "istəyirəm", "isteyirem", "lazımdır", "lazimdir", "təcili", "tecili",
     "və", "ve", "bir", "də", "de", "ilə", "ile", "zakaz", "dostavka",
     "qadan", "alım", "alim", "ay", "bala", "balam", "əzizim", "ezizim",
-    "oğlum", "oglum", "qızım", "qizim", "canım", "canim"
+    "oğlum", "oglum", "qızım", "qizim", "canım", "canim",
 }
+
+# Lead-in words stripped from each order segment before parsing
+INTRO_STOPWORDS = {
+    "wolt", "woltdan", "dan", "dən", "bazarstore", "bravo", "aptekdən", "aptekden",
+    "mənə", "mene", "bizə", "bize", "sifariş", "sifaris", "et", "elə", "ele", "ver",
+    "zakaz", "al", "gətirsinlər", "getirsinler", "istəyirəm", "isteyirem",
+    "lazımdır", "lazimdir", "zəhmət", "zehmet", "olmasa",
+}
+
+# Accusative / possessive / plural suffixes that may follow a product name inside a
+# single token ("dərmanımı", "almanı", "almalar"). Dative "-a/-ə" is deliberately NOT
+# accepted: "kökə" (a bun) must not be read as "kök" (carrot) + dative.
+PRODUCT_SUFFIXES = (
+    "ımı", "imi", "umu", "ümü", "ları", "ləri",
+    "nı", "ni", "nu", "nü", "mı", "mi", "mu", "mü", "lar", "lər",
+    "ı", "i", "u", "ü",
+)
+
+_KNOWN_PRODUCTS_BY_LENGTH = sorted(set(KNOWN_PRODUCTS), key=len, reverse=True)
+_NUMERIC_RE = re.compile(r"^\d+(?:[.,]\d+)?$")
+_GLUED_QTY_UNIT_RE = re.compile(r"^(\d+(?:[.,]\d+)?)([a-zçəğıöşü]+)$")
+
+
+def _normalize_order_text(text: str) -> str:
+    """Azerbaijani-aware lowercase (İ->i, I->ı) + punctuation cleanup keeping decimals/commas."""
+    cleaned = unicodedata.normalize("NFKC", text or "")
+    cleaned = az_lower(cleaned)
+    cleaned = re.sub(r"['`‘’´]", "", cleaned)
+    cleaned = re.sub(r"[-–—]", " ", cleaned)
+    # Drop periods unless they are decimal separators between digits
+    cleaned = re.sub(r"(?<!\d)\.|\.(?!\d)", " ", cleaned)
+    cleaned = re.sub(r"[^\w\s.,]", " ", cleaned)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def _split_tokens(span: str) -> List[str]:
+    """Tokenizes a normalized span, splitting glued quantity+unit tokens like '2kg', '500qr'."""
+    tokens: List[str] = []
+    for tok in re.sub(r",(?!\d)", " ", span).split():
+        m = _GLUED_QTY_UNIT_RE.match(tok)
+        if m and m.group(2) in UNIT_NORMALIZATION:
+            tokens.extend([m.group(1), m.group(2)])
+        else:
+            tokens.append(tok)
+    return tokens
+
+
+def _parse_number_run(tokens: List[str], start: int) -> Tuple[Optional[float], int]:
+    """
+    Parses a (possibly multi-word) number starting at tokens[start].
+    Returns (value, tokens_consumed), or (None, 0) if no number starts there.
+    Supports digits ("500", "2.5", "2,5") and composed words
+    ("beş yüz", "iki yüz əlli", "min iki yüz", "iki yarım", "yarım").
+    """
+    if start >= len(tokens):
+        return None, 0
+
+    tok = tokens[start]
+    if _NUMERIC_RE.match(tok):
+        value = float(tok.replace(",", "."))
+        consumed = 1
+        if start + 1 < len(tokens) and tokens[start + 1] == AZ_HALF_WORD:  # "2 yarım" -> 2.5
+            value += 0.5
+            consumed += 1
+        return value, consumed
+
+    total = 0.0
+    current = 0.0
+    consumed = 0
+    last_kind = None
+    i = start
+    while i < len(tokens):
+        w = tokens[i]
+        if w in AZ_DIGIT_WORDS and last_kind != "digit":
+            current += AZ_DIGIT_WORDS[w]
+            last_kind = "digit"
+        elif w in AZ_TENS_WORDS and last_kind not in ("digit", "tens"):
+            current += AZ_TENS_WORDS[w]
+            last_kind = "tens"
+        elif w == AZ_HUNDRED_WORD and last_kind not in ("hundred", "tens"):
+            current = (current or 1.0) * 100.0
+            last_kind = "hundred"
+        elif w == AZ_THOUSAND_WORD and total == 0.0 and last_kind != "thousand":
+            total += (current or 1.0) * 1000.0
+            current = 0.0
+            last_kind = "thousand"
+        elif w == AZ_HALF_WORD:
+            current += 0.5
+            consumed += 1
+            break
+        else:
+            break
+        consumed += 1
+        i += 1
+
+    if consumed == 0:
+        return None, 0
+    return total + current, consumed
+
+
+def _match_known_product(tokens: List[str]) -> Optional[Tuple[str, int, int]]:
+    """
+    Longest-match-first product lookup on token boundaries (no raw substring matching).
+    The last token of a product may carry an accusative/possessive/plural suffix.
+    Returns (product, start_index, end_index_exclusive) or None.
+    """
+    for kp in _KNOWN_PRODUCTS_BY_LENGTH:
+        kp_tokens = kp.split()
+        n = len(kp_tokens)
+        for i in range(len(tokens) - n + 1):
+            window = tokens[i:i + n]
+            if window[:-1] != kp_tokens[:-1]:
+                continue
+            last, target = window[-1], kp_tokens[-1]
+            if last == target or (
+                last.startswith(target) and last[len(target):] in PRODUCT_SUFFIXES
+            ):
+                return kp, i, i + n
+    return None
 
 
 def parse_quantity_and_unit(text_span: str) -> Tuple[Optional[float], Optional[str], str]:
     """
     Extracts numerical or verbal quantity, standardized unit, and remaining product text.
+    The unit is None when the user did not state one (no silent default to "ədəd").
     """
-    span = text_span.strip()
+    tokens = _split_tokens(_normalize_order_text(text_span))
 
-    # Regex matching: digits (e.g. 2, 2.5, 500) or verbal words ("iki", "bir", "yarım")
-    # followed by optional unit word
-    number_pattern = r"^(\d+(?:[.,]\d+)?)\s*([a-zçəğıöşüA-ZÇƏĞIİÖŞÜ]+)?\s*(.*)$"
-    m = re.match(number_pattern, span, re.IGNORECASE)
+    qty: Optional[float] = None
+    unit: Optional[str] = None
+    used = set()
 
-    if m:
-        qty_str, unit_candidate, rest = m.groups()
-        qty = float(qty_str.replace(",", "."))
-        norm_unit = UNIT_NORMALIZATION.get((unit_candidate or "").lower())
-        if norm_unit:
-            return qty, norm_unit, rest.strip()
-        else:
-            # Maybe unit_candidate was part of product name, default to 'ədəd' or inspect
-            full_rest = f"{unit_candidate or ''} {rest}".strip()
-            return qty, "ədəd", full_rest
+    for i in range(len(tokens)):
+        value, consumed = _parse_number_run(tokens, i)
+        if value is not None:
+            qty = value
+            used.update(range(i, i + consumed))
+            nxt = i + consumed
+            if nxt < len(tokens) and tokens[nxt] in UNIT_NORMALIZATION:
+                unit = UNIT_NORMALIZATION[tokens[nxt]]
+                used.add(nxt)
+            break
 
-    # Check for verbal numbers
-    tokens = span.split()
-    if tokens:
-        first = tokens[0].lower()
-        if first in AZ_NUMBER_WORDS:
-            qty = AZ_NUMBER_WORDS[first]
-            if len(tokens) > 1 and tokens[1].lower() in UNIT_NORMALIZATION:
-                unit = UNIT_NORMALIZATION[tokens[1].lower()]
-                rest = " ".join(tokens[2:])
-                return qty, unit, rest.strip()
-            else:
-                rest = " ".join(tokens[1:])
-                return qty, "ədəd", rest.strip()
+    if unit is None:
+        # Unit stated without a number ("kilo alma"); quantity stays None.
+        for i, tok in enumerate(tokens):
+            if i not in used and len(tok) > 1 and tok in UNIT_NORMALIZATION:
+                unit = UNIT_NORMALIZATION[tok]
+                used.add(i)
+                break
 
-    # No explicit quantity found
-    return None, None, span
+    rest = " ".join(t for i, t in enumerate(tokens) if i not in used)
+    return qty, unit, rest.strip()
 
 
 def extract_order_entities(text: str) -> Dict[str, Any]:
@@ -161,50 +288,41 @@ def extract_order_entities(text: str) -> Dict[str, Any]:
     if not text:
         return {"items": [], "is_complete": False, "missing_fields": ["empty_input"]}
 
-    cleaned = text.lower()
-    # Normalize punctuation and split multi-item requests by "və", "bir də", comma
-    delimiters = r"\bvə\b|\bve\b|\bbir də\b|\bbir de\b|,"
+    cleaned = _normalize_order_text(text)
+    # Split multi-item requests by "və", "bir də", comma (but not decimal commas)
+    delimiters = r"\bvə\b|\bve\b|\bbir də\b|\bbir de\b|,(?!\d)"
     segments = [s.strip() for s in re.split(delimiters, cleaned) if s.strip()]
 
     items = []
     missing_fields = []
 
     for seg in segments:
-        # Remove common introductory words (wolt-dan, mənə, zəhmət olmasa, sifariş et)
-        seg_tokens = seg.split()
-        cleaned_tokens = [
-            t for t in seg_tokens
-            if t not in {"wolt", "woltdan", "wolt-dan", "bazarstore", "bazarstore-dan",
-                         "bravo", "aptekdən", "aptekden", "mənə", "mene", "bizə",
-                         "sifariş", "sifaris", "et", "elə", "ele", "ver", "zakaz",
-                         "al", "gətirsinlər", "istəyirəm", "isteyirem", "lazımdır"}
-        ]
-        seg_text = " ".join(cleaned_tokens).strip()
-        if not seg_text:
+        seg_tokens = [t for t in _split_tokens(seg) if t not in INTRO_STOPWORDS]
+        if not seg_tokens:
             continue
 
-        # Check for known products directly
+        qty, unit, rest = parse_quantity_and_unit(" ".join(seg_tokens))
+
         found_product = None
-        for kp in sorted(KNOWN_PRODUCTS, key=len, reverse=True):
-            if kp in seg_text:
-                found_product = kp
-                break
-
-        qty, unit, rest = parse_quantity_and_unit(seg_text)
-
-        if not found_product and rest:
-            clean_rest_tokens = [w for w in rest.split() if w not in ORDER_STOPWORDS and len(w) > 2]
+        match = _match_known_product(rest.split())
+        if match:
+            found_product = match[0]
+        elif rest:
+            clean_rest_tokens = [
+                w for w in rest.split()
+                if w not in ORDER_STOPWORDS and w not in UNIT_NORMALIZATION
+                and not _NUMERIC_RE.match(w) and len(w) > 2
+            ]
             if clean_rest_tokens:
                 found_product = " ".join(clean_rest_tokens)
 
         # Ignore segments that do not contain a product
         if found_product and found_product not in ORDER_STOPWORDS:
-            item_entry = {
+            items.append({
                 "product": found_product,
                 "quantity": qty,
-                "unit": unit
-            }
-            items.append(item_entry)
+                "unit": unit,
+            })
             if qty is None:
                 missing_fields.append(f"quantity_for_{found_product}")
             if unit is None:
@@ -215,5 +333,5 @@ def extract_order_entities(text: str) -> Dict[str, Any]:
     return {
         "items": items,
         "is_complete": is_complete,
-        "missing_fields": missing_fields
+        "missing_fields": missing_fields,
     }

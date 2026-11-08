@@ -15,6 +15,10 @@ import json
 import re
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from src.preprocessing.text_preprocessing import az_lower  # noqa: E402
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -68,7 +72,7 @@ def validate_intent_dataset(csv_path: Path = INTENT_CSV_PATH) -> Dict:
             source_counts[source] = source_counts.get(source, 0) + 1
 
             # Exact duplicate check
-            norm_key = text.lower()
+            norm_key = az_lower(text)
             if norm_key in seen_texts:
                 exact_duplicates += 1
             else:

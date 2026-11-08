@@ -167,3 +167,119 @@ def test_mock_checkout_endpoint():
     assert "WOLT-MOCK" in res["order_id"]
     assert res["estimated_total_azn"] > 0
     assert len(res["items"]) == 2
+
+
+# ---------------------------------------------------------
+# Test 5: Regression tests for review findings
+# ---------------------------------------------------------
+# 1. Azerbaijani casing (İ -> i, I -> ı) in entity extraction and guardrail
+def test_entity_extraction_uses_azerbaijani_casing():
+    res = extract_order_entities("MƏNƏ İKİ KİLO ALMA SİFARİŞ ET")
+    assert res["items"] == [{"product": "alma", "quantity": 2.0, "unit": "kg"}]
+    res = extract_order_entities("BİR LİTR SÜD VƏ İKİ ŞÜŞƏ MİNERAL SU")
+    prods = {it["product"]: it for it in res["items"]}
+    assert prods["süd"]["quantity"] == 1.0 and prods["süd"]["unit"] == "litr"
+    assert prods["mineral su"]["quantity"] == 2.0 and prods["mineral su"]["unit"] == "şüşə"
+
+
+def test_guardrail_uses_azerbaijani_casing():
+    predictor = IntentPredictor()
+    assert predictor.check_emergency_safety_guardrail("ÜRƏYİM AĞRIYIR") is True
+    assert predictor.check_emergency_safety_guardrail("NƏFƏS ALA BİLMİRƏM") is True
+
+
+# 2. Products are matched on token boundaries, longest match first
+def test_product_matching_respects_token_boundaries():
+    res = extract_order_entities("Mənə marketdən 1 kilo kökə sifariş et.")
+    assert [it["product"] for it in res["items"]] == ["kökə"]
+    res = extract_order_entities("İki kilo kök al")
+    assert [it["product"] for it in res["items"]] == ["kök"]
+    res = extract_order_entities("Bir şüşə zeytun yağı al")
+    assert [it["product"] for it in res["items"]] == ["zeytun yağı"]
+    res = extract_order_entities("Aptekdən təzyiq dərmanımı sifariş et")
+    assert [it["product"] for it in res["items"]] == ["təzyiq dərmanı"]
+
+
+# 3. Multi-word numbers and no silent default unit
+@pytest.mark.parametrize("text,product,qty,unit", [
+    ("beş yüz qram pendir al", "pendir", 500.0, "qram"),
+    ("iki yüz əlli qram kərə yağı", "kərə yağı", 250.0, "qram"),
+    ("min iki yüz qram un", "un", 1200.0, "qram"),
+    ("yarım kilo pendir", "pendir", 0.5, "kg"),
+    ("2.5 kilo kartof", "kartof", 2.5, "kg"),
+    ("500qr pendir", "pendir", 500.0, "qram"),
+    ("on beş dənə yumurta", "yumurta", 15.0, "ədəd"),
+])
+def test_multi_word_numbers(text, product, qty, unit):
+    res = extract_order_entities(text)
+    assert res["items"] == [{"product": product, "quantity": qty, "unit": unit}]
+
+
+def test_unit_is_none_when_not_stated():
+    qty, unit, rest = parse_quantity_and_unit("2 alma")
+    assert (qty, unit, rest) == (2.0, None, "alma")
+    res = extract_order_entities("Mənə iki çörək al")
+    assert res["items"] == [{"product": "çörək", "quantity": 2.0, "unit": None}]
+    assert res["is_complete"] is False
+    assert "unit_for_çörək" in res["missing_fields"]
+
+
+# 4. Guardrail: emergency numbers in information questions are not emergencies
+@pytest.mark.parametrize("text", [
+    "112 nömrəsi neçədir?",
+    "Təcili yardımın nömrəsi neçədir?",
+    "Polisin nömrəsi nədir?",
+    "103 pulsuzdur?",
+    "Həkim Nigar xanıma zəng et",
+])
+def test_guardrail_ignores_number_questions(text):
+    predictor = IntentPredictor()
+    assert predictor.check_emergency_safety_guardrail(text) is False
+    res = predictor.predict(text)
+    assert res["intent"] != "EMERGENCY"
+    assert res["safety_escalation"] is False
+
+
+@pytest.mark.parametrize("text", [
+    "Təcili yardım çağır",
+    "103-ə zəng et",
+    "Ürəyim ağrıyır",
+    "Nəfəs ala bilmirəm",
+    "Yıxıldım, dura bilmirəm",
+    "ureyim agriyir",
+    "Təcili yardım!",
+])
+def test_guardrail_keeps_genuine_emergencies(text):
+    predictor = IntentPredictor()
+    assert predictor.check_emergency_safety_guardrail(text) is True
+    res = predictor.predict(text)
+    assert res["intent"] == "EMERGENCY"
+    assert res["recommended_action"] == "EMERGENCY_DISPATCH"
+
+
+# API: missing model -> 503 (but emergencies still dispatched); CORS without credentials
+def test_predict_returns_503_when_model_missing(monkeypatch, tmp_path):
+    import src.api.main as api_main
+    missing = IntentPredictor(model_path=tmp_path / "missing.joblib")
+    monkeypatch.setattr(api_main, "predictor", missing)
+    client = TestClient(api_main.app)
+    assert client.get("/health").json()["model_loaded"] is False
+    assert client.post("/predict", json={"text": "Mənə 2 kilo alma sifariş et"}).status_code == 503
+    emergency = client.post("/predict", json={"text": "Təcili yardım çağır, nəfəs ala bilmirəm"})
+    assert emergency.status_code == 200
+    assert emergency.json()["intent"] == "EMERGENCY"
+
+
+def test_cors_does_not_allow_credentials():
+    client = TestClient(app)
+    r = client.options("/predict", headers={
+        "Origin": "http://example.com", "Access-Control-Request-Method": "POST",
+    })
+    assert r.headers.get("access-control-allow-credentials") != "true"
+
+
+def test_predict_response_schema():
+    client = TestClient(app)
+    body = client.post("/predict", json={"text": "Qızıma zəng et"}).json()
+    assert set(body) == {"intent", "confidence", "requires_clarification", "entities",
+                         "recommended_action", "safety_escalation"}
