@@ -73,3 +73,14 @@ docker cp hug-ai-api-1:/data/hug-backup.db ./hug-$(date +%F).db
 ```
 
 Change a secret: edit `/opt/hug-ai/deploy/.env`, then `deploy.sh` (or `up -d` to restart).
+
+## Care features (SOS, medicines, check-in, family circle)
+
+- Web Push needs a VAPID key pair in `deploy/.env` (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+  `VAPID_SUBJECT`). Generate once with `py_vapid` (see `backend/app/services/push_service.py`);
+  rotating the keys invalidates every existing subscription.
+- `PUBLIC_BASE_URL` builds the family invite links (`/f/<token>`).
+- A scheduler inside the single API worker runs every 30 s: medicine due → push to the elder;
+  not taken in 30 min → "missed" + push to family; daily check-in prompt at the elder's time,
+  family alert if unanswered for 2 h; one-off reminders are pushed when due.
+- All care data lives in new tables in the same SQLite volume.
