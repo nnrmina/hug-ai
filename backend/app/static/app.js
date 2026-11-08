@@ -1,5 +1,5 @@
 // HUG — AI Voice Life Assistant for Samsung Galaxy S22+
-// Real Neural Azerbaijani Voice Audio + Hands-Free Voice Confirmation & Auto-execution
+// Real Microphone Recording, Natural Azerbaijani Voice & Zero Fake Auto-Executions
 
 const INITIAL_CONTACTS = [
   {
@@ -64,7 +64,7 @@ const INITIAL_CONTACTS = [
   }
 ];
 
-// High-fidelity Neural Azerbaijani Voice Audio Map (az-AZ-BanuNeural)
+// Pre-rendered Studio Neural Azerbaijani Voice Files (az-AZ-BanuNeural)
 const AZ_AUDIO_MAP = {
   listen: "/static/audio/listen.mp3",
   call_sister_confirm: "/static/audio/call_sister_confirm.mp3",
@@ -94,11 +94,15 @@ let currentActionPayload = null;
 let currentAudio = null;
 let audioUnlocked = false;
 
+// MediaRecorder state for optional OpenAI Whisper
+let mediaRecorder = null;
+let audioStream = null;
+let recordedChunks = [];
+
 // Hands-free confirmation state
-let confirmCountdownInterval = null;
 let confirmRecognition = null;
 
-// Audio Chime on Mic Activation
+// Play Chime on Mic Activation
 function playChime() {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -142,11 +146,10 @@ function showScreen(screenId) {
   }
 }
 
-// Primary Voice Player: Uses 100% Native Neural Azerbaijani Voice Audio (.mp3)
+// Primary Voice Player: Studio Neural Azerbaijani Audio
 function playAzAudio(key, fallbackText = null, onEnded = null) {
   unlockAudio();
 
-  // Stop any currently playing audio
   if (currentAudio) {
     try {
       currentAudio.pause();
@@ -174,7 +177,7 @@ function playAzAudio(key, fallbackText = null, onEnded = null) {
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.catch((err) => {
-        console.warn("Audio file play blocked/failed, using fallback:", err);
+        console.warn("Audio play blocked/failed, using fallback:", err);
         if (fallbackText) {
           speakAz(fallbackText, onEnded);
         } else if (onEnded) {
@@ -185,7 +188,6 @@ function playAzAudio(key, fallbackText = null, onEnded = null) {
     return;
   }
 
-  // Fallback to TTS if key not mapped
   if (fallbackText) {
     speakAz(fallbackText, onEnded);
   } else if (onEnded) {
@@ -193,7 +195,7 @@ function playAzAudio(key, fallbackText = null, onEnded = null) {
   }
 }
 
-// Fallback Speech Synthesis (ensures only Azerbaijani / Turkish phonetics, never English / Russian)
+// Fallback Speech Synthesis with clean Azerbaijani/Turkish phonetics
 function speakAz(text, onEndedCallback = null) {
   if (!("speechSynthesis" in window) || !text) {
     if (onEndedCallback) onEndedCallback();
@@ -224,7 +226,7 @@ function speakAz(text, onEndedCallback = null) {
       u.voice = azVoice;
       u.lang = azVoice.lang;
     } else {
-      u.lang = "tr-TR"; // Keep Turkish phonetics fallback rather than English
+      u.lang = "tr-TR";
     }
     u.rate = 0.90;
     u.pitch = 1.0;
@@ -256,12 +258,8 @@ function findContact(query) {
   return null;
 }
 
-// Clear Confirmation Timers & Listeners
+// Clear Confirmation Workflow Timers & Listeners
 function clearConfirmWorkflow() {
-  if (confirmCountdownInterval) {
-    clearInterval(confirmCountdownInterval);
-    confirmCountdownInterval = null;
-  }
   if (confirmRecognition) {
     try { confirmRecognition.stop(); } catch (_) {}
     confirmRecognition = null;
@@ -275,26 +273,15 @@ function clearConfirmWorkflow() {
   }
 }
 
-// Hands-Free Confirmation: Plays Neural Azerbaijani Audio + Auto-countdown (No button press needed)
-function startHandsFreeConfirmation(audioKey, questionVoicePrompt, onConfirmCallback) {
+// Confirmation Workflow: Only proceeds when the user ACTUALLY speaks "Bəli" or clicks the button!
+function startConfirmation(audioKey, questionVoicePrompt, onConfirmCallback) {
   clearConfirmWorkflow();
   showScreen("screen-confirm");
 
-  const barEl = document.getElementById("confirm-countdown-bar");
-  const textEl = document.getElementById("confirm-countdown-text");
   const voiceLabelEl = document.getElementById("confirm-voice-label");
-
   if (voiceLabelEl) {
     voiceLabelEl.textContent = "“Bəli” və ya “Xeyr” deyin...";
   }
-
-  // 5 seconds countdown
-  const totalMs = 5000;
-  let remainingMs = totalMs;
-  const tickMs = 100;
-
-  if (barEl) barEl.style.width = "100%";
-  if (textEl) textEl.textContent = "5 saniyəyə avtomatik icra olunur";
 
   // 1. Play Studio-Quality Native Azerbaijani Audio
   playAzAudio(audioKey, questionVoicePrompt, () => {
@@ -303,28 +290,7 @@ function startHandsFreeConfirmation(audioKey, questionVoicePrompt, onConfirmCall
     }
   });
 
-  // 2. Countdown Interval
-  confirmCountdownInterval = setInterval(() => {
-    remainingMs -= tickMs;
-    const progress = Math.max(0, (remainingMs / totalMs) * 100);
-    if (barEl) barEl.style.width = `${progress}%`;
-
-    const secsLeft = Math.ceil(remainingMs / 1000);
-    if (textEl) {
-      if (secsLeft > 0) {
-        textEl.textContent = `${secsLeft} saniyəyə avtomatik icra olunur`;
-      } else {
-        textEl.textContent = "İcra olunur...";
-      }
-    }
-
-    if (remainingMs <= 0) {
-      clearConfirmWorkflow();
-      onConfirmCallback();
-    }
-  }, tickMs);
-
-  // 3. Hands-Free Voice Listener
+  // 2. Listen for voice confirmation (Bəli / Xeyr)
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SpeechRecognition) {
     try {
@@ -367,7 +333,10 @@ function startHandsFreeConfirmation(audioKey, questionVoicePrompt, onConfirmCall
         }
       };
 
-      confirmRecognition.onerror = () => {};
+      confirmRecognition.onerror = () => {
+        // If voice confirmation is silent, wait for user to click or speak again
+        console.log("Confirmation mic silent");
+      };
 
       setTimeout(() => {
         if (confirmRecognition) {
@@ -399,11 +368,21 @@ function executeConfirmedAction() {
   }
 }
 
-// Core Voice Intent Processing & Machine Learning Classification
+// Process Real Spoken Voice Text
 function handleProcessedVoice(text) {
+  if (!text || !text.trim()) {
+    showMicError("Heç bir səs eşidilmədi. Zəhmət olmasa təkrar danışın.");
+    return;
+  }
+
   const quoteEl = document.getElementById("recognized-speech-quote");
   if (quoteEl) {
     quoteEl.textContent = `“${text}”`;
+  }
+
+  const badgeEl = document.getElementById("listening-status-badge");
+  if (badgeEl) {
+    badgeEl.textContent = "✓ Eşidildi";
   }
 
   const lowered = text.toLowerCase();
@@ -441,12 +420,12 @@ function handleProcessedVoice(text) {
       document.getElementById("confirm-details-secondary").textContent = `Mobil · ${matchedContact.phone_number}`;
       document.getElementById("btn-confirm-yes").textContent = "Bəli, zəng et";
 
-      startHandsFreeConfirmation(
+      startConfirmation(
         matchedContact.audio_confirm || "call_sister_confirm",
         `${matchedContact.relation_title} zəng edilsin? Bəli deyin.`,
         executeConfirmedAction
       );
-    }, 500);
+    }, 600);
     return;
   }
 
@@ -483,12 +462,12 @@ function handleProcessedVoice(text) {
       document.getElementById("confirm-details-secondary").textContent = `Cəmi ${currentActionPayload.price} (${currentActionPayload.vendor} · Wolt)`;
       document.getElementById("btn-confirm-yes").textContent = "Bəli, sifariş et";
 
-      startHandsFreeConfirmation(
+      startConfirmation(
         "chef_tantuni_confirm",
         "Chef Tantunidən bir pors Tantuni sifarişiniz təsdiqlənsin? Cəmi səkkiz manat əlli qəpik. Bəli deyin.",
         executeConfirmedAction
       );
-    }, 500);
+    }, 600);
     return;
   }
 
@@ -519,12 +498,12 @@ function handleProcessedVoice(text) {
       document.getElementById("confirm-details-secondary").textContent = "Cəmi 6.20 AZN (Wolt Çatdırılma ilə)";
       document.getElementById("btn-confirm-yes").textContent = "Bəli, sifariş et";
 
-      startHandsFreeConfirmation(
+      startConfirmation(
         "pharmacy_confirm",
         "Aptekdən kardiomaqnil dərmanı sifarişiniz təsdiqlənsin? Cəmi altı manat iyirmi qəpik. Bəli deyin.",
         executeConfirmedAction
       );
-    }, 500);
+    }, 600);
     return;
   }
 
@@ -553,12 +532,12 @@ function handleProcessedVoice(text) {
       document.getElementById("confirm-details-secondary").textContent = "Toyota Camry · Ekonom 5 AZN";
       document.getElementById("btn-confirm-yes").textContent = "Bəli, taksi çağır";
 
-      startHandsFreeConfirmation(
+      startConfirmation(
         "taxi_confirm",
         "Nizami küçəsindən şəhər mərkəzinə taksi çağırılsın? Qiymət beş manat. Bəli deyin.",
         executeConfirmedAction
       );
-    }, 500);
+    }, 600);
     return;
   }
 
@@ -576,7 +555,7 @@ function handleProcessedVoice(text) {
     setTimeout(() => {
       showScreen("screen-reminders");
       playAzAudio("reminders", "Xatırlatmalarınız ekrandadır.");
-    }, 500);
+    }, 600);
     return;
   }
 
@@ -593,24 +572,44 @@ function handleProcessedVoice(text) {
     document.getElementById("confirm-details-secondary").textContent = "HUG Səsli Köməkçi Sistemi";
     document.getElementById("btn-confirm-yes").textContent = "Bəli, icra et";
 
-    startHandsFreeConfirmation("chef_tantuni_confirm", "Əməliyyatı icra edim? Bəli deyin.", executeConfirmedAction);
-  }, 500);
+    startConfirmation("chef_tantuni_confirm", "Əməliyyatı icra edim? Bəli deyin.", executeConfirmedAction);
+  }, 600);
 }
 
-// Start Listening Workflow
-function startListeningWorkflow(samplePrompt = null) {
+// Show clear message when microphone was silent (NO FAKE AUTO EXECUTION)
+function showMicError(message) {
+  const quoteEl = document.getElementById("recognized-speech-quote");
+  const badgeEl = document.getElementById("listening-status-badge");
+  const retryBtn = document.getElementById("btn-retry-listening");
+  const finishBtn = document.getElementById("btn-finish-recording");
+
+  if (quoteEl) quoteEl.textContent = message;
+  if (badgeEl) badgeEl.textContent = "⚠️ Səs aşkar olunmadı";
+  if (retryBtn) retryBtn.style.display = "block";
+  if (finishBtn) finishBtn.style.display = "none";
+}
+
+// Real Voice Recording Engine
+async function startListeningWorkflow(samplePrompt = null) {
   clearConfirmWorkflow();
   unlockAudio();
   playChime();
   showScreen("screen-listening");
 
   const quoteEl = document.getElementById("recognized-speech-quote");
-  quoteEl.textContent = "Sizi dinləyirəm...";
+  const badgeEl = document.getElementById("listening-status-badge");
+  const retryBtn = document.getElementById("btn-retry-listening");
+  const finishBtn = document.getElementById("btn-finish-recording");
 
-  // Play Real Neural Azerbaijani Voice: "Eşidirəm, buyurun"
+  if (quoteEl) quoteEl.textContent = "Danışın, sizi eşidirəm...";
+  if (badgeEl) badgeEl.textContent = "🔴 Sizi dinləyirəm...";
+  if (retryBtn) retryBtn.style.display = "none";
+  if (finishBtn) finishBtn.style.display = "block";
+
+  // Play Native Azerbaijani Voice: "Eşidirəm, buyurun"
   playAzAudio("listen", "Eşidirəm, buyurun");
 
-  // Sample prompt / quick demo pill clicked
+  // If a quick pill was tapped explicitly, use that text
   if (samplePrompt) {
     setTimeout(() => {
       handleProcessedVoice(samplePrompt);
@@ -618,19 +617,20 @@ function startListeningWorkflow(samplePrompt = null) {
     return;
   }
 
+  // Check if OpenAI Whisper is configured
+  const openAiKey = localStorage.getItem("hug_openai_api_key");
+  const voiceEngine = localStorage.getItem("hug_voice_engine") || "browser";
+
+  if (voiceEngine === "openai" && openAiKey) {
+    // OpenAI Whisper Real Audio Recording
+    startWhisperRecording(openAiKey);
+    return;
+  }
+
+  // Native Browser SpeechRecognition (Default & Free)
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    setTimeout(() => {
-      const fallbackText = prompt(
-        "Danışmaq istədiyinizi yazın və ya seçin:\n- Bacıma yığ\n- Qızıma zəng et\n- Chef Tantunidən yemək sifariş edirəm\n- Aptekdən kardiomaqnil sifariş et\n- Taksi çağır",
-        "Chef Tantunidən yemək sifariş edirəm"
-      );
-      if (fallbackText) {
-        handleProcessedVoice(fallbackText);
-      } else {
-        showScreen("screen-home");
-      }
-    }, 500);
+    showMicError("Mikrofon bu brauzerdə dəstəklənmir. Zəhmət olmasa Chrome və ya Samsung Internet istifadə edin.");
     return;
   }
 
@@ -643,22 +643,110 @@ function startListeningWorkflow(samplePrompt = null) {
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
+    let hasHeardSpeech = false;
+
     recognition.onresult = (event) => {
+      hasHeardSpeech = true;
       const speechText = event.results[0][0].transcript;
-      handleProcessedVoice(speechText);
+      if (speechText && speechText.trim()) {
+        handleProcessedVoice(speechText);
+      } else {
+        showMicError("Səs aydın eşidilmədi. Zəhmət olmasa bir qədər ucadan təkrar edin.");
+      }
     };
 
-    recognition.onerror = () => {
-      setTimeout(() => {
-        handleProcessedVoice("Chef Tantunidən yemək sifariş edirəm");
-      }, 1000);
+    recognition.onerror = (event) => {
+      console.log("Speech recognition error:", event.error);
+      if (!hasHeardSpeech) {
+        if (event.error === "not-allowed") {
+          showMicError("Mikrofona icazə verilmədi. Brauzer parametrlərində mikrofona icazə verin.");
+        } else {
+          showMicError("Səs eşidilmədi. Zəhmət olmasa danışın və ya düyməyə basaraq təkrar cəhd edin.");
+        }
+      }
+    };
+
+    recognition.onend = () => {
+      if (!hasHeardSpeech && document.getElementById("screen-listening").classList.contains("active")) {
+        showMicError("Danışıq başa çatdı. Zəhmət olmasa təkrar cəhd edin.");
+      }
     };
 
     recognition.start();
   } catch (err) {
-    setTimeout(() => {
-      handleProcessedVoice("Chef Tantunidən yemək sifariş edirəm");
-    }, 1000);
+    console.warn("Recognition start error:", err);
+    showMicError("Mikrofon işə düşmədi. Zəhmət olmasa səhifəni yeniləyin.");
+  }
+}
+
+// OpenAI Whisper Real Audio Recording Handler
+async function startWhisperRecording(apiKey) {
+  try {
+    recordedChunks = [];
+    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(audioStream);
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) recordedChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      if (audioStream) {
+        audioStream.getTracks().forEach((track) => track.stop());
+      }
+
+      if (recordedChunks.length === 0) {
+        showMicError("Səs faylı boşdur. Zəhmət olmasa təkrar danışın.");
+        return;
+      }
+
+      const audioBlob = new Blob(recordedChunks, { type: "audio/webm" });
+      const badgeEl = document.getElementById("listening-status-badge");
+      const quoteEl = document.getElementById("recognized-speech-quote");
+      if (badgeEl) badgeEl.textContent = "⏳ Whisper emal edir...";
+      if (quoteEl) quoteEl.textContent = "Səs qeydiniz tanınır...";
+
+      try {
+        const formData = new FormData();
+        formData.append("file", audioBlob, "audio.webm");
+        formData.append("model", "whisper-1");
+        formData.append("language", "az");
+
+        const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}` },
+          body: formData
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          showMicError(`Whisper xətası: ${errData.error?.message || "API açarı yoxlayın"}`);
+          return;
+        }
+
+        const data = await res.json();
+        if (data.text && data.text.trim()) {
+          handleProcessedVoice(data.text);
+        } else {
+          showMicError("Heç bir səs tanınmadı. Zəhmət olmasa təkrar danışın.");
+        }
+      } catch (err) {
+        showMicError("OpenAI ilə əlaqə qurulmadı. İnternet bağlantınızı yoxlayın.");
+      }
+    };
+
+    mediaRecorder.start();
+  } catch (err) {
+    showMicError("Mikrofona icazə verilmədi. Brauzer parametrlərini yoxlayın.");
+  }
+}
+
+// Stop current recording
+function stopCurrentRecording() {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+  } else if (recognition) {
+    try { recognition.stop(); } catch (_) {}
   }
 }
 
@@ -682,7 +770,6 @@ function startCall(contact) {
     timerEl.textContent = `Zəng edilir... · ${mins}:${secs}`;
   }, 1000);
 
-  // Play Neural Voice for active call
   playAzAudio(contact.audio_active || "call_sister_active", `${contact.short_name} ilə əlaqə qurulur`);
 
   // Direct trigger to native Samsung Phone dialer
@@ -762,7 +849,22 @@ document.addEventListener("DOMContentLoaded", () => {
     tapToTalkBtn.addEventListener("click", () => startListeningWorkflow());
   }
 
-  // 2. Quick Scenario Pill Buttons
+  // 2. Listening Screen Actions
+  const btnFinishRec = document.getElementById("btn-finish-recording");
+  if (btnFinishRec) {
+    btnFinishRec.addEventListener("click", () => {
+      stopCurrentRecording();
+    });
+  }
+
+  const btnRetryRec = document.getElementById("btn-retry-listening");
+  if (btnRetryRec) {
+    btnRetryRec.addEventListener("click", () => {
+      startListeningWorkflow();
+    });
+  }
+
+  // 3. Quick Scenario Pill Buttons
   document.querySelectorAll(".quick-pill-btn").forEach((pill) => {
     pill.addEventListener("click", (e) => {
       const scenario = e.currentTarget.getAttribute("data-scenario");
@@ -780,19 +882,17 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // 3. Navigation / Back Buttons
+  // 4. Navigation / Back Buttons
   document.querySelectorAll(".btn-go-home").forEach((btn) => {
     btn.addEventListener("click", () => {
       clearConfirmWorkflow();
-      if (recognition) {
-        try { recognition.stop(); } catch (_) {}
-      }
+      stopCurrentRecording();
       clearInterval(callTimerInterval);
       showScreen("screen-home");
     });
   });
 
-  // 4. Reminders Avatar Button
+  // 5. Reminders Avatar Button
   const btnReminders = document.getElementById("btn-open-reminders");
   if (btnReminders) {
     btnReminders.addEventListener("click", () => {
@@ -802,7 +902,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 5. Contacts Icon Button
+  // 6. Contacts Icon Button
   const btnContacts = document.getElementById("btn-open-contacts");
   if (btnContacts) {
     btnContacts.addEventListener("click", () => {
@@ -810,7 +910,69 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 6. Confirmation Screen Action Handlers
+  // 7. Settings Modal
+  const btnSettings = document.getElementById("btn-open-settings");
+  const modalSettings = document.getElementById("settings-modal");
+  const btnCloseSettings = document.getElementById("btn-close-settings");
+  const engineBrowserBtn = document.getElementById("engine-btn-browser");
+  const engineOpenAIBtn = document.getElementById("engine-btn-openai");
+  const openAIKeyContainer = document.getElementById("openai-key-container");
+  const openAIKeyInput = document.getElementById("openai-api-key");
+  const btnSaveSettings = document.getElementById("btn-save-settings");
+
+  if (btnSettings && modalSettings) {
+    btnSettings.addEventListener("click", () => {
+      const savedEngine = localStorage.getItem("hug_voice_engine") || "browser";
+      const savedKey = localStorage.getItem("hug_openai_api_key") || "";
+
+      if (savedEngine === "openai") {
+        engineOpenAIBtn.classList.add("active");
+        engineBrowserBtn.classList.remove("active");
+        openAIKeyContainer.classList.remove("hidden");
+      } else {
+        engineBrowserBtn.classList.add("active");
+        engineOpenAIBtn.classList.remove("active");
+        openAIKeyContainer.classList.add("hidden");
+      }
+
+      if (openAIKeyInput) openAIKeyInput.value = savedKey;
+      modalSettings.classList.remove("hidden");
+    });
+  }
+
+  if (btnCloseSettings && modalSettings) {
+    btnCloseSettings.addEventListener("click", () => {
+      modalSettings.classList.add("hidden");
+    });
+  }
+
+  if (engineBrowserBtn && engineOpenAIBtn) {
+    engineBrowserBtn.addEventListener("click", () => {
+      engineBrowserBtn.classList.add("active");
+      engineOpenAIBtn.classList.remove("active");
+      openAIKeyContainer.classList.add("hidden");
+    });
+
+    engineOpenAIBtn.addEventListener("click", () => {
+      engineOpenAIBtn.classList.add("active");
+      engineBrowserBtn.classList.remove("active");
+      openAIKeyContainer.classList.remove("hidden");
+    });
+  }
+
+  if (btnSaveSettings && modalSettings) {
+    btnSaveSettings.addEventListener("click", () => {
+      const isWhisper = engineOpenAIBtn.classList.contains("active");
+      localStorage.setItem("hug_voice_engine", isWhisper ? "openai" : "browser");
+      if (openAIKeyInput) {
+        localStorage.setItem("hug_openai_api_key", openAIKeyInput.value.trim());
+      }
+      modalSettings.classList.add("hidden");
+      alert(isWhisper ? "OpenAI Whisper aktivləşdirildi!" : "Daxili Brauzer Səs Tanıması aktivdir.");
+    });
+  }
+
+  // 8. Confirmation Screen Manual Actions
   const btnConfirmYes = document.getElementById("btn-confirm-yes");
   const btnConfirmCancel = document.getElementById("btn-confirm-cancel");
 
@@ -828,7 +990,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 7. Calling Screen Buttons
+  // 9. Calling Screen Buttons
   const btnEndActiveCall = document.getElementById("btn-end-active-call");
   if (btnEndActiveCall) {
     btnEndActiveCall.addEventListener("click", () => {
@@ -836,7 +998,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 8. Order Tracking Finish Button
+  // 10. Order Tracking Finish Button
   const btnOrderFinish = document.getElementById("btn-order-finish");
   if (btnOrderFinish) {
     btnOrderFinish.addEventListener("click", () => {
@@ -846,7 +1008,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 9. Taxi Cancel Button
+  // 11. Taxi Cancel Button
   const btnCancelTaxi = document.getElementById("btn-cancel-taxi");
   if (btnCancelTaxi) {
     btnCancelTaxi.addEventListener("click", () => {
