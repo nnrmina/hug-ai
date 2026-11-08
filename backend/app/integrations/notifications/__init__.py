@@ -1,0 +1,2 @@
+"""Notifications integration package."""
+
