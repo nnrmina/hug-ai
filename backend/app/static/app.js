@@ -16,6 +16,52 @@ let isListening = false;
 let callTimerInterval = null;
 let callSeconds = 0;
 let currentActionPayload = null;
+let azVoice = null;
+let audioUnlocked = false;
+
+// Voice Selector: Prioritizes Azerbaijani, falls back to Turkish (identical phonetic structure), then system default
+function initVoices() {
+  if (!("speechSynthesis" in window)) return;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return;
+
+  // 1. Look for explicit Azerbaijani voice
+  let voice = voices.find(
+    (v) => v.lang && (v.lang.toLowerCase().startsWith("az") || v.name.toLowerCase().includes("azerba"))
+  );
+
+  // 2. Fallback to Turkish voice (phonetically identical pronunciation for Azerbaijani words)
+  if (!voice) {
+    voice = voices.find(
+      (v) => v.lang && (v.lang.toLowerCase().startsWith("tr") || v.name.toLowerCase().includes("turk"))
+    );
+  }
+
+  // 3. Fallback to first available voice
+  if (!voice) {
+    voice = voices.find((v) => v.default) || voices[0];
+  }
+
+  azVoice = voice;
+}
+
+if ("speechSynthesis" in window) {
+  speechSynthesis.onvoiceschanged = initVoices;
+  initVoices();
+}
+
+// Unlock audio on first user touch/click
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  if ("speechSynthesis" in window) {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+  }
+}
+document.addEventListener("click", unlockAudio, { once: true });
+document.addEventListener("touchstart", unlockAudio, { once: true });
 
 // Screen Transition Manager
 function showScreen(screenId) {
@@ -28,16 +74,36 @@ function showScreen(screenId) {
   }
 }
 
-// Speech Synthesis Helper
+// Natural Azerbaijani Speech Synthesis
 function speakAz(text) {
-  if (!("speechSynthesis" in window)) return;
+  if (!("speechSynthesis" in window) || !text) return;
   try {
+    unlockAudio();
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "az-AZ";
-    u.rate = 0.95;
+
+    initVoices();
+
+    // If using Turkish engine fallback, map 'ə'/'Ə' to 'e'/'E' so phonetics sound 100% natural and clear
+    let spokenText = text;
+    if (azVoice && azVoice.lang && azVoice.lang.toLowerCase().startsWith("tr")) {
+      spokenText = text.replace(/ə/g, "e").replace(/Ə/g, "E");
+    }
+
+    const u = new SpeechSynthesisUtterance(spokenText);
+    if (azVoice) {
+      u.voice = azVoice;
+      u.lang = azVoice.lang;
+    } else {
+      u.lang = "tr-TR"; // Use tr-TR as standard fallback so Chrome doesn't remain silent
+    }
+    u.rate = 0.92;
+    u.pitch = 1.0;
+    u.volume = 1.0;
+
     window.speechSynthesis.speak(u);
-  } catch (_) {}
+  } catch (err) {
+    console.warn("TTS error:", err);
+  }
 }
 
 // Normalizes target name for contacts
