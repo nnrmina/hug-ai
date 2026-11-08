@@ -41,12 +41,6 @@ def _load_index_html() -> str:
     return "<h1>YAXIN AI</h1>"
 
 
-@app.get("/app", response_class=HTMLResponse, include_in_schema=False)
-@app.get("/app/", response_class=HTMLResponse, include_in_schema=False)
-async def web_app():
-    return HTMLResponse(content=_load_index_html())
-
-
 @app.get("/static/styles.css", include_in_schema=False)
 async def serve_css():
     css_path = STATIC_DIR / "styles.css"
@@ -69,12 +63,11 @@ if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-@app.get("/")
-async def root(request: Request):
-    accept = request.headers.get("accept", "")
-    if "text/html" in accept and (STATIC_DIR / "index.html").exists():
-        return HTMLResponse(content=_load_index_html())
-    return JSONResponse({"message": "Welcome to YAXIN AI", "app_url": "/app"})
+@app.get("/", response_class=HTMLResponse)
+@app.get("/app", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/app/", response_class=HTMLResponse, include_in_schema=False)
+async def web_app():
+    return HTMLResponse(content=_load_index_html())
 
 
 @app.get("/health")
