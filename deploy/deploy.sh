@@ -35,8 +35,15 @@ if ! grep -qE "^${APP_HOST//./\\.} \{" "$PROXY_CADDYFILE"; then
   TEE=(tee -a); [ -w "$PROXY_CADDYFILE" ] || TEE=(sudo tee -a)
   printf '\n# HUG voice assistant (/opt/hug-ai, managed by hug-ai/deploy/deploy.sh)\n%s {\n\tencode zstd gzip\n\treverse_proxy hug-api:8000\n}\n' "$APP_HOST" \
     | "${TEE[@]}" "$PROXY_CADDYFILE" >/dev/null
-  docker exec "$PROXY_CONTAINER" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
-  docker exec "$PROXY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+
+  # NEVER reload from /etc/caddy/Caddyfile inside the container: it is a single-file bind
+  # mount, and if the host file was ever replaced (git checkout, editor save) the container
+  # keeps seeing the OLD inode. Reloading that stale copy silently drops every site added
+  # since (this took jabish.az, artoghrul.com & co. offline for ~2 min on 2026-11-09).
+  # Always validate + load a fresh copy of the real host file instead.
+  docker cp "$PROXY_CADDYFILE" "$PROXY_CONTAINER":/tmp/Caddyfile.current
+  docker exec "$PROXY_CONTAINER" caddy validate --config /tmp/Caddyfile.current --adapter caddyfile
+  docker exec "$PROXY_CONTAINER" caddy reload --config /tmp/Caddyfile.current --adapter caddyfile
 fi
 
 echo "==> prune dangling images"
