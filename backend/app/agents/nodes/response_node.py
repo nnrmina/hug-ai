@@ -1,5 +1,6 @@
 from app.agents.state import AgentState
 from app.core.security import check_action_permission
+from app.utils.datetime_utils import format_az_datetime
 
 
 def validation_node(state: AgentState) -> AgentState:
@@ -20,12 +21,11 @@ def validation_node(state: AgentState) -> AgentState:
             "status": "rejected",
         }
 
+    # The policy can only make confirmation stricter, never waive one a node asked for.
     return {
         **state,
         "action_data": action_data,
-        "requires_confirmation": state.get(
-            "requires_confirmation", permission["requires_confirmation"]
-        ),
+        "requires_confirmation": bool(state.get("requires_confirmation")) or permission["requires_confirmation"],
     }
 
 
@@ -66,6 +66,14 @@ def response_node(state: AgentState) -> AgentState:
             "status": "rejected",
         }
 
+    if intent == "EMERGENCY_CALL":
+        number = action_data.get("phone_number", "103")
+        return {
+            **state,
+            "response": f"Təcili yardım lazımdır? {number} nömrəsinə zəng edilsin? Bəli desəniz nömrə dərhal yığılacaq.",
+            "status": "needs_confirmation",
+        }
+
     if intent == "MAKE_CALL":
         alias = action_data.get("contact_alias", "kontakt")
         return {
@@ -84,10 +92,11 @@ def response_node(state: AgentState) -> AgentState:
 
     if intent == "CREATE_REMINDER":
         title = action_data.get("title", "Xatırlatma")
-        scheduled_at = action_data.get("scheduled_at", "")
+        scheduled_at = action_data.get("scheduled_at")
+        when = format_az_datetime(scheduled_at) if scheduled_at else "naməlum vaxt"
         return {
             **state,
-            "response": f'"{title}" üçün ({scheduled_at}) vaxtına xatırlatma yaradılsın?',
+            "response": f'"{title}" üçün {when} xatırlatma yaradılsın?',
             "status": "needs_confirmation",
         }
 
@@ -119,4 +128,3 @@ def response_node(state: AgentState) -> AgentState:
         ),
         "status": "needs_clarification",
     }
-

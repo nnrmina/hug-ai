@@ -1,6 +1,9 @@
 from typing import Optional
-from app.integrations.speech.stt import SpeechToTextProvider
+from app.integrations.speech.stt import SpeechToTextError, SpeechToTextProvider
 from app.integrations.speech.tts import TextToSpeechProvider
+
+# Re-exported for the API layer.
+SpeechServiceError = SpeechToTextError
 
 
 class SpeechService:
@@ -23,4 +26,3 @@ class SpeechService:
             language=language,
             fallback_transcript=fallback_transcript,
         )
-

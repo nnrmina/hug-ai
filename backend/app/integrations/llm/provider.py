@@ -2,12 +2,14 @@ import re
 from typing import Any, Dict, List
 from app.integrations.llm.base import BaseLLMAdapter
 from app.utils.datetime_utils import parse_azerbaijani_datetime
+from app.utils.text_utils import az_lower
 
 INTENTS = [
     "MAKE_CALL",
     "CREATE_REMINDER",
     "ANALYZE_MESSAGE",
     "SEND_VOICE_MESSAGE",
+    "EMERGENCY_CALL",
     "GENERAL_QUESTION",
     "UNKNOWN",
 ]
@@ -36,6 +38,19 @@ CONTACT_ALIAS_MAP = {
     "qardasima": "qardaşım",
     "nəvəm": "nəvəm",
     "nəvəmə": "nəvəm",
+    "nənəm": "nənəm",
+    "nenem": "nənəm",
+    "nənəmə": "nənəm",
+    "neneme": "nənəm",
+    "nənə": "nənəm",
+    "nene": "nənəm",
+    "nənəyə": "nənəm",
+    "neneye": "nənəm",
+    "nənəmin": "nənəm",
+    "nenemin": "nənəm",
+    "babam": "babam",
+    "babama": "babam",
+    "baba": "babam",
     "həkim": "həkim",
     "həkimə": "həkim",
     "hekim": "həkim",
@@ -87,7 +102,7 @@ def strip_azerbaijani_dative(raw_name: str) -> str:
 
     words = cleaned.split()
     last = words[-1]
-    last_lower = last.lower()
+    last_lower = az_lower(last)
 
     if last_lower in CONTACT_ALIAS_MAP:
         words[-1] = CONTACT_ALIAS_MAP[last_lower]
@@ -137,7 +152,12 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
 
     def detect_intent(self, message: str) -> Dict[str, Any]:
         text = message.strip()
-        lower = text.lower()
+        lower = az_lower(text)
+
+        # 0. Emergencies come first: never let a medical emergency fall through to other intents.
+        emergency = self._detect_emergency(lower)
+        if emergency:
+            return emergency
 
         # 1. Out-of-scope high-risk actions (Bank transfer / Wolt order)
         if any(
@@ -232,22 +252,15 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
             }
 
         # 5. Make Call intent (e.g., "Almaza zəng et", "Qızıma zəng vur", "Almazı yığ")
-        call_keywords = [
-            "zəng et",
-            "zeng et",
-            "zəng elə",
-            "zeng ele",
-            "zəng vur",
-            "zeng vur",
-            "zəng",
-            "zeng",
-            "yığ",
-            "yig",
-            "əlaqə saxla",
-            "노mrəsini yığ",
-            "nömrəsini yığ",
+        # Whole-word patterns: "zəng" must not match "zəngin", "zəngli saat"; "yığ" must not match "yığıncaq".
+        call_patterns = [
+            r"\bz[əe]ng\b",
+            r"\bzvanok\b",
+            r"\by[ıi][ğg]\b",
+            r"\bn[öo]mr[əe]sini\s+y[ıi][ğg]",
+            r"\b[əe]laq[əe]\s+saxla",
         ]
-        if any(kw in lower for kw in call_keywords):
+        if any(re.search(p, lower) for p in call_patterns):
             alias = self._extract_contact_alias(text)
             return {
                 "intent": "MAKE_CALL",
@@ -280,6 +293,36 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
             "requires_confirmation": False,
         }
 
+    @staticmethod
+    def _detect_emergency(lower: str) -> Dict[str, Any] | None:
+        """Detect urgent medical/safety situations (Azerbaijan: 103 ambulance, 112 general)."""
+        # Information questions about emergency numbers are not emergencies.
+        if re.search(r"\b(neçədir|necedir|nədir|nedir|hansıdır|hansidir)\b", lower):
+            return None
+        symptoms = [
+            "ürəyim ağrıyır", "ureyim agriyir", "ürəyim sancır",
+            "nəfəs ala bilmirəm", "nefes ala bilmirem", "nəfəsim çatmır",
+            "yıxıldım", "yixildim", "qalxa bilmirəm",
+            "huşumu itirirəm", "insult",
+            "imdad", "kömək edin",
+        ]
+        call_for_help = re.search(
+            r"(təcili|tecili)\s+yard[ıi]m\w*\s*(çağır|cagir|zəng|zeng|lazım|lazim)"
+            r"|\b(103|112)\b[-\w]*\s*(zəng|zeng|yığ|yig|çağır|cagir)"
+            r"|(zəng|zeng)\s+(et|vur)\s+(103|112)\b"
+            r"|\b(təcili|tecili)\s+yard[ıi]m\s*!?$",
+            lower,
+        )
+        if not (call_for_help or any(s in lower for s in symptoms)):
+            return None
+        number = "112" if re.search(r"\b112\b|polis|yanğın|yangin", lower) else "103"
+        return {
+            "intent": "EMERGENCY_CALL",
+            "confidence": 0.9,
+            "phone_number": number,
+            "requires_confirmation": True,
+        }
+
     def _extract_contact_alias(self, text: str) -> str:
         """Extract kinship alias or proper contact name (e.g., 'Almaza zəng et' -> 'Almaz')."""
         cleaned = re.sub(
@@ -293,7 +336,7 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
             cleaned,
         ).strip()
 
-        lower = cleaned.lower()
+        lower = az_lower(cleaned)
         for token, canonical in CONTACT_ALIAS_MAP.items():
             if re.search(rf"\b{re.escape(token)}\b", lower):
                 return canonical
@@ -321,7 +364,7 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
     @staticmethod
     def _build_search_candidates(alias: str) -> List[str]:
         """Generate lowercase search stems so the Android contact agent matches variations."""
-        base = alias.strip().lower()
+        base = az_lower(alias.strip())
         candidates = [base]
         if len(base) > 3:
             candidates.append(base[:-1])
@@ -329,7 +372,7 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
 
     def analyze_security_text(self, message: str) -> Dict[str, Any]:
         """Hybrid rule-based + linguistic scam analysis for Azerbaijani/Russian/English SMS."""
-        lower = message.lower()
+        lower = az_lower(message)
         indicators: List[str] = []
         score = 10
 
@@ -345,14 +388,11 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
             for w in [
                 "kart məlumat",
                 "cvv",
-                "pin",
                 "şifrə",
-                "otp",
-                "kod",
                 "nömrəni təsdiqlə",
                 "hesab məlumat",
             ]
-        ):
+        ) or re.search(r"\b(pin|otp|kod\w*)\b", lower):
             indicators.append("credential_request")
             score += 35
 
