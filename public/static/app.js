@@ -1,5 +1,5 @@
 // HUG — AI Voice Life Assistant for Samsung Galaxy S22+
-// Hands-Free Azerbaijani Voice Interaction, Real Phone Dialing & Wolt Smart Delivery Integration
+// Real Neural Azerbaijani Voice Audio + Hands-Free Voice Confirmation & Auto-execution
 
 const INITIAL_CONTACTS = [
   {
@@ -10,7 +10,9 @@ const INITIAL_CONTACTS = [
     short_name: "Almaz xala",
     relation_title: "Bacınız Almaz xalaya",
     phone_number: "+994 50 456 78 90",
-    initial: "A"
+    initial: "A",
+    audio_confirm: "call_sister_confirm",
+    audio_active: "call_sister_active"
   },
   {
     id: "daughter",
@@ -20,7 +22,9 @@ const INITIAL_CONTACTS = [
     short_name: "Sevinc",
     relation_title: "Qızınız Sevincə",
     phone_number: "+994 50 123 45 67",
-    initial: "S"
+    initial: "S",
+    audio_confirm: "call_daughter_confirm",
+    audio_active: "call_daughter_active"
   },
   {
     id: "mother",
@@ -30,7 +34,9 @@ const INITIAL_CONTACTS = [
     short_name: "Mama",
     relation_title: "Mamanıza",
     phone_number: "+994 55 234 56 78",
-    initial: "M"
+    initial: "M",
+    audio_confirm: "call_mother_confirm",
+    audio_active: "call_mother_active"
   },
   {
     id: "son",
@@ -40,7 +46,9 @@ const INITIAL_CONTACTS = [
     short_name: "Murad",
     relation_title: "Oğlunuz Murada",
     phone_number: "+994 70 345 67 89",
-    initial: "M"
+    initial: "M",
+    audio_confirm: "call_mother_confirm",
+    audio_active: "call_mother_active"
   },
   {
     id: "doctor",
@@ -50,19 +58,43 @@ const INITIAL_CONTACTS = [
     short_name: "Dr. Nigar",
     relation_title: "Dr. Nigar Həkimə",
     phone_number: "+994 50 765 43 21",
-    initial: "H"
+    initial: "H",
+    audio_confirm: "call_doctor_confirm",
+    audio_active: "call_mother_active"
   }
 ];
+
+// High-fidelity Neural Azerbaijani Voice Audio Map (az-AZ-BanuNeural)
+const AZ_AUDIO_MAP = {
+  listen: "/static/audio/listen.mp3",
+  call_sister_confirm: "/static/audio/call_sister_confirm.mp3",
+  call_daughter_confirm: "/static/audio/call_daughter_confirm.mp3",
+  call_mother_confirm: "/static/audio/call_mother_confirm.mp3",
+  call_doctor_confirm: "/static/audio/call_doctor_confirm.mp3",
+  call_sister_active: "/static/audio/call_sister_active.mp3",
+  call_daughter_active: "/static/audio/call_daughter_active.mp3",
+  call_mother_active: "/static/audio/call_mother_active.mp3",
+  call_end: "/static/audio/call_end.mp3",
+  chef_tantuni_confirm: "/static/audio/chef_tantuni_confirm.mp3",
+  chef_tantuni_active: "/static/audio/chef_tantuni_active.mp3",
+  pharmacy_confirm: "/static/audio/pharmacy_confirm.mp3",
+  pharmacy_active: "/static/audio/pharmacy_active.mp3",
+  taxi_confirm: "/static/audio/taxi_confirm.mp3",
+  taxi_active: "/static/audio/taxi_active.mp3",
+  reminders: "/static/audio/reminders.mp3",
+  order_done: "/static/audio/order_done.mp3",
+  action_cancel: "/static/audio/action_cancel.mp3"
+};
 
 let recognition = null;
 let isListening = false;
 let callTimerInterval = null;
 let callSeconds = 0;
 let currentActionPayload = null;
-let azVoice = null;
+let currentAudio = null;
 let audioUnlocked = false;
 
-// Hands-free confirmation workflow state
+// Hands-free confirmation state
 let confirmCountdownInterval = null;
 let confirmRecognition = null;
 
@@ -86,35 +118,7 @@ function playChime() {
   } catch (_) {}
 }
 
-// Voice Selector: Azerbaijani voice, or Turkish fallback (standard on Samsung/Android)
-function initVoices() {
-  if (!("speechSynthesis" in window)) return;
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices || voices.length === 0) return;
-
-  let voice = voices.find(
-    (v) => v.lang && (v.lang.toLowerCase().startsWith("az") || v.name.toLowerCase().includes("azerba"))
-  );
-
-  if (!voice) {
-    voice = voices.find(
-      (v) => v.lang && (v.lang.toLowerCase().startsWith("tr") || v.name.toLowerCase().includes("turk"))
-    );
-  }
-
-  if (!voice) {
-    voice = voices.find((v) => v.default) || voices[0];
-  }
-
-  azVoice = voice;
-}
-
-if ("speechSynthesis" in window) {
-  speechSynthesis.onvoiceschanged = initVoices;
-  initVoices();
-}
-
-// Audio Unlock for Samsung Galaxy mobile browser
+// Audio Unlock for Mobile Browsers
 function unlockAudio() {
   if (audioUnlocked) return;
   audioUnlocked = true;
@@ -138,7 +142,58 @@ function showScreen(screenId) {
   }
 }
 
-// Spoken Azerbaijani Voice Engine
+// Primary Voice Player: Uses 100% Native Neural Azerbaijani Voice Audio (.mp3)
+function playAzAudio(key, fallbackText = null, onEnded = null) {
+  unlockAudio();
+
+  // Stop any currently playing audio
+  if (currentAudio) {
+    try {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    } catch (_) {}
+    currentAudio = null;
+  }
+
+  const audioUrl = AZ_AUDIO_MAP[key];
+  if (audioUrl) {
+    const audio = new Audio(audioUrl);
+    currentAudio = audio;
+
+    if (onEnded) {
+      audio.onended = () => {
+        currentAudio = null;
+        onEnded();
+      };
+    } else {
+      audio.onended = () => {
+        currentAudio = null;
+      };
+    }
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn("Audio file play blocked/failed, using fallback:", err);
+        if (fallbackText) {
+          speakAz(fallbackText, onEnded);
+        } else if (onEnded) {
+          onEnded();
+        }
+      });
+    }
+    return;
+  }
+
+  // Fallback to TTS if key not mapped
+  if (fallbackText) {
+    speakAz(fallbackText, onEnded);
+  } else if (onEnded) {
+    onEnded();
+  }
+}
+
+// Fallback Speech Synthesis (ensures only Azerbaijani / Turkish phonetics, never English / Russian)
 function speakAz(text, onEndedCallback = null) {
   if (!("speechSynthesis" in window) || !text) {
     if (onEndedCallback) onEndedCallback();
@@ -147,7 +202,17 @@ function speakAz(text, onEndedCallback = null) {
   try {
     unlockAudio();
     window.speechSynthesis.cancel();
-    initVoices();
+
+    const voices = window.speechSynthesis.getVoices() || [];
+    let azVoice = voices.find(
+      (v) => v.lang && (v.lang.toLowerCase().startsWith("az") || v.name.toLowerCase().includes("azerba"))
+    );
+
+    if (!azVoice) {
+      azVoice = voices.find(
+        (v) => v.lang && (v.lang.toLowerCase().startsWith("tr") || v.name.toLowerCase().includes("turk"))
+      );
+    }
 
     let spokenText = text;
     if (azVoice && azVoice.lang && azVoice.lang.toLowerCase().startsWith("tr")) {
@@ -159,7 +224,7 @@ function speakAz(text, onEndedCallback = null) {
       u.voice = azVoice;
       u.lang = azVoice.lang;
     } else {
-      u.lang = "tr-TR";
+      u.lang = "tr-TR"; // Keep Turkish phonetics fallback rather than English
     }
     u.rate = 0.90;
     u.pitch = 1.0;
@@ -191,7 +256,7 @@ function findContact(query) {
   return null;
 }
 
-// Clear Confirmation Workflow Timers & Listeners
+// Clear Confirmation Timers & Listeners
 function clearConfirmWorkflow() {
   if (confirmCountdownInterval) {
     clearInterval(confirmCountdownInterval);
@@ -201,10 +266,17 @@ function clearConfirmWorkflow() {
     try { confirmRecognition.stop(); } catch (_) {}
     confirmRecognition = null;
   }
+  if (currentAudio) {
+    try {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    } catch (_) {}
+    currentAudio = null;
+  }
 }
 
-// Hands-Free Confirmation: Users can speak "Bəli" OR wait for auto-execution (no button press needed)
-function startHandsFreeConfirmation(questionVoicePrompt, onConfirmCallback) {
+// Hands-Free Confirmation: Plays Neural Azerbaijani Audio + Auto-countdown (No button press needed)
+function startHandsFreeConfirmation(audioKey, questionVoicePrompt, onConfirmCallback) {
   clearConfirmWorkflow();
   showScreen("screen-confirm");
 
@@ -216,23 +288,22 @@ function startHandsFreeConfirmation(questionVoicePrompt, onConfirmCallback) {
     voiceLabelEl.textContent = "“Bəli” və ya “Xeyr” deyin...";
   }
 
-  // Countdown timer: 4.5 seconds
-  const totalMs = 4500;
+  // 5 seconds countdown
+  const totalMs = 5000;
   let remainingMs = totalMs;
   const tickMs = 100;
 
   if (barEl) barEl.style.width = "100%";
-  if (textEl) textEl.textContent = "4 saniyəyə avtomatik icra olunur";
+  if (textEl) textEl.textContent = "5 saniyəyə avtomatik icra olunur";
 
-  // 1. Speak question aloud in natural Azerbaijani
-  speakAz(questionVoicePrompt, () => {
-    // If voice completes, prompt microphone listening
+  // 1. Play Studio-Quality Native Azerbaijani Audio
+  playAzAudio(audioKey, questionVoicePrompt, () => {
     if (voiceLabelEl) {
       voiceLabelEl.textContent = "🎙️ Eşidirəm... “Bəli” deyin";
     }
   });
 
-  // 2. Start countdown interval
+  // 2. Countdown Interval
   confirmCountdownInterval = setInterval(() => {
     remainingMs -= tickMs;
     const progress = Math.max(0, (remainingMs / totalMs) * 100);
@@ -266,7 +337,6 @@ function startHandsFreeConfirmation(questionVoicePrompt, onConfirmCallback) {
         const spoken = (event.results[0][0].transcript || "").toLowerCase();
         console.log("Confirmation heard:", spoken);
 
-        // Positive affirmations
         if (
           spoken.includes("bəli") ||
           spoken.includes("beli") ||
@@ -293,20 +363,17 @@ function startHandsFreeConfirmation(questionVoicePrompt, onConfirmCallback) {
         ) {
           clearConfirmWorkflow();
           showScreen("screen-home");
-          speakAz("Əməliyyat ləğv edildi.");
+          playAzAudio("action_cancel", "Əməliyyat ləğv edildi.");
         }
       };
 
-      confirmRecognition.onerror = () => {
-        // In case of microphone silence/timeout, auto-countdown safely takes over!
-      };
+      confirmRecognition.onerror = () => {};
 
-      // Start listening after 1.2s so it captures user's answer
       setTimeout(() => {
         if (confirmRecognition) {
           try { confirmRecognition.start(); } catch (_) {}
         }
-      }, 1200);
+      }, 1500);
     } catch (_) {}
   }
 }
@@ -374,8 +441,8 @@ function handleProcessedVoice(text) {
       document.getElementById("confirm-details-secondary").textContent = `Mobil · ${matchedContact.phone_number}`;
       document.getElementById("btn-confirm-yes").textContent = "Bəli, zəng et";
 
-      // Hands-Free Confirmation: User can speak "Bəli" OR wait 4s to auto-execute!
       startHandsFreeConfirmation(
+        matchedContact.audio_confirm || "call_sister_confirm",
         `${matchedContact.relation_title} zəng edilsin? Bəli deyin.`,
         executeConfirmedAction
       );
@@ -416,11 +483,11 @@ function handleProcessedVoice(text) {
       document.getElementById("confirm-details-secondary").textContent = `Cəmi ${currentActionPayload.price} (${currentActionPayload.vendor} · Wolt)`;
       document.getElementById("btn-confirm-yes").textContent = "Bəli, sifariş et";
 
-      const promptText = isTantuni
-        ? "Chef Tantunidən bir pors Tantuni sifarişiniz təsdiqlənsin? Cəmi səkkiz manat əlli qəpik. Bəli deyin."
-        : "Bozbaş sifarişiniz təsdiqlənsin? Cəmi on iki manat. Bəli deyin.";
-
-      startHandsFreeConfirmation(promptText, executeConfirmedAction);
+      startHandsFreeConfirmation(
+        "chef_tantuni_confirm",
+        "Chef Tantunidən bir pors Tantuni sifarişiniz təsdiqlənsin? Cəmi səkkiz manat əlli qəpik. Bəli deyin.",
+        executeConfirmedAction
+      );
     }, 500);
     return;
   }
@@ -453,6 +520,7 @@ function handleProcessedVoice(text) {
       document.getElementById("btn-confirm-yes").textContent = "Bəli, sifariş et";
 
       startHandsFreeConfirmation(
+        "pharmacy_confirm",
         "Aptekdən kardiomaqnil dərmanı sifarişiniz təsdiqlənsin? Cəmi altı manat iyirmi qəpik. Bəli deyin.",
         executeConfirmedAction
       );
@@ -486,6 +554,7 @@ function handleProcessedVoice(text) {
       document.getElementById("btn-confirm-yes").textContent = "Bəli, taksi çağır";
 
       startHandsFreeConfirmation(
+        "taxi_confirm",
         "Nizami küçəsindən şəhər mərkəzinə taksi çağırılsın? Qiymət beş manat. Bəli deyin.",
         executeConfirmedAction
       );
@@ -506,7 +575,7 @@ function handleProcessedVoice(text) {
   ) {
     setTimeout(() => {
       showScreen("screen-reminders");
-      speakAz("Xatırlatmalarınız ekrandadır.");
+      playAzAudio("reminders", "Xatırlatmalarınız ekrandadır.");
     }, 500);
     return;
   }
@@ -524,7 +593,7 @@ function handleProcessedVoice(text) {
     document.getElementById("confirm-details-secondary").textContent = "HUG Səsli Köməkçi Sistemi";
     document.getElementById("btn-confirm-yes").textContent = "Bəli, icra et";
 
-    startHandsFreeConfirmation("Əməliyyatı icra edim? Bəli deyin.", executeConfirmedAction);
+    startHandsFreeConfirmation("chef_tantuni_confirm", "Əməliyyatı icra edim? Bəli deyin.", executeConfirmedAction);
   }, 500);
 }
 
@@ -537,7 +606,9 @@ function startListeningWorkflow(samplePrompt = null) {
 
   const quoteEl = document.getElementById("recognized-speech-quote");
   quoteEl.textContent = "Sizi dinləyirəm...";
-  speakAz("Eşidirəm, buyurun");
+
+  // Play Real Neural Azerbaijani Voice: "Eşidirəm, buyurun"
+  playAzAudio("listen", "Eşidirəm, buyurun");
 
   // Sample prompt / quick demo pill clicked
   if (samplePrompt) {
@@ -611,9 +682,10 @@ function startCall(contact) {
     timerEl.textContent = `Zəng edilir... · ${mins}:${secs}`;
   }, 1000);
 
-  speakAz(`${contact.short_name} ilə əlaqə qurulur`);
+  // Play Neural Voice for active call
+  playAzAudio(contact.audio_active || "call_sister_active", `${contact.short_name} ilə əlaqə qurulur`);
 
-  // Direct trigger to Samsung Phone dialer
+  // Direct trigger to native Samsung Phone dialer
   try {
     window.location.href = `tel:${rawPhone}`;
   } catch (_) {}
@@ -623,7 +695,7 @@ function endCall() {
   clearInterval(callTimerInterval);
   document.getElementById("done-message-subtext").textContent = "Zənginiz uğurla başa çatdı.";
   showScreen("screen-done");
-  speakAz("Zəng başa çatdı.");
+  playAzAudio("call_end", "Zəng başa çatdı.");
 }
 
 // Wolt Order Tracking Workflow
@@ -655,16 +727,16 @@ function startOrderTracking() {
   }
 
   if (currentActionPayload && currentActionPayload.type === "ORDER_PHARMACY") {
-    speakAz("Aptekdən sifarişiniz qəbul olundu. Kuryer yoldadır.");
+    playAzAudio("pharmacy_active", "Aptekdən sifarişiniz qəbul olundu. Kuryer yoldadır.");
   } else {
-    speakAz("Chef Tantunidən sifarişiniz qəbul olundu. Kuryer yoldadır.");
+    playAzAudio("chef_tantuni_active", "Chef Tantunidən sifarişiniz qəbul olundu. Kuryer yoldadır.");
   }
 }
 
 // Wolt Taxi Tracking Workflow
 function startTaxiTracking() {
   showScreen("screen-taxi-tracking");
-  speakAz("Taksi sifarişi təsdiqləndi. Toyota Camry üç dəqiqəyə çatır.");
+  playAzAudio("taxi_active", "Taksi təsdiqləndi. Toyota Camry üç dəqiqəyə çatır.");
 }
 
 // Initialize Application DOM Events
@@ -726,7 +798,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btnReminders.addEventListener("click", () => {
       clearConfirmWorkflow();
       showScreen("screen-reminders");
-      speakAz("Xatırlatmalarınız ekrandadır.");
+      playAzAudio("reminders", "Xatırlatmalarınız ekrandadır.");
     });
   }
 
@@ -738,7 +810,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 6. Confirmation Screen Action Handlers (Optional manual click)
+  // 6. Confirmation Screen Action Handlers
   const btnConfirmYes = document.getElementById("btn-confirm-yes");
   const btnConfirmCancel = document.getElementById("btn-confirm-cancel");
 
@@ -752,7 +824,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btnConfirmCancel.addEventListener("click", () => {
       clearConfirmWorkflow();
       showScreen("screen-home");
-      speakAz("Əməliyyat ləğv edildi.");
+      playAzAudio("action_cancel", "Əməliyyat ləğv edildi.");
     });
   }
 
@@ -770,7 +842,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btnOrderFinish.addEventListener("click", () => {
       document.getElementById("done-message-subtext").textContent = "Sifarişiniz təslim edildi. Nuş olsun!";
       showScreen("screen-done");
-      speakAz("Sifarişiniz tamamlandı. Nuş olsun!");
+      playAzAudio("order_done", "Sifarişiniz tamamlandı. Nuş olsun!");
     });
   }
 
@@ -779,7 +851,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnCancelTaxi) {
     btnCancelTaxi.addEventListener("click", () => {
       showScreen("screen-home");
-      speakAz("Taksi sifarişi ləğv edildi.");
+      playAzAudio("action_cancel", "Taksi sifarişi ləğv edildi.");
     });
   }
 });
