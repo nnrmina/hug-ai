@@ -48,3 +48,6 @@ Thumbs.db
 
 # auto-deploy runtime state on the server
 deploy/.state/
+
+# browser-automation artifacts
+.playwright-mcp/
