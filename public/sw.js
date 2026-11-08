@@ -1,6 +1,6 @@
 // HUG service worker: offline app shell + reminder notification clicks.
 // API calls (/api/*) are never cached — the assistant must always be live.
-const VERSION = "hug-v2-2026-11-09";
+const VERSION = "hug-v3-2026-11-09";
 const SHELL = [
   "/",
   "/static/styles.css",

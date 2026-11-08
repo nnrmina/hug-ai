@@ -514,7 +514,7 @@ body {
   width: 62px;
   height: 38px;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--surface) 95%, transparent) 0%, color-mix(in srgb, var(--surface) 0%, transparent) 75%);
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 75%);
   transform: rotate(-32deg);
   pointer-events: none;
 }
@@ -526,7 +526,7 @@ body {
   width: 20px;
   height: 12px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  background: rgba(255, 255, 255, 0.85);
   filter: blur(1.5px);
   pointer-events: none;
 }
@@ -538,7 +538,7 @@ body {
   right: 24px;
   height: 22px;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--surface) 28%, transparent) 0%, color-mix(in srgb, var(--surface) 0%, transparent) 70%);
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 70%);
   pointer-events: none;
 }
 
