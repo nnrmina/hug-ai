@@ -1,6 +1,7 @@
 {
-  "model_type": "DecisionTreeClassifier",
-  "vectorizer": "TfidfVectorizer(ngram_range=(1,2), sublinear_tf=True)",
+  "model_type": "linearsvc_calibrated (C=0.5, class_weight=balanced)",
+  "vectorizer": "FeatureUnion(word, char)",
+  "model_file": "intent_pipeline.joblib",
   "classes": [
     "CALL",
     "EMERGENCY",
@@ -10,103 +11,700 @@
     "REMINDER"
   ],
   "hyperparameters": {
-    "max_depth": 50,
-    "min_samples_split": 4,
-    "min_samples_leaf": 2,
-    "class_weight": null
+    "classifier": "linearsvc_calibrated",
+    "features": "word+char",
+    "C": 0.5,
+    "class_weight": "balanced"
   },
+  "clarification_threshold": 0.475,
+  "split": {
+    "method": "StratifiedGroupKFold (test 1/7, val 1/6 of remainder); groups = generator template_id merged by token Jaccard >= 0.6",
+    "train": 728,
+    "val": 152,
+    "test": 161
+  },
+  "dataset_note": "Fully synthetic, template-generated data. Not representative of real elderly ASR transcripts; metrics are optimistic for production.",
   "validation_search": {
     "best_params": {
-      "max_depth": 50,
-      "min_samples_split": 4,
-      "min_samples_leaf": 2,
-      "class_weight": null
+      "classifier": "linearsvc_calibrated",
+      "features": "word+char",
+      "C": 0.5,
+      "class_weight": "balanced"
     },
-    "best_selection_metric": 0.903256365821352,
+    "best_selection_metric": 0.9866,
+    "selection_rule": "0.7 * val macro-F1 + 0.3 * val EMERGENCY recall, tie-break lower log-loss; decision tree is a reference baseline and is not selectable",
     "trials": [
       {
         "params": {
-          "max_depth": 25,
-          "min_samples_split": 2,
-          "min_samples_leaf": 1,
-          "class_weight": null
+          "classifier": "decision_tree_baseline",
+          "features": "word"
         },
-        "val_macro_f1": 0.7921,
-        "val_weighted_f1": 0.7906,
-        "val_emergency_recall": 0.875,
-        "selection_metric": 0.8169
-      },
-      {
-        "params": {
-          "max_depth": 35,
-          "min_samples_split": 2,
-          "min_samples_leaf": 1,
-          "class_weight": null
-        },
-        "val_macro_f1": 0.8195,
-        "val_weighted_f1": 0.818,
-        "val_emergency_recall": 0.9583,
-        "selection_metric": 0.8612
-      },
-      {
-        "params": {
-          "max_depth": 50,
-          "min_samples_split": 2,
-          "min_samples_leaf": 1,
-          "class_weight": null
-        },
-        "val_macro_f1": 0.8245,
-        "val_weighted_f1": 0.8229,
-        "val_emergency_recall": 0.9583,
-        "selection_metric": 0.8646
-      },
-      {
-        "params": {
-          "max_depth": 50,
-          "min_samples_split": 4,
-          "min_samples_leaf": 2,
-          "class_weight": null
-        },
-        "val_macro_f1": 0.8797,
-        "val_weighted_f1": 0.8792,
-        "val_emergency_recall": 0.9583,
-        "selection_metric": 0.9033
-      },
-      {
-        "params": {
-          "max_depth": null,
-          "min_samples_split": 2,
-          "min_samples_leaf": 1,
-          "class_weight": null
-        },
-        "val_macro_f1": 0.8383,
-        "val_weighted_f1": 0.8368,
-        "val_emergency_recall": 0.9583,
-        "selection_metric": 0.8743
-      },
-      {
-        "params": {
-          "max_depth": null,
-          "min_samples_split": 4,
-          "min_samples_leaf": 1,
-          "class_weight": "balanced"
-        },
-        "val_macro_f1": 0.846,
-        "val_weighted_f1": 0.8446,
+        "val_accuracy": 0.7171,
+        "val_macro_f1": 0.6734,
         "val_emergency_recall": 1.0,
-        "selection_metric": 0.8922
+        "val_log_loss": 7.7283,
+        "selection_metric": 0.7714
       },
       {
         "params": {
-          "max_depth": 40,
-          "min_samples_split": 2,
-          "min_samples_leaf": 1,
+          "classifier": "logreg",
+          "features": "word",
+          "C": 1.0,
           "class_weight": "balanced"
         },
-        "val_macro_f1": 0.8312,
-        "val_weighted_f1": 0.8296,
-        "val_emergency_recall": 0.9583,
-        "selection_metric": 0.8694
+        "val_accuracy": 0.9539,
+        "val_macro_f1": 0.9539,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.7241,
+        "selection_metric": 0.9677
+      },
+      {
+        "params": {
+          "classifier": "logreg",
+          "features": "word",
+          "C": 4.0,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9671,
+        "val_macro_f1": 0.9669,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.4507,
+        "selection_metric": 0.9769
+      },
+      {
+        "params": {
+          "classifier": "logreg",
+          "features": "word",
+          "C": 16.0,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9671,
+        "val_macro_f1": 0.9669,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.3108,
+        "selection_metric": 0.9769
+      },
+      {
+        "params": {
+          "classifier": "linearsvc_calibrated",
+          "features": "word",
+          "C": 0.1,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9605,
+        "val_macro_f1": 0.9609,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.2981,
+        "selection_metric": 0.9726
+      },
+      {
+        "params": {
+          "classifier": "linearsvc_calibrated",
+          "features": "word",
+          "C": 0.5,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9671,
+        "val_macro_f1": 0.9669,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.2458,
+        "selection_metric": 0.9769
+      },
+      {
+        "params": {
+          "classifier": "linearsvc_calibrated",
+          "features": "word",
+          "C": 2.0,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9605,
+        "val_macro_f1": 0.9608,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.2253,
+        "selection_metric": 0.9726
+      },
+      {
+        "params": {
+          "classifier": "logreg",
+          "features": "char",
+          "C": 1.0,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9671,
+        "val_macro_f1": 0.9666,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.621,
+        "selection_metric": 0.9766
+      },
+      {
+        "params": {
+          "classifier": "logreg",
+          "features": "char",
+          "C": 4.0,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9671,
+        "val_macro_f1": 0.9666,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.3673,
+        "selection_metric": 0.9766
+      },
+      {
+        "params": {
+          "classifier": "logreg",
+          "features": "char",
+          "C": 16.0,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9803,
+        "val_macro_f1": 0.9805,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.2326,
+        "selection_metric": 0.9864
+      },
+      {
+        "params": {
+          "classifier": "linearsvc_calibrated",
+          "features": "char",
+          "C": 0.1,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9803,
+        "val_macro_f1": 0.9801,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.2287,
+        "selection_metric": 0.9861
+      },
+      {
+        "params": {
+          "classifier": "linearsvc_calibrated",
+          "features": "char",
+          "C": 0.5,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9737,
+        "val_macro_f1": 0.9726,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.1938,
+        "selection_metric": 0.9808
+      },
+      {
+        "params": {
+          "classifier": "linearsvc_calibrated",
+          "features": "char",
+          "C": 2.0,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9671,
+        "val_macro_f1": 0.9664,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.1928,
+        "selection_metric": 0.9764
+      },
+      {
+        "params": {
+          "classifier": "logreg",
+          "features": "word+char",
+          "C": 1.0,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9737,
+        "val_macro_f1": 0.9734,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.4901,
+        "selection_metric": 0.9814
+      },
+      {
+        "params": {
+          "classifier": "logreg",
+          "features": "word+char",
+          "C": 4.0,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9737,
+        "val_macro_f1": 0.9734,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.2906,
+        "selection_metric": 0.9814
+      },
+      {
+        "params": {
+          "classifier": "logreg",
+          "features": "word+char",
+          "C": 16.0,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9803,
+        "val_macro_f1": 0.9804,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.1878,
+        "selection_metric": 0.9863
+      },
+      {
+        "params": {
+          "classifier": "linearsvc_calibrated",
+          "features": "word+char",
+          "C": 0.1,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9737,
+        "val_macro_f1": 0.9738,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.1957,
+        "selection_metric": 0.9816
+      },
+      {
+        "params": {
+          "classifier": "linearsvc_calibrated",
+          "features": "word+char",
+          "C": 0.5,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9803,
+        "val_macro_f1": 0.9809,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.1683,
+        "selection_metric": 0.9866
+      },
+      {
+        "params": {
+          "classifier": "linearsvc_calibrated",
+          "features": "word+char",
+          "C": 2.0,
+          "class_weight": "balanced"
+        },
+        "val_accuracy": 0.9671,
+        "val_macro_f1": 0.9677,
+        "val_emergency_recall": 1.0,
+        "val_log_loss": 0.1701,
+        "selection_metric": 0.9774
+      }
+    ]
+  },
+  "threshold_tuning": {
+    "chosen_threshold": 0.475,
+    "objective": "min decision_cost_per_utterance (wrong action=1.0, clarification=0.25, missed emergency=5.0) on grouped 5-fold out-of-fold predictions over train+val",
+    "chosen_oof_metrics": {
+      "threshold": 0.475,
+      "samples": 880,
+      "intent_accuracy": 0.975,
+      "clarification_rate_low_confidence": 0.0068,
+      "clarification_rate_any": 0.0568,
+      "coverage": 0.9932,
+      "accuracy_on_executed": 0.9783,
+      "wrong_predictions": 22,
+      "wrong_predictions_sent_to_clarification": 3,
+      "wrong_actions_executed": 19,
+      "error_capture_rate": 0.1364,
+      "emergency_recall": 1.0,
+      "emergency_precision": 0.9704,
+      "decision_cost_per_utterance": 0.0233
+    },
+    "oof_model_only_metrics": {
+      "accuracy": 0.9705,
+      "f1_macro": 0.9705,
+      "log_loss": 0.2061
+    },
+    "grid": [
+      {
+        "threshold": 0.2,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0,
+        "clarification_rate_any": 0.0511,
+        "coverage": 1.0,
+        "accuracy_on_executed": 0.975,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 0,
+        "wrong_actions_executed": 22,
+        "error_capture_rate": 0.0,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.025
+      },
+      {
+        "threshold": 0.225,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0,
+        "clarification_rate_any": 0.0511,
+        "coverage": 1.0,
+        "accuracy_on_executed": 0.975,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 0,
+        "wrong_actions_executed": 22,
+        "error_capture_rate": 0.0,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.025
+      },
+      {
+        "threshold": 0.25,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0,
+        "clarification_rate_any": 0.0511,
+        "coverage": 1.0,
+        "accuracy_on_executed": 0.975,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 0,
+        "wrong_actions_executed": 22,
+        "error_capture_rate": 0.0,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.025
+      },
+      {
+        "threshold": 0.275,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0,
+        "clarification_rate_any": 0.0511,
+        "coverage": 1.0,
+        "accuracy_on_executed": 0.975,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 0,
+        "wrong_actions_executed": 22,
+        "error_capture_rate": 0.0,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.025
+      },
+      {
+        "threshold": 0.3,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0,
+        "clarification_rate_any": 0.0511,
+        "coverage": 1.0,
+        "accuracy_on_executed": 0.975,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 0,
+        "wrong_actions_executed": 22,
+        "error_capture_rate": 0.0,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.025
+      },
+      {
+        "threshold": 0.325,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0,
+        "clarification_rate_any": 0.0511,
+        "coverage": 1.0,
+        "accuracy_on_executed": 0.975,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 0,
+        "wrong_actions_executed": 22,
+        "error_capture_rate": 0.0,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.025
+      },
+      {
+        "threshold": 0.35,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0,
+        "clarification_rate_any": 0.0511,
+        "coverage": 1.0,
+        "accuracy_on_executed": 0.975,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 0,
+        "wrong_actions_executed": 22,
+        "error_capture_rate": 0.0,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.025
+      },
+      {
+        "threshold": 0.375,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0011,
+        "clarification_rate_any": 0.0511,
+        "coverage": 0.9989,
+        "accuracy_on_executed": 0.9761,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 1,
+        "wrong_actions_executed": 21,
+        "error_capture_rate": 0.0455,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0241
+      },
+      {
+        "threshold": 0.4,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0011,
+        "clarification_rate_any": 0.0511,
+        "coverage": 0.9989,
+        "accuracy_on_executed": 0.9761,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 1,
+        "wrong_actions_executed": 21,
+        "error_capture_rate": 0.0455,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0241
+      },
+      {
+        "threshold": 0.425,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0023,
+        "clarification_rate_any": 0.0523,
+        "coverage": 0.9977,
+        "accuracy_on_executed": 0.9761,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 1,
+        "wrong_actions_executed": 21,
+        "error_capture_rate": 0.0455,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0244
+      },
+      {
+        "threshold": 0.45,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0057,
+        "clarification_rate_any": 0.0557,
+        "coverage": 0.9943,
+        "accuracy_on_executed": 0.9771,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 2,
+        "wrong_actions_executed": 20,
+        "error_capture_rate": 0.0909,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0241
+      },
+      {
+        "threshold": 0.475,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0068,
+        "clarification_rate_any": 0.0568,
+        "coverage": 0.9932,
+        "accuracy_on_executed": 0.9783,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 3,
+        "wrong_actions_executed": 19,
+        "error_capture_rate": 0.1364,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0233
+      },
+      {
+        "threshold": 0.5,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0114,
+        "clarification_rate_any": 0.0614,
+        "coverage": 0.9886,
+        "accuracy_on_executed": 0.9793,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 4,
+        "wrong_actions_executed": 18,
+        "error_capture_rate": 0.1818,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0233
+      },
+      {
+        "threshold": 0.525,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0159,
+        "clarification_rate_any": 0.0659,
+        "coverage": 0.9841,
+        "accuracy_on_executed": 0.9792,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 4,
+        "wrong_actions_executed": 18,
+        "error_capture_rate": 0.1818,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0244
+      },
+      {
+        "threshold": 0.55,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0409,
+        "clarification_rate_any": 0.0909,
+        "coverage": 0.9591,
+        "accuracy_on_executed": 0.981,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 6,
+        "wrong_actions_executed": 16,
+        "error_capture_rate": 0.2727,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0284
+      },
+      {
+        "threshold": 0.575,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0602,
+        "clarification_rate_any": 0.1102,
+        "coverage": 0.9398,
+        "accuracy_on_executed": 0.9831,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 8,
+        "wrong_actions_executed": 14,
+        "error_capture_rate": 0.3636,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.031
+      },
+      {
+        "threshold": 0.6,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.0761,
+        "clarification_rate_any": 0.1261,
+        "coverage": 0.9239,
+        "accuracy_on_executed": 0.9852,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 10,
+        "wrong_actions_executed": 12,
+        "error_capture_rate": 0.4545,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0327
+      },
+      {
+        "threshold": 0.625,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.092,
+        "clarification_rate_any": 0.1409,
+        "coverage": 0.908,
+        "accuracy_on_executed": 0.9862,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 11,
+        "wrong_actions_executed": 11,
+        "error_capture_rate": 0.5,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0355
+      },
+      {
+        "threshold": 0.65,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.1102,
+        "clarification_rate_any": 0.1591,
+        "coverage": 0.8898,
+        "accuracy_on_executed": 0.986,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 11,
+        "wrong_actions_executed": 11,
+        "error_capture_rate": 0.5,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0401
+      },
+      {
+        "threshold": 0.675,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.1205,
+        "clarification_rate_any": 0.1693,
+        "coverage": 0.8795,
+        "accuracy_on_executed": 0.9858,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 11,
+        "wrong_actions_executed": 11,
+        "error_capture_rate": 0.5,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0426
+      },
+      {
+        "threshold": 0.7,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.1352,
+        "clarification_rate_any": 0.1841,
+        "coverage": 0.8648,
+        "accuracy_on_executed": 0.9869,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 12,
+        "wrong_actions_executed": 10,
+        "error_capture_rate": 0.5455,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0452
+      },
+      {
+        "threshold": 0.725,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.1489,
+        "clarification_rate_any": 0.1977,
+        "coverage": 0.8511,
+        "accuracy_on_executed": 0.988,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 13,
+        "wrong_actions_executed": 9,
+        "error_capture_rate": 0.5909,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0474
+      },
+      {
+        "threshold": 0.75,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.1841,
+        "clarification_rate_any": 0.233,
+        "coverage": 0.8159,
+        "accuracy_on_executed": 0.9889,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 14,
+        "wrong_actions_executed": 8,
+        "error_capture_rate": 0.6364,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0551
+      },
+      {
+        "threshold": 0.775,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.2364,
+        "clarification_rate_any": 0.2841,
+        "coverage": 0.7636,
+        "accuracy_on_executed": 0.9896,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 15,
+        "wrong_actions_executed": 7,
+        "error_capture_rate": 0.6818,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.067
+      },
+      {
+        "threshold": 0.8,
+        "samples": 880,
+        "intent_accuracy": 0.975,
+        "clarification_rate_low_confidence": 0.2716,
+        "clarification_rate_any": 0.3148,
+        "coverage": 0.7284,
+        "accuracy_on_executed": 0.9922,
+        "wrong_predictions": 22,
+        "wrong_predictions_sent_to_clarification": 17,
+        "wrong_actions_executed": 5,
+        "error_capture_rate": 0.7727,
+        "emergency_recall": 1.0,
+        "emergency_precision": 0.9704,
+        "decision_cost_per_utterance": 0.0736
       }
     ]
   }

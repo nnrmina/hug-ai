@@ -19,6 +19,7 @@ import json
 import random
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
+import sys
 
 SEED = 42
 random.seed(SEED)
@@ -28,21 +29,25 @@ DATA_DIR = BASE_DIR / "data"
 INTENT_CSV_PATH = DATA_DIR / "hug_intent_dataset.csv"
 ENTITY_JSONL_PATH = DATA_DIR / "hug_entity_dataset.jsonl"
 
+sys.path.insert(0, str(BASE_DIR))
+from src.preprocessing.text_preprocessing import az_lower  # noqa: E402
+
 
 def generate_unique_order_samples() -> List[Dict]:
     """Generates 170+ strictly unique ORDER utterances."""
     samples = set()
     records = []
 
-    def add(text: str, source: str):
+    def add(text: str, source: str, template_id: str = ""):
         t = text.strip()
-        if t.lower() not in samples and len(t) > 3:
-            samples.add(t.lower())
+        if az_lower(t) not in samples and len(t) > 3:
+            samples.add(az_lower(t))
             records.append({
                 "text": t,
                 "intent": "ORDER",
                 "source": source,
                 "is_reviewed": True,
+                "template_id": template_id,
             })
 
     # 1. Base curated grocery & food orders
@@ -114,8 +119,8 @@ def generate_unique_order_samples() -> List[Dict]:
         ("1 litr sud ve kend yumurtasi al", "synthetic_spelling_variation"),
         ("pizza sifaris ele axsam ucun", "synthetic_spelling_variation"),
     ]
-    for txt, src in curated:
-        add(txt, src)
+    for ci, (txt, src) in enumerate(curated):
+        add(txt, src, f"ORDER_curated_{ci:03d}")
 
     # 2. Systematically generated unique items
     products = [
@@ -144,7 +149,7 @@ def generate_unique_order_samples() -> List[Dict]:
         for pre, src in prefixes:
             if len(records) >= 175:
                 break
-            add(pre.format(p=p), src)
+            add(pre.format(p=p), src, f"ORDER_prefix_{prefixes.index((pre, src)):02d}")
         if len(records) >= 175:
             break
 
@@ -156,15 +161,16 @@ def generate_unique_call_samples() -> List[Dict]:
     samples = set()
     records = []
 
-    def add(text: str, source: str):
+    def add(text: str, source: str, template_id: str = ""):
         t = text.strip()
-        if t.lower() not in samples and len(t) > 3:
-            samples.add(t.lower())
+        if az_lower(t) not in samples and len(t) > 3:
+            samples.add(az_lower(t))
             records.append({
                 "text": t,
                 "intent": "CALL",
                 "source": source,
                 "is_reviewed": True,
+                "template_id": template_id,
             })
 
     # Curated call phrases
@@ -216,8 +222,8 @@ def generate_unique_call_samples() -> List[Dict]:
         ("qardasima telefon ac zehmet olmasa", "synthetic_spelling_variation"),
         ("gelinime zeng vur gelsin", "synthetic_spelling_variation"),
     ]
-    for txt, src in curated:
-        add(txt, src)
+    for ci, (txt, src) in enumerate(curated):
+        add(txt, src, f"CALL_curated_{ci:03d}")
 
     names = [
         "Aygün", "Nigar", "Fərid", "Kənan", "Samir", "Rəşad", "Tural", "Günel",
@@ -243,7 +249,7 @@ def generate_unique_call_samples() -> List[Dict]:
         for pat, src in patterns:
             if len(records) >= 175:
                 break
-            add(pat.format(n=n), src)
+            add(pat.format(n=n), src, f"CALL_pattern_{patterns.index((pat, src)):02d}")
         if len(records) >= 175:
             break
 
@@ -255,15 +261,16 @@ def generate_unique_reminder_samples() -> List[Dict]:
     samples = set()
     records = []
 
-    def add(text: str, source: str):
+    def add(text: str, source: str, template_id: str = ""):
         t = text.strip()
-        if t.lower() not in samples and len(t) > 3:
-            samples.add(t.lower())
+        if az_lower(t) not in samples and len(t) > 3:
+            samples.add(az_lower(t))
             records.append({
                 "text": t,
                 "intent": "REMINDER",
                 "source": source,
                 "is_reviewed": True,
+                "template_id": template_id,
             })
 
     curated = [
@@ -306,8 +313,8 @@ def generate_unique_reminder_samples() -> List[Dict]:
         ("seher saat 8 de xatirlat", "synthetic_spelling_variation"),
         ("derman vaxtini xatirlat mene", "synthetic_spelling_variation"),
     ]
-    for txt, src in curated:
-        add(txt, src)
+    for ci, (txt, src) in enumerate(curated):
+        add(txt, src, f"REMINDER_curated_{ci:03d}")
 
     days = ["bazar ertəsi", "çərşənbə axşamı", "çərşənbə günü", "cümə axşamı", "cümə günü", "şənbə günü", "bazar günü"]
     actions = [
@@ -335,8 +342,9 @@ def generate_unique_reminder_samples() -> List[Dict]:
         for act, src in actions:
             if len(records) >= 175:
                 break
-            add(f"{d.capitalize()} səhər saat 10-da {act} mənə xatırlat.", src)
-            add(f"Zəhmət olmasa {d} günü {act} yadıma sal.", src)
+            gid = f"REMINDER_action_{actions.index((act, src)):02d}"
+            add(f"{d.capitalize()} səhər saat 10-da {act} mənə xatırlat.", src, gid)
+            add(f"Zəhmət olmasa {d} günü {act} yadıma sal.", src, gid)
 
     return records
 
@@ -346,15 +354,16 @@ def generate_unique_emergency_samples() -> List[Dict]:
     samples = set()
     records = []
 
-    def add(text: str, source: str):
+    def add(text: str, source: str, template_id: str = ""):
         t = text.strip()
-        if t.lower() not in samples and len(t) > 3:
-            samples.add(t.lower())
+        if az_lower(t) not in samples and len(t) > 3:
+            samples.add(az_lower(t))
             records.append({
                 "text": t,
                 "intent": "EMERGENCY",
                 "source": source,
                 "is_reviewed": True,
+                "template_id": template_id,
             })
 
     curated = [
@@ -400,8 +409,8 @@ def generate_unique_emergency_samples() -> List[Dict]:
         ("qaz iyi gelir tecili xidmete zeng ele", "synthetic_spelling_variation"),
         ("evde yangin var 112 ni cagir", "synthetic_spelling_variation"),
     ]
-    for txt, src in curated:
-        add(txt, src)
+    for ci, (txt, src) in enumerate(curated):
+        add(txt, src, f"EMERGENCY_curated_{ci:03d}")
 
     symptoms = [
         "döş qəfəsimdə dəhşətli sıxılma var",
@@ -435,7 +444,7 @@ def generate_unique_emergency_samples() -> List[Dict]:
         for wrap, src in urgency_wrappers:
             if len(records) >= 175:
                 break
-            add(wrap.format(s=sym), src)
+            add(wrap.format(s=sym), src, f"EMERGENCY_wrapper_{urgency_wrappers.index((wrap, src)):02d}")
         if len(records) >= 175:
             break
 
@@ -447,15 +456,16 @@ def generate_unique_information_samples() -> List[Dict]:
     samples = set()
     records = []
 
-    def add(text: str, source: str):
+    def add(text: str, source: str, template_id: str = ""):
         t = text.strip()
-        if t.lower() not in samples and len(t) > 3:
-            samples.add(t.lower())
+        if az_lower(t) not in samples and len(t) > 3:
+            samples.add(az_lower(t))
             records.append({
                 "text": t,
                 "intent": "INFORMATION",
                 "source": source,
                 "is_reviewed": True,
+                "template_id": template_id,
             })
 
     curated = [
@@ -491,6 +501,12 @@ def generate_unique_information_samples() -> List[Dict]:
         ("Azəriqazın əlaqə nömrəsini de.", "synthetic_conversational"),
         ("Azərişığın müştəri xidməti nömrəsi neçədir?", "synthetic_conversational"),
         ("Su idarəsinin qaynar xəttini tap mənə.", "synthetic_conversational"),
+        # Questions ABOUT emergency numbers are INFORMATION, not EMERGENCY
+        ("Fövqəladə Hallar Nazirliyinin qaynar xətti hansı nömrədir?", "synthetic_conversational"),
+        ("103-ə zəng etmək pulsuzdur?", "synthetic_elderly_persona"),
+        ("Yanğın olanda hansı nömrəyə zəng edirlər?", "synthetic_conversational"),
+        ("Qaz xidmətinin 104 nömrəsi bütün gün işləyir?", "synthetic_conversational"),
+        ("tecili yardim nomresi hansidir", "synthetic_spelling_variation"),
         ("bu gun baki da hava necedir", "synthetic_spelling_variation"),
         ("saat necedir indi", "synthetic_spelling_variation"),
         ("sabah yagis yagacaqmi", "synthetic_spelling_variation"),
@@ -500,8 +516,8 @@ def generate_unique_information_samples() -> List[Dict]:
         ("namaz vaxti ne vaxtdir", "synthetic_spelling_variation"),
         ("bayirda nece derece soyuq var", "synthetic_spelling_variation"),
     ]
-    for txt, src in curated:
-        add(txt, src)
+    for ci, (txt, src) in enumerate(curated):
+        add(txt, src, f"INFORMATION_curated_{ci:03d}")
 
     cities = [
         "Gəncədə", "Sumqayıtda", "Şəkidə", "Lənkəranda", "Qubada", "Qusarda",
@@ -519,7 +535,7 @@ def generate_unique_information_samples() -> List[Dict]:
         for cq, src in city_questions:
             if len(records) >= 175:
                 break
-            add(cq.format(c=c), src)
+            add(cq.format(c=c), src, f"INFORMATION_cityq_{city_questions.index((cq, src)):02d}")
         if len(records) >= 175:
             break
 
@@ -553,9 +569,10 @@ def generate_unique_information_samples() -> List[Dict]:
     for f in facts:
         if len(records) >= 175:
             break
-        add(f"Mənə məlumat ver görüm {f}?", "synthetic_elderly_persona")
-        add(f"Bilmək istəyirəm {f}?", "synthetic_conversational")
-        add(f"De görüm {f}?", "synthetic_elderly_persona")
+        gid = f"INFORMATION_fact_{facts.index(f):02d}"
+        add(f"Mənə məlumat ver görüm {f}?", "synthetic_elderly_persona", gid)
+        add(f"Bilmək istəyirəm {f}?", "synthetic_conversational", gid)
+        add(f"De görüm {f}?", "synthetic_elderly_persona", gid)
 
     return records
 
@@ -565,15 +582,16 @@ def generate_unique_other_samples() -> List[Dict]:
     samples = set()
     records = []
 
-    def add(text: str, source: str):
+    def add(text: str, source: str, template_id: str = ""):
         t = text.strip()
-        if t.lower() not in samples and len(t) > 3:
-            samples.add(t.lower())
+        if az_lower(t) not in samples and len(t) > 3:
+            samples.add(az_lower(t))
             records.append({
                 "text": t,
                 "intent": "OTHER",
                 "source": source,
                 "is_reviewed": True,
+                "template_id": template_id,
             })
 
     curated = [
@@ -626,8 +644,8 @@ def generate_unique_other_samples() -> List[Dict]:
         ("ay bala necesen", "synthetic_spelling_variation"),
         ("hekaye danis mene", "synthetic_spelling_variation"),
     ]
-    for txt, src in curated:
-        add(txt, src)
+    for ci, (txt, src) in enumerate(curated):
+        add(txt, src, f"OTHER_curated_{ci:03d}")
 
     chitchat = [
         "Sən heç yatırsanmı gecələr?",
@@ -679,9 +697,10 @@ def generate_unique_other_samples() -> List[Dict]:
     for ch in chitchat:
         if len(records) >= 175:
             break
-        add(ch, "synthetic_elderly_persona")
-        add(f"Ay bala, {ch[0].lower() + ch[1:]}", "synthetic_elderly_persona")
-        add(f"Gözəl bala, {ch[0].lower() + ch[1:]}", "synthetic_elderly_persona")
+        gid = f"OTHER_chitchat_{chitchat.index(ch):02d}"
+        add(ch, "synthetic_elderly_persona", gid)
+        add(f"Ay bala, {az_lower(ch[0]) + ch[1:]}", "synthetic_elderly_persona", gid)
+        add(f"Gözəl bala, {az_lower(ch[0]) + ch[1:]}", "synthetic_elderly_persona", gid)
 
     return records
 
@@ -863,7 +882,7 @@ def generate_all_datasets() -> Tuple[int, int]:
     random.shuffle(intent_records)
 
     with open(INTENT_CSV_PATH, "w", newline="", encoding="utf-8") as f:
-        fieldnames = ["id", "text", "intent", "source", "is_reviewed"]
+        fieldnames = ["id", "text", "intent", "source", "is_reviewed", "template_id"]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for idx, rec in enumerate(intent_records, start=1):
@@ -873,6 +892,7 @@ def generate_all_datasets() -> Tuple[int, int]:
                 "intent": rec["intent"],
                 "source": rec["source"],
                 "is_reviewed": rec["is_reviewed"],
+                "template_id": rec["template_id"],
             })
 
     entity_records = build_entity_dataset()

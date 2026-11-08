@@ -9,6 +9,7 @@ Endpoints:
 - GET /model-info: Returns model metadata and performance metrics.
 """
 
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -20,19 +21,26 @@ from pydantic import BaseModel, Field
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
-from src.models.predict import IntentPredictor
+from src.models.predict import IntentPredictor, ModelNotLoadedError
 
 app = FastAPI(
     title="HUG Machine Learning Intent API",
-    description="Azerbaijani Voice-Intent Classifier & Entity Extractor (Decision Tree MVP)",
+    description="Azerbaijani Voice-Intent Classifier & Entity Extractor (TF-IDF + calibrated linear model MVP)",
     version="1.0.0",
 )
 
+# CORS: origins are configurable via ALLOWED_ORIGINS (comma-separated, default "*").
+# Credentials are never allowed: a wildcard origin combined with credentials is unsafe
+# (and rejected by browsers); this API is called server-to-server and needs no cookies.
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "*").split(",") if o.strip()
+] or ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -81,10 +89,14 @@ class MockCheckoutResponse(BaseModel):
 
 @app.get("/health")
 def health():
+    loaded = predictor.is_ready
     return {
-        "status": "healthy",
-        "model_loaded": predictor._pipeline is not None,
+        "status": "healthy" if loaded else "degraded",
+        "model_loaded": loaded,
+        "model_path": str(predictor.model_path),
         "classes": predictor._classes,
+        "clarification_threshold": predictor.confidence_threshold,
+        **({} if loaded else {"detail": "Model file missing - run `python src/models/train.py`."}),
     }
 
 
@@ -102,13 +114,20 @@ def model_info():
 def predict_intent(payload: PredictRequest):
     """
     Receives user utterance in Azerbaijani, normalizes phonemes,
-    runs Decision Tree inference, extracts entities, and applies safety logic.
+    runs intent inference, extracts entities, and applies safety logic.
+    Returns 503 if the model artifact is missing (unless the emergency guardrail fires,
+    in which case the EMERGENCY result is still returned).
     """
     if not payload.text or not payload.text.strip():
         raise HTTPException(status_code=400, detail="Mətn boş ola bilməz.")
 
-    result = predictor.predict(payload.text)
-    return result
+    try:
+        return predictor.predict(payload.text)
+    except ModelNotLoadedError:
+        raise HTTPException(
+            status_code=503,
+            detail="Intent model is not loaded (model file missing). Run training first.",
+        )
 
 
 @app.post("/orders/mock-checkout", response_model=MockCheckoutResponse)

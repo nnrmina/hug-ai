@@ -1,54 +1,50 @@
-=== HUG DECISION TREE INTENT CLASSIFICATION REPORT ===
+=== HUG INTENT CLASSIFICATION REPORT ===
+Dataset: SYNTHETIC template-generated utterances (not real elderly ASR transcripts).
+Split: stratified GROUP split (template groups never span train/val/test).
 
-Test Dataset Samples: 156
-Overall Accuracy:     0.9359
-Macro F1-Score:       0.9357
-Weighted F1-Score:    0.9358
-Macro Recall:         0.9358
-EMERGENCY Recall:     0.9167
+Test samples: 161
+
+--- 1. Model only (raw classifier) ---
+Accuracy: 1.0000 | Macro F1: 1.0000 | EMERGENCY recall: 1.0000 | ECE: 0.0551
 
               precision    recall  f1-score   support
 
-        CALL       0.96      1.00      0.98        26
-   EMERGENCY       0.92      0.92      0.92        24
- INFORMATION       0.88      0.88      0.88        26
-       ORDER       1.00      0.96      0.98        26
-       OTHER       0.92      0.89      0.91        27
-    REMINDER       0.93      0.96      0.95        27
+        CALL       1.00      1.00      1.00        32
+   EMERGENCY       1.00      1.00      1.00        30
+ INFORMATION       1.00      1.00      1.00        25
+       ORDER       1.00      1.00      1.00        25
+       OTHER       1.00      1.00      1.00        25
+    REMINDER       1.00      1.00      1.00        24
 
-    accuracy                           0.94       156
-   macro avg       0.94      0.94      0.94       156
-weighted avg       0.94      0.94      0.94       156
+    accuracy                           1.00       161
+   macro avg       1.00      1.00      1.00       161
+weighted avg       1.00      1.00      1.00       161
 
+--- 2. End-to-end IntentPredictor.predict() (guardrail + threshold) ---
+Intent accuracy: 1.0000 | Macro F1: 1.0000 | Threshold: 0.475
+Coverage (no low-confidence clarification): 1.0000 | Accuracy on executed: 1.0000
+Wrong predictions: 0 (sent to clarification: 0) | EMERGENCY recall: 1.0 | EMERGENCY precision: 1.0
 
-=== CONFUSED EXAMPLES ANALYSIS ===
-- True: REMINDER | Pred: INFORMATION (Conf: 1.00)
-  Text: "Sabah səhər tezdən acqarına ürək həbimi içməyi xatırlat."
+              precision    recall  f1-score   support
 
-- True: EMERGENCY | Pred: CALL (Conf: 1.00)
-  Text: "qaz iyi gelir tecili xidmete zeng ele"
+        CALL       1.00      1.00      1.00        32
+   EMERGENCY       1.00      1.00      1.00        30
+ INFORMATION       1.00      1.00      1.00        25
+       ORDER       1.00      1.00      1.00        25
+       OTHER       1.00      1.00      1.00        25
+    REMINDER       1.00      1.00      1.00        24
 
-- True: INFORMATION | Pred: EMERGENCY (Conf: 1.00)
-  Text: "Təcili tibbi yardımın nömrəsi neçədir?"
+    accuracy                           1.00       161
+   macro avg       1.00      1.00      1.00       161
+weighted avg       1.00      1.00      1.00       161
 
-- True: EMERGENCY | Pred: OTHER (Conf: 0.85)
-  Text: "Təzyiqim 220-yə qalxıb, başım fırlanır, yıxılmışam!"
+--- 3. Reference: previous DecisionTree on the same split ---
+Accuracy: 0.8820 | Macro F1: 0.8719 | EMERGENCY recall: 1.0000 | ECE: 0.0876
 
-- True: OTHER | Pred: INFORMATION (Conf: 1.00)
-  Text: "Bu gün bağçada quşların səsi necə də xoş gəlirdi."
+=== MODEL-ONLY ERRORS ===
+- True: - | Pred: - (Conf: 0.00)
+  Text: "(none)"
 
-- True: INFORMATION | Pred: REMINDER (Conf: 0.67)
-  Text: "Poliklinika saat neçəyə qədər işləyir?"
-
-- True: INFORMATION | Pred: REMINDER (Conf: 0.67)
-  Text: "Sübh azanı saat neçədə oxunur?"
-
-- True: ORDER | Pred: OTHER (Conf: 0.85)
-  Text: "Süd və yumurta gətir."
-
-- True: OTHER | Pred: EMERGENCY (Conf: 0.50)
-  Text: "Uşaqlıq xatirələrim tez-tez yadıma düşür."
-
-- True: OTHER | Pred: INFORMATION (Conf: 1.00)
-  Text: "ne var ne yox"
-
+=== END-TO-END ERRORS ===
+- True: - | Pred: - (Conf: 0.00, action: -)
+  Text: "(none)"
