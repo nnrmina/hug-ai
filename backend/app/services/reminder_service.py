@@ -39,11 +39,17 @@ class ReminderService:
             )
         return reminder
 
-    def update_reminder(self, reminder_id: str, data: ReminderUpdate) -> Reminder:
+    def _owned(self, reminder_id: str, owner_id: str | None) -> Reminder:
         reminder = self.get_reminder(reminder_id)
+        if owner_id is not None and reminder.user_id != owner_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Xatırlatma tapılmadı.")
+        return reminder
+
+    def update_reminder(self, reminder_id: str, data: ReminderUpdate, owner_id: str | None = None) -> Reminder:
+        reminder = self._owned(reminder_id, owner_id)
         return self.reminder_repo.update(reminder, data)
 
-    def delete_reminder(self, reminder_id: str) -> None:
-        reminder = self.get_reminder(reminder_id)
+    def delete_reminder(self, reminder_id: str, owner_id: str | None = None) -> None:
+        reminder = self._owned(reminder_id, owner_id)
         self.reminder_repo.delete(reminder)
 

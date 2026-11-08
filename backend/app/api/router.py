@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import assistant, reminders, security, users, health, tts
+from app.api.v1 import assistant, care, reminders, security, users, health, tts
 
 api_router = APIRouter()
 
@@ -9,4 +9,5 @@ api_router.include_router(reminders.router, tags=["Reminders"])
 api_router.include_router(security.router, tags=["Security"])
 api_router.include_router(users.router, tags=["Users"])
 api_router.include_router(tts.router, tags=["Speech"])
+api_router.include_router(care.router, tags=["Care"])
 

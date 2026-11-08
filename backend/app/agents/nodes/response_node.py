@@ -125,6 +125,35 @@ def response_node(state: AgentState) -> AgentState:
             "status": "completed",
         }
 
+    if intent == "EMERGENCY":
+        return {
+            **state,
+            "response": "Narahat olmayın, kömək çağırıram. Ailənizə dərhal xəbər verirəm.",
+            "status": "completed",
+        }
+
+    if intent == "CREATE_MEDICATION":
+        title = action_data.get("title", "Dərman")
+        times = action_data.get("med_times") or []
+        spoken = " və ".join(times)
+        return {
+            **state,
+            "response": f"“{title}” üçün hər gün saat {spoken}-da xatırladım?",
+            "status": "needs_confirmation",
+        }
+
+    if intent == "MEDICATION_TAKEN":
+        return {**state, "response": "Qeyd etdim.", "status": "completed"}
+
+    if intent == "CHECKIN":
+        mood = action_data.get("mood", "ok")
+        default = {
+            "good": "Buna çox sevindim! Gününüz xoş keçsin.",
+            "ok": "Anladım. Bir şey lazım olsa, mənə deyin.",
+            "bad": "Çox təəssüf. Ailənizə xəbər verirəm ki, sizə zəng etsinlər.",
+        }[mood if mood in ("good", "ok", "bad") else "ok"]
+        return {**state, "response": action_data.get("answer") or default, "status": "completed"}
+
     if intent == "GENERAL_QUESTION":
         if action_data.get("answer"):
             return {**state, "response": action_data["answer"], "status": "completed"}

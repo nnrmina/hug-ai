@@ -48,6 +48,18 @@ class Settings(BaseSettings):
     TTS_PROVIDER: str = "android_native"  # android_native | google
     TTS_API_KEY: Optional[str] = None
 
+    # Web Push (VAPID) for reminders, SOS and family alerts
+    VAPID_PUBLIC_KEY: Optional[str] = None
+    VAPID_PRIVATE_KEY: Optional[str] = None
+    VAPID_SUBJECT: str = "mailto:hug-demo@example.com"
+
+    # Care rules
+    PUBLIC_BASE_URL: str = "http://127.0.0.1:8000"  # used in family invite links
+    DOSE_MISSED_AFTER_MIN: int = 30
+    CHECKIN_ESCALATE_AFTER_MIN: int = 120
+    SCHEDULER_INTERVAL_S: int = 30
+    SCHEDULER_ENABLED: bool = True
+
     # Localization defaults (Azerbaijan)
     DEFAULT_LANGUAGE: str = "az-AZ"
     DEFAULT_TIMEZONE: str = "Asia/Baku"

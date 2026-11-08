@@ -17,9 +17,48 @@ INTENTS = [
     "ORDER_FOOD",
     "ORDER_PHARMACY",
     "ORDER_TAXI",
+    "EMERGENCY",
+    "CREATE_MEDICATION",
+    "MEDICATION_TAKEN",
+    "CHECKIN",
     "GENERAL_QUESTION",
     "UNKNOWN",
 ]
+
+EMERGENCY_KEYWORDS = [
+    "kömək edin", "kömək et", "komek et", "imdad", "yıxıldım", "yixildim", "təcili yardım",
+    "tecili yardim", "ürəyim ağrıyır", "ureyim agriyir", "nəfəs ala bilmirəm", "nefes ala bilmirem",
+    "özümü çox pis", "ozumu cox pis", "huşumu itir",
+]
+TAKEN_KEYWORDS = ["dərmanımı içdim", "derman icdim", "dərmanı içdim", "həbi içdim", "həbimi içdim", "içdim dərman"]
+MOOD_KEYWORDS = {
+    "bad": ["özümü pis hiss", "ozumu pis hiss", "halım yoxdur", "halim yoxdur", "xəstəyəm", "xesteyem"],
+    "good": ["özümü yaxşı hiss", "ozumu yaxsi hiss", "yaxşıyam", "yaxsiyam", "əlayam", "kefim yaxşıdır"],
+    "ok": ["eləbelə", "elə də", "pis deyiləm", "normalam"],
+}
+_DAYPART = {"səhər": 0, "seher": 0, "günorta": 12, "gunorta": 12, "axşam": 12, "axsam": 12, "gecə": 12, "gece": 12}
+
+
+def _daily_times(lower: str) -> List[str]:
+    """'səhər 9-da və axşam 9-da' -> ['09:00', '21:00'] (rule-based, best effort)."""
+    out = []
+    for m in re.finditer(r"(səhər|seher|günorta|gunorta|axşam|axsam|gecə|gece)?\s*(?:saat\s*)?(\d{1,2})(?::(\d{2}))?", lower):
+        hour = int(m.group(2))
+        if hour > 23:
+            continue
+        part = m.group(1)
+        if part and _DAYPART.get(part) == 12 and hour < 12:
+            hour += 12
+        out.append(f"{hour:02d}:{m.group(3) or '00'}")
+    return sorted(set(out))
+
+
+def _med_title(text: str) -> str:
+    m = re.search(r"(?i)([\wəığöüşçƏIĞÖÜŞÇ]+)\s+(dərman|derman|həb)", text)
+    if m and m.group(1).lower() not in ("mənim", "menim", "hər", "her", "gün", "və"):
+        return f"{m.group(1).capitalize()} dərmanı"
+    return "Dərman"
+
 
 TAXI_KEYWORDS = ["taksi", "taxi", "maşın çağır", "masin cagir"]
 PHARMACY_KEYWORDS = [
@@ -171,7 +210,32 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
         text = message.strip()
         lower = text.lower()
 
-        # 1. Out-of-scope high-risk actions (Bank transfer / Wolt order)
+        # 0. Emergencies always win
+        if any(kw in lower for kw in EMERGENCY_KEYWORDS):
+            return {"intent": "EMERGENCY", "confidence": 0.97, "emergency": True,
+                    "reason": text[:200], "requires_confirmation": False}
+
+        # 0b. "I took my medicine" / how I feel today
+        if any(kw in lower for kw in TAKEN_KEYWORDS):
+            return {"intent": "MEDICATION_TAKEN", "confidence": 0.9, "requires_confirmation": False}
+        for mood, kws in MOOD_KEYWORDS.items():
+            if any(kw in lower for kw in kws):
+                return {"intent": "CHECKIN", "confidence": 0.85, "mood": mood, "requires_confirmation": False}
+
+        # 0c. Repeating medicine schedule ("hər gün səhər 9-da və axşam 9-da ...")
+        if any(kw in lower for kw in ("hər gün", "her gun", "gündə", "gunde", "hər səhər", "hər axşam")) and \
+                any(kw in lower for kw in ("dərman", "derman", "həb", "heb")):
+            times = _daily_times(lower)
+            parsed = {"intent": "CREATE_MEDICATION", "confidence": 0.88, "title": _med_title(text),
+                      "requires_confirmation": True}
+            if times:
+                parsed["med_times"] = times
+            else:
+                parsed["clarification_question"] = "Hər gün saat neçədə xatırladım? Məsələn: “səhər 9-da və axşam 9-da”."
+                parsed["missing_slots"] = ["med_times"]
+            return parsed
+
+        # 1. Out-of-scope high-risk actions (Bank transfer)
         if any(
             kw in lower
             for kw in ["pul köçür", "pul göndər", "karta pul", "hesaba pul", "bank köçürmə"]
@@ -349,6 +413,13 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
                     "requires_confirmation": True,
                     **meta,
                 }
+
+        # Follow-up: the previous turn asked "Hər gün saat neçədə?" for a medicine
+        if pending.get("intent") == "CREATE_MEDICATION":
+            times = _daily_times(text.lower())
+            if times:
+                return {"intent": "CREATE_MEDICATION", "confidence": 0.88, "title": pending.get("title") or "Dərman",
+                        "med_times": times, "requires_confirmation": True, **meta}
 
         parsed = self.detect_intent(text)
 

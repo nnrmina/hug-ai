@@ -10,6 +10,7 @@ phone numbers and saved reminders never leave the device / database.
 """
 from __future__ import annotations
 
+import re
 import time
 from datetime import datetime, timedelta
 from functools import lru_cache
@@ -39,6 +40,7 @@ CONFIRM_INTENTS = {
     "ORDER_FOOD",
     "ORDER_PHARMACY",
     "ORDER_TAXI",
+    "CREATE_MEDICATION",
 }
 
 IntentName = Literal[
@@ -49,6 +51,10 @@ IntentName = Literal[
     "ORDER_FOOD",
     "ORDER_PHARMACY",
     "ORDER_TAXI",
+    "EMERGENCY",
+    "CREATE_MEDICATION",
+    "MEDICATION_TAKEN",
+    "CHECKIN",
     "GENERAL_QUESTION",
     "UNKNOWN",
 ]
@@ -76,11 +82,14 @@ class Understanding(BaseModel):
     missing_slots: List[str] = Field(default_factory=list)
     blocked_action: Optional[Literal["BANK_TRANSFER", "MEDICAL_DECISION"]] = None
     security: Optional[SecurityAssessment] = None
+    med_times: List[str] = Field(default_factory=list, description="HH:MM (24h) daily times for CREATE_MEDICATION")
+    mood: Optional[Literal["good", "ok", "bad"]] = None
 
 
 SYSTEM_PROMPT = """You are HUG, a warm, patient voice assistant for elderly people in Azerbaijan.
 Every user-facing string you write (answer, clarification_question, title, security texts) MUST be
 natural, polite Azerbaijani (Latin script), short and easy to understand when spoken aloud.
+Always address the user respectfully with the formal "siz" form (never "sən"): "olsanız", "dincəlin".
 
 For each turn return ONE JSON object matching the schema.
 
@@ -97,6 +106,17 @@ intent — pick exactly one:
 - ORDER_PHARMACY: order medicine from a pharmacy (aptek, kardiomaqnil, "dərman sifariş et").
   Note: "remind me to take my medicine" is CREATE_REMINDER, not ORDER_PHARMACY.
 - ORDER_TAXI: call a taxi / car.
+- EMERGENCY: the user needs urgent help NOW: "kömək edin", "yıxıldım", "ürəyim ağrıyır",
+  "nəfəs ala bilmirəm", "təcili yardım çağır", "özümü çox pis hiss edirəm", "huşumu itirirəm".
+  When in doubt between EMERGENCY and anything else, choose EMERGENCY. Never block it.
+- CREATE_MEDICATION: a REPEATING medicine schedule ("hər gün", "səhər və axşam", "gündə iki dəfə"):
+  title = medicine name (e.g. "Kardiomaqnil", "Təzyiq dərmanı"), med_times = every daily time as
+  HH:MM 24h ("səhər 9" -> "09:00", "axşam 9" -> "21:00", "gündə 2 dəfə" with no times -> ask when).
+  A ONE-OFF "sabah 10-da dərmanımı xatırlat" stays CREATE_REMINDER.
+- MEDICATION_TAKEN: the user says they took their medicine ("dərmanımı içdim", "həbi atdım").
+- CHECKIN: the user tells how they feel today without asking for anything ("özümü yaxşı hiss edirəm",
+  "bu gün halım yoxdur", "başım bir az ağrıyır"): mood good | ok | bad, and answer with one short
+  warm sentence in `answer`. Severe symptoms are EMERGENCY instead.
 - GENERAL_QUESTION: greetings, small talk, questions about you or general knowledge.
 - UNKNOWN: anything else, or when you genuinely cannot tell.
 
@@ -297,6 +317,28 @@ class GeminiLLMAdapter(BaseLLMAdapter):
                 out["llm_security"] = u.security.model_dump()
 
         elif u.intent == "GENERAL_QUESTION":
+            if u.answer:
+                out["answer"] = _cap(u.answer)
+
+        elif u.intent == "EMERGENCY":
+            out["emergency"] = True
+            out["reason"] = transcript[:200]
+
+        elif u.intent == "CREATE_MEDICATION":
+            times = []
+            for t in u.med_times:
+                m = re.match(r"^\s*(\d{1,2})[:.](\d{2})\s*$", t or "")
+                if m and int(m.group(1)) < 24 and int(m.group(2)) < 60:
+                    times.append(f"{int(m.group(1)):02d}:{m.group(2)}")
+            out["title"] = ((u.title or "").strip() or "Dərman")[:120]
+            if times:
+                out["med_times"] = sorted(set(times))
+            else:
+                out["clarification_question"] = u.clarification_question or "Hər gün saat neçədə xatırladım? Məsələn: “səhər 9-da və axşam 9-da”."
+                out["missing_slots"] = ["med_times"]
+
+        elif u.intent == "CHECKIN":
+            out["mood"] = u.mood or "ok"
             if u.answer:
                 out["answer"] = _cap(u.answer)
 

@@ -40,6 +40,7 @@ def init_db() -> None:
     import app.models.preference  # noqa: F401
     import app.models.reminder  # noqa: F401
     import app.models.agent_event  # noqa: F401
+    import app.models.care  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 

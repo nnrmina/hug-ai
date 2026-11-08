@@ -5,6 +5,7 @@ from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadF
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from app.api.deps import device_user_id
 from app.core.database import get_db
 from app.schemas.assistant import (
     ActionStatusResponse,
@@ -45,7 +46,8 @@ def capabilities():
 
 
 @router.post("/assistant/message", response_model=AssistantResponse)
-def process_message(request: AssistantRequest, db: Session = Depends(get_db)):
+def process_message(request: AssistantRequest, uid: str = Depends(device_user_id), db: Session = Depends(get_db)):
+    request.user_id = uid
     return AssistantService(db).process_message(request)
 
 
@@ -56,7 +58,7 @@ def process_voice(
     transcript: Optional[str] = Form(default=None, max_length=2000),
     session_id: Optional[str] = Form(default=None, max_length=64),
     history: Optional[str] = Form(default=None, description="JSON list of recent turns"),
-    user_id: Optional[str] = Form(default=None),
+    uid: str = Depends(device_user_id),
     db: Session = Depends(get_db),
 ):
     """Spoken command: Gemini transcribes and understands the audio in one call.
@@ -82,7 +84,7 @@ def process_voice(
         mime_type=mime,
         session_id=session_id,
         client_history=turns,
-        user_id=user_id,
+        user_id=uid,
     )
 
 
@@ -95,15 +97,17 @@ def get_assistant_status(action_id: str, db: Session = Depends(get_db)):
 def confirm_assistant_action(
     action_id: str,
     body: Optional[ConfirmRequest] = Body(default=None),
+    uid: str = Depends(device_user_id),
     db: Session = Depends(get_db),
 ):
-    return AssistantService(db).confirm_action(action_id, body.action_token if body else None)
+    return AssistantService(db).confirm_action(action_id, body.action_token if body else None, owner_id=uid)
 
 
 @router.post("/assistant/cancel/{action_id}", response_model=ActionStatusResponse)
 def cancel_assistant_action(
     action_id: str,
     body: Optional[ConfirmRequest] = Body(default=None),
+    uid: str = Depends(device_user_id),
     db: Session = Depends(get_db),
 ):
-    return AssistantService(db).cancel_action(action_id, body.action_token if body else None)
+    return AssistantService(db).cancel_action(action_id, body.action_token if body else None, owner_id=uid)

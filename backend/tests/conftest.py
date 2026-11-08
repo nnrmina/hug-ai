@@ -14,6 +14,9 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["LLM_PROVIDER"] = "rule_based"
 os.environ["GEMINI_API_KEY"] = ""
 os.environ["LLM_API_KEY"] = ""
+os.environ["SCHEDULER_ENABLED"] = "false"  # tests drive CareService.tick() directly
+os.environ["VAPID_PUBLIC_KEY"] = ""
+os.environ["VAPID_PRIVATE_KEY"] = ""
 
 from app.main import app  # noqa: E402
 from app.core.database import Base, get_db  # noqa: E402

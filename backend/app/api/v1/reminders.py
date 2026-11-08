@@ -2,6 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
+from app.api.deps import device_user_id
 from app.core.database import get_db
 from app.schemas.reminder import (
     ReminderCreate,
@@ -31,11 +32,11 @@ async def create_reminder(
     response_model=List[ReminderResponse],
 )
 async def list_reminders(
-    user_id: Optional[str] = None,
+    uid: str = Depends(device_user_id),
     db: Session = Depends(get_db),
 ):
     service = ReminderService(db)
-    return service.list_reminders(user_id=user_id)
+    return service.list_reminders(user_id=uid)
 
 
 @router.get(
@@ -57,10 +58,11 @@ async def get_reminder(
 async def update_reminder(
     reminder_id: str,
     request: ReminderUpdate,
+    uid: str = Depends(device_user_id),
     db: Session = Depends(get_db),
 ):
     service = ReminderService(db)
-    return service.update_reminder(reminder_id, request)
+    return service.update_reminder(reminder_id, request, owner_id=uid)
 
 
 @router.delete(
@@ -69,9 +71,10 @@ async def update_reminder(
 )
 async def delete_reminder(
     reminder_id: str,
+    uid: str = Depends(device_user_id),
     db: Session = Depends(get_db),
 ):
     service = ReminderService(db)
-    service.delete_reminder(reminder_id)
+    service.delete_reminder(reminder_id, owner_id=uid)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

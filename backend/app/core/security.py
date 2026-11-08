@@ -50,6 +50,10 @@ ACTION_RISK_POLICY: Dict[str, Dict[str, Any]] = {
         "allowed_in_mvp": True,
         "simulated": True,
     },
+    "EMERGENCY": {"risk_level": "critical", "requires_confirmation": False, "allowed_in_mvp": True},
+    "CREATE_MEDICATION": {"risk_level": "low_medium", "requires_confirmation": True, "allowed_in_mvp": True},
+    "MEDICATION_TAKEN": {"risk_level": "low", "requires_confirmation": False, "allowed_in_mvp": True},
+    "CHECKIN": {"risk_level": "low", "requires_confirmation": False, "allowed_in_mvp": True},
     "BANK_TRANSFER": {
         "risk_level": "high",
         "requires_confirmation": True,

@@ -19,6 +19,7 @@ from app.schemas.assistant import (
 from app.schemas.reminder import ReminderCreate
 from app.integrations.notifications.local import LocalNotificationFormatter
 from app.agents.tools.order_tools import ORDER_INTENTS
+from app.services.care_service import CareService
 from app.utils.datetime_utils import format_az_datetime
 
 # In-memory store of workflow action states for confirmation/cancellation lifecycle
@@ -80,6 +81,17 @@ class AssistantService:
         action_data = dict(final_state.get("action_data") or {})
         action_data.pop("transcript", None)
 
+        # Care side effects that need no confirmation
+        if wf_status == "completed" and intent == "MEDICATION_TAKEN":
+            dose = CareService(self.db).mark_taken(user.id)
+            if dose:
+                action_data["dose_id"] = dose.id
+                response_text = "Əla, qeyd etdim! Sağlam olun."
+            else:
+                response_text = "Hazırda içiləsi dərman görmürəm, amma qeyd etdim. Sağlam olun."
+        elif wf_status == "completed" and intent == "CHECKIN":
+            CareService(self.db).record_checkin(user.id, action_data.get("mood", "ok"), transcript)
+
         action_id = str(uuid.uuid4())
         _ACTION_STORE[action_id] = {
             "action_id": action_id,
@@ -125,8 +137,16 @@ class AssistantService:
             action_token=sign_action(_ACTION_STORE[action_id]) if wf_status == "needs_confirmation" else None,
         )
 
-    def _load_action(self, action_id: str, action_token: Optional[str], missing_detail: str) -> Dict[str, Any]:
-        """Find a pending action in memory, or rebuild it from its signed token."""
+    def _load_action(self, action_id: str, action_token: Optional[str], missing_detail: str,
+                     owner_id: Optional[str] = None) -> Dict[str, Any]:
+        """Find a pending action in memory, or rebuild it from its signed token.
+        An action can only be confirmed/cancelled by the device that created it."""
+        record = self._lookup(action_id, action_token, missing_detail)
+        if owner_id is not None and record.get("user_id") not in (owner_id, None):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=missing_detail)
+        return record
+
+    def _lookup(self, action_id: str, action_token: Optional[str], missing_detail: str) -> Dict[str, Any]:
         record = _ACTION_STORE.get(action_id)
         if record:
             return record
@@ -153,8 +173,9 @@ class AssistantService:
             )
         return ActionStatusResponse(**record)
 
-    def confirm_action(self, action_id: str, action_token: Optional[str] = None) -> ActionStatusResponse:
-        record = self._load_action(action_id, action_token, "Təsdiqlənəcək əməliyyat tapılmadı.")
+    def confirm_action(self, action_id: str, action_token: Optional[str] = None,
+                       owner_id: Optional[str] = None) -> ActionStatusResponse:
+        record = self._load_action(action_id, action_token, "Təsdiqlənəcək əməliyyat tapılmadı.", owner_id)
 
         if record["status"] == "completed":
             return ActionStatusResponse(**record)  # idempotent: never create a reminder twice
@@ -202,6 +223,12 @@ class AssistantService:
             alias = action_data.get("contact_alias", "kontakt")
             action_data["authorized_execution"] = "OPEN_DIALER"
             record["response"] = f'"{alias}" üçün zəng təsdiqləndi. Nömrə yığıcı açılır.'
+        elif intent == "CREATE_MEDICATION":
+            med = CareService(self.db).add_medication(
+                user_id, action_data.get("title") or "Dərman", action_data.get("med_times") or []
+            )
+            action_data["medication_id"] = med.id
+            record["response"] = f"Hazırdır! “{med.name}” üçün hər gün saat {' və '.join(med.times.split(','))}-da xatırladacağam."
         elif intent in ORDER_INTENTS:
             order = action_data.get("order") or {}
             action_data["authorized_execution"] = "SIMULATED_ORDER"
@@ -223,8 +250,9 @@ class AssistantService:
         )
         return ActionStatusResponse(**record)
 
-    def cancel_action(self, action_id: str, action_token: Optional[str] = None) -> ActionStatusResponse:
-        record = self._load_action(action_id, action_token, "Ləğv ediləcək əməliyyat tapılmadı.")
+    def cancel_action(self, action_id: str, action_token: Optional[str] = None,
+                      owner_id: Optional[str] = None) -> ActionStatusResponse:
+        record = self._load_action(action_id, action_token, "Ləğv ediləcək əməliyyat tapılmadı.", owner_id)
         if record["status"] == "completed":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

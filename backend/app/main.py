@@ -1,3 +1,4 @@
+import asyncio
 import mimetypes
 import os
 import re
@@ -10,6 +11,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
+from app.core.config import settings
 from app.core.database import init_db
 
 # Single source of truth for the web app: <repo>/public (also served as-is by Vercel).
@@ -36,7 +38,16 @@ ROOT_FILES = {
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    stop = asyncio.Event()
+    task = None
+    if settings.SCHEDULER_ENABLED:
+        from app.services.scheduler import scheduler_loop
+
+        task = asyncio.create_task(scheduler_loop(stop))
     yield
+    stop.set()
+    if task:
+        await asyncio.wait([task], timeout=5)
 
 
 app = FastAPI(
@@ -69,6 +80,15 @@ async def web_app():
     if not index_path.exists():
         raise HTTPException(status_code=404, detail="public/index.html not found")
     return FileResponse(index_path, media_type="text/html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/f/{token}", include_in_schema=False)
+async def family_page(token: str):
+    """Private family view (the token in the URL is the credential; the page calls /api/v1/family/{token})."""
+    page = PUBLIC_DIR / "family.html"
+    if not page.exists():
+        raise HTTPException(status_code=404)
+    return FileResponse(page, media_type="text/html", headers={"Cache-Control": "no-cache", "Referrer-Policy": "no-referrer"})
 
 
 @app.get("/health")
