@@ -59,6 +59,18 @@ export function sendVoice(audioBlob, transcriptHint = "") {
   return request("/assistant/voice", { method: "POST", body: form, timeoutMs: 30000 });
 }
 
+// A short spoken reply ("hə", "yox", "birinci") → { transcript, answer: "yes" | "no" | "unclear" }
+export function sendShortAnswer(audioBlob, { question = "", hint = "" } = {}) {
+  const form = new FormData();
+  if (audioBlob) {
+    form.append("audio", audioBlob, "answer.wav");
+    form.append("mime_type", audioBlob.type || "audio/wav");
+  }
+  if (hint) form.append("transcript", hint.slice(0, 200));
+  if (question) form.append("question", question.slice(0, 300));
+  return request("/assistant/short-answer", { method: "POST", body: form, timeoutMs: 15000 });
+}
+
 export const confirmAction = (id, token) =>
   request(`/assistant/confirm/${encodeURIComponent(id)}`, { method: "POST", json: { action_token: token || null } });
 

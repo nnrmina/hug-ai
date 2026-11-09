@@ -2,7 +2,7 @@
 // answers, and executing confirmed actions on the device.
 import { cancelAction, confirmAction } from "../api.js";
 import { playClip, speak, stopSpeaking } from "../audio/tts.js";
-import { listenYesNo, webSpeechSupported } from "../audio/webspeech.js";
+import { canListenForAnswer, listenShortAnswer } from "../audio/shortanswer.js";
 import { findContact } from "../contacts.js";
 import { openReminders } from "../reminders/index.js";
 import { capabilities, recordTurn, settings } from "../store.js";
@@ -127,22 +127,23 @@ function askConfirmation(question) {
   // No "say Bəli" instruction: any natural answer ("hə", "olar", "yox") is understood, and the
   // pulsing mic shows that the assistant is listening.
   speak(question, getLang()).then((finished) => {
-    if (!finished || !pending || !webSpeechSupported) return;
-    listenForAnswer(indicator, 2);
+    if (!finished || !pending || !canListenForAnswer()) return;
+    listenForAnswer(indicator, 2, question);
   });
 }
 
 // Up to `tries` listening rounds: a quiet or unclear answer just reopens the mic.
-function listenForAnswer(indicator, tries) {
+// The reply goes to Gemini when available (works in the Android app and catches "hə").
+function listenForAnswer(indicator, tries, question) {
   if (!pending || !document.getElementById("screen-confirm").classList.contains("active")) return;
   indicator?.classList.add("listening");
-  yesNo = listenYesNo(getLang());
-  yesNo.promise.then((answer) => {
+  yesNo = listenShortAnswer({ question, lang: getLang() });
+  yesNo.promise.then(({ answer }) => {
     indicator?.classList.remove("listening");
     if (!pending || !document.getElementById("screen-confirm").classList.contains("active")) return;
     if (answer === "yes") return executeConfirmed();
     if (answer === "no") return cancelConfirmed();
-    if (tries > 1) listenForAnswer(indicator, tries - 1);
+    if (tries > 1) listenForAnswer(indicator, tries - 1, question);
   });
 }
 

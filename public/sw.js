@@ -12,6 +12,7 @@ const SHELL = [
   "/static/js/audio/tts.js",
   "/static/js/audio/recorder.js",
   "/static/js/audio/webspeech.js",
+  "/static/js/audio/shortanswer.js",
   "/static/js/ui/screens.js",
   "/static/js/ui/toast.js",
   "/static/js/ui/haptics.js",

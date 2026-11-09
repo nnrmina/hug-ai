@@ -124,12 +124,14 @@ function askSim(sims, ru, callId) {
 
     const listen = async (tries) => {
       if (done || callId !== activeCall) return finish(undefined);
-      const { recognizeOnce, webSpeechSupported } = await import("../audio/webspeech.js");
-      if (!webSpeechSupported) return; // buttons only
-      simListener = recognizeOnce({ lang: ru ? "ru-RU" : "az-AZ", alternatives: 5 });
-      const text = await simListener.promise.catch(() => "");
+      // Recorded and transcribed by Gemini when available: browser speech recognition
+      // does not work inside the Android app, which is the only place SIMs are listed
+      const { canListenForAnswer, listenShortAnswer } = await import("../audio/shortanswer.js");
+      if (!canListenForAnswer()) return; // buttons only
+      simListener = listenShortAnswer({ question, lang: ru ? "ru" : "az" });
+      const { transcript } = await simListener.promise;
       if (done) return;
-      const answer = parseSimAnswer(text, two);
+      const answer = parseSimAnswer(transcript, two);
       if (answer === "cancel") {
         finish(undefined);
         showScreen("screen-home");

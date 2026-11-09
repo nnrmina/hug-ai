@@ -92,6 +92,32 @@ def process_voice(
     )
 
 
+SHORT_ANSWER_MAX_BYTES = 512 * 1024  # a few seconds of 16 kHz WAV
+
+
+@router.post("/assistant/short-answer")
+def short_answer(
+    audio: Optional[UploadFile] = File(default=None),
+    mime_type: Optional[str] = Form(default=None),
+    transcript: Optional[str] = Form(default=None, max_length=200),
+    question: Optional[str] = Form(default=None, max_length=300),
+    uid: str = Depends(device_user_id),
+):
+    """A short spoken reply ("hə", "yox", "birinci"): transcript + yes/no/unclear.
+    Used by the confirm screen and the SIM choice; it never executes anything itself."""
+    from app.services.short_answer import understand_short_answer
+
+    audio_bytes = audio.file.read(SHORT_ANSWER_MAX_BYTES + 1) if audio is not None else b""
+    if len(audio_bytes) > SHORT_ANSWER_MAX_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Cavab çox uzundur.")
+    if not audio_bytes and not (transcript and transcript.strip()):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Audio fayl və ya səs transkripti təqdim edilməlidir.")
+    mime = (mime_type or (audio.content_type if audio else None) or "audio/wav").split(";")[0].strip().lower()
+    if audio_bytes and mime not in ALLOWED_AUDIO_TYPES:
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, f"Dəstəklənməyən audio formatı: {mime}")
+    return understand_short_answer(audio_bytes or None, mime, question=question, hint=transcript)
+
+
 @router.get("/assistant/status/{action_id}", response_model=ActionStatusResponse)
 def get_assistant_status(action_id: str, db: Session = Depends(get_db)):
     return AssistantService(db).get_action_status(action_id)
