@@ -11,10 +11,41 @@ import { announce, setText, showScreen } from "../ui/screens.js";
 import { toast } from "../ui/toast.js";
 import { startCall, openSmsComposer } from "./call.js";
 import { startOrderTracking, startTaxiTracking } from "./orders.js";
-import { startListening } from "./listen.js";
+import { processText, startListening } from "./listen.js";
+import { getLang, setLang, tr } from "../i18n.js";
 
 let pending = null; // { id, token, type, contact?, order?, message? }
 let yesNo = null;
+let queuedStep = null; // rest of a multi-step request ("..., sonra qızıma de ki ...")
+let queueTimer = null;
+
+export function clearQueuedStep() {
+  queuedStep = null;
+  clearTimeout(queueTimer);
+  document.getElementById("next-step-chip")?.setAttribute("hidden", "");
+}
+
+// Run the next step of a multi-step request (after the current one finished)
+export function runQueuedStep({ delay = 0 } = {}) {
+  if (!queuedStep) return false;
+  clearTimeout(queueTimer);
+  queueTimer = setTimeout(() => {
+    const text = queuedStep;
+    clearQueuedStep();
+    if (!text) return;
+    toast(`${tr("Növbəti addım")}: ${text}`);
+    processText(text, { badge: `⏭️ ${tr("Növbəti addım")}...` });
+  }, delay);
+  return true;
+}
+
+function showQueuedChip() {
+  const chip = document.getElementById("next-step-chip");
+  if (!chip) return;
+  if (!queuedStep) return chip.setAttribute("hidden", "");
+  chip.querySelector("span").textContent = queuedStep;
+  chip.removeAttribute("hidden");
+}
 
 export function stopConfirmListening() {
   yesNo?.stop();
@@ -41,64 +72,68 @@ function updateEngineBadge(engine) {
 }
 
 // Speak + show + announce
-function say(text) {
+export function say(text) {
   announce(text);
-  return speak(text);
+  return speak(text, getLang());
 }
 
 export function showReply({ title, text, heard = "", icon = "✦", tone = "", listenAfter = false }) {
   stopConfirmListening();
-  setText("reply-title", title);
+  const ru = getLang() === "ru";
+  setText("reply-title", tr(title));
   setText("reply-text", text);
-  setText("reply-heard", heard ? `Siz: “${heard}”` : "");
+  setText("reply-heard", heard ? `${ru ? "Вы" : "Siz"}: “${heard}”` : "");
   const talk = document.getElementById("btn-reply-talk");
-  if (talk) talk.lastChild.textContent = listenAfter ? " Cavab verin" : " Yenidən danışın";
+  if (talk) talk.lastChild.textContent = tr(listenAfter ? " Cavab verin" : " Yenidən danışın");
   const iconEl = setText("reply-icon", icon);
   if (iconEl) iconEl.className = `reply-icon${tone ? ` ${tone}` : ""}`;
   showScreen("screen-reply");
   say(text).then((finished) => {
+    const stillHere = document.getElementById("screen-reply").classList.contains("active");
     // Conversational follow-up: after asking a question, open the mic automatically
-    if (listenAfter && finished && document.getElementById("screen-reply").classList.contains("active")) {
-      startListening();
-    }
+    if (listenAfter && finished && stillHere) return startListening();
+    if (finished && stillHere) runQueuedStep({ delay: 600 });
   });
 }
 
 function fillConfirm({ badge, title, primary, secondary, yesLabel, demo = false }) {
   setText("confirm-avatar-badge", badge);
-  setText("confirm-question-title", title);
+  setText("confirm-question-title", tr(title));
   setText("confirm-details-primary", primary);
   setText("confirm-details-secondary", secondary);
-  setText("btn-confirm-yes", yesLabel);
+  setText("btn-confirm-yes", tr(yesLabel));
+  setText("btn-confirm-cancel", tr("Xeyr, ləğv et"));
   document.getElementById("confirm-demo-badge")?.toggleAttribute("hidden", !demo);
 }
 
 function askConfirmation(question) {
+  const head = document.querySelector("#screen-confirm .center-screen-title");
+  if (head) head.textContent = tr("Təsdiqləyin");
   showScreen("screen-confirm");
   haptic("tap");
   const label = document.getElementById("confirm-voice-label");
   const indicator = document.getElementById("confirm-voice-indicator");
-  if (label) label.textContent = "“Bəli” və ya “Xeyr” deyin...";
+  if (label) label.textContent = tr("“Bəli” və ya “Xeyr” deyin...");
   indicator?.classList.remove("listening");
 
   announce(question);
   // Listen only AFTER the question finished, so the assistant can't hear itself say "Bəli"
-  speak(`${question} Bəli və ya xeyr deyin.`).then((finished) => {
+  speak(`${question} ${tr("Bəli və ya xeyr deyin.")}`, getLang()).then((finished) => {
     if (!finished || !pending || !webSpeechSupported) return;
     if (!document.getElementById("screen-confirm").classList.contains("active")) return;
-    if (label) label.textContent = "🎙️ Eşidirəm... “Bəli” deyin";
+    if (label) label.textContent = tr("🎙️ Eşidirəm... “Bəli” deyin");
     indicator?.classList.add("listening");
-    yesNo = listenYesNo();
+    yesNo = listenYesNo(getLang());
     yesNo.promise.then((answer) => {
       indicator?.classList.remove("listening");
       if (!pending) return;
       if (answer === "yes") {
-        if (label) label.textContent = "✓ Səslə təsdiqləndi";
+        if (label) label.textContent = tr("✓ Səslə təsdiqləndi");
         executeConfirmed();
       } else if (answer === "no") {
         cancelConfirmed();
       } else if (label) {
-        label.textContent = "Düyməyə toxunun və ya mikrofona “Bəli” deyin";
+        label.textContent = tr("Düyməyə toxunun və ya mikrofona “Bəli” deyin");
       }
     });
   });
@@ -107,7 +142,12 @@ function askConfirmation(question) {
 export function handleResponse(data, heardText) {
   recordTurn(heardText, data);
   updateEngineBadge(data.engine || capabilities.engine);
+  setLang(data.lang);
   pending = null;
+  clearQueuedStep();
+  if (data.next_step && (data.status === "completed" || data.status === "needs_confirmation")) {
+    queuedStep = data.next_step;
+  }
 
   const intent = data.intent;
   const action = data.action_data || {};
@@ -122,22 +162,29 @@ export function handleResponse(data, heardText) {
       const contact = candidates.map(findContact).find(Boolean);
       if (!contact) {
         cancelAction(base.id, base.token).catch(() => {});
+        clearQueuedStep();
+        const who = action.contact_alias || (getLang() === "ru" ? "Этот человек" : "Bu şəxs");
         return showReply({
           title: "Kontakt tapılmadı",
-          text: `“${action.contact_alias || "Bu şəxs"}” adlı kontakt telefonunuzda yoxdur. Kimə zəng edim?`,
+          text: getLang() === "ru"
+            ? `Контакта «${who}» нет в Вашем телефоне. Кому позвонить?`
+            : `“${who}” adlı kontakt telefonunuzda yoxdur. Kimə zəng edim?`,
           heard, icon: "?", tone: "muted", listenAfter: true
         });
       }
       const isCall = intent === "MAKE_CALL";
       pending = { ...base, type: isCall ? "CALL" : "MESSAGE", contact, message: action.message_text || "" };
-      const question = isCall
-        ? `${contact.relation_title} zəng edilsin?`
-        : `${contact.relation_title} mesaj göndərilsin?`;
+      const ru = getLang() === "ru";
+      const question = ru
+        ? `${isCall ? "Позвонить" : "Отправить сообщение"}: ${contact.display_name}?`
+        : isCall
+          ? `${contact.relation_title} zəng edilsin?`
+          : `${contact.relation_title} mesaj göndərilsin?`;
       fillConfirm({
         badge: contact.initial,
         title: question,
         primary: contact.display_name,
-        secondary: isCall ? `Mobil · ${contact.phone_number}` : `“${action.message_text || heard}”`,
+        secondary: isCall ? `${getLang() === "ru" ? "Мобильный" : "Mobil"} · ${contact.phone_number}` : `“${action.message_text || heard}”`,
         yesLabel: isCall ? "Bəli, zəng et" : "Bəli, göndər"
       });
       return askConfirmation(question);
@@ -161,7 +208,7 @@ export function handleResponse(data, heardText) {
         badge: "💊",
         title: "Hər gün xatırladım?",
         primary: action.title || "Dərman",
-        secondary: `Hər gün: ${(action.med_times || []).join(", ")}`,
+        secondary: `${getLang() === "ru" ? "Каждый день" : "Hər gün"}: ${(action.med_times || []).join(", ")}`,
         yesLabel: "Bəli, xatırlat"
       });
       return askConfirmation(data.response);
@@ -173,9 +220,9 @@ export function handleResponse(data, heardText) {
       const taxi = intent === "ORDER_TAXI";
       fillConfirm({
         badge: order.emoji || "🛍️",
-        title: taxi ? "Taksi çağırılsın?" : `${order.vendor} sifarişi təsdiqlənsin?`,
+        title: taxi ? "Taksi çağırılsın?" : getLang() === "ru" ? `Заказать в ${order.vendor}?` : `${order.vendor} sifarişi təsdiqlənsin?`,
         primary: order.item || "",
-        secondary: `Cəmi ${order.price || ""} · ${order.vendor || "Wolt"}`,
+        secondary: `${getLang() === "ru" ? "Итого" : "Cəmi"} ${order.price || ""} · ${order.vendor || "Wolt"}`,
         yesLabel: taxi ? "Bəli, taksi çağır" : "Bəli, sifariş et",
         demo: true
       });
@@ -188,7 +235,24 @@ export function handleResponse(data, heardText) {
   }
 
   if (intent === "EMERGENCY") {
+    clearQueuedStep();
     return import("../care/care.js").then((m) => m.startSos({ reason: heard }));
+  }
+  if (intent === "WEATHER" && data.status === "completed") {
+    const w = action.weather || {};
+    const c = w.code ?? -1;
+    const icon = c === 0 ? "☀️" : c <= 3 ? "⛅" : c <= 48 ? "🌫️" : c >= 95 ? "⛈️" : c >= 71 && c <= 86 && !(c >= 80 && c <= 82) ? "❄️" : c >= 51 ? "🌧️" : "🌤️";
+    return showReply({ title: "Hava proqnozu", text: data.response, heard, icon });
+  }
+  if (intent === "FIND_PLACE" && data.status === "completed") {
+    return import("./places.js").then((m) => m.openPlaces(action.place_type || "pharmacy"));
+  }
+  if ((intent === "LOG_HEALTH" || intent === "HEALTH_QUERY") && data.status === "completed") {
+    import("../care/care.js").then((m) => m.refreshCare());
+    const level = action.reading?.level || "normal";
+    haptic(level === "normal" ? "success" : "warning");
+    return showReply({ title: "Sağlamlıq", text: data.response, heard, icon: "❤️",
+                       tone: level === "critical" ? "risk-high" : level === "normal" ? "" : "risk-medium" });
   }
   if (intent === "MEDICATION_TAKEN" || intent === "CHECKIN") {
     import("../care/care.js").then((m) => m.refreshCare());
@@ -242,43 +306,56 @@ export async function executeConfirmed() {
     return showReply({ title: "Xəta baş verdi", text: "Əməliyyat təsdiqlənmədi. Bir az sonra yenidən cəhd edin.", icon: "!", tone: "muted" });
   }
 
+  // Leaving the app (call / SMS) comes last: if more steps are queued, offer them as a chip
+  const next = () => runQueuedStep({ delay: 900 });
   switch (action.type) {
     case "CALL":
+      showQueuedChip();
       return startCall(action.contact);
     case "MESSAGE":
+      if (queuedStep) {
+        // Opening the SMS app would interrupt the chain: run the next step, keep the SMS for the done screen
+        setText("done-message-subtext", `“${action.message}” — ${action.contact.short_name}`);
+        showScreen("screen-done");
+        return say(result.response).then(next);
+      }
       return openSmsComposer(action.contact, action.message, result.response);
     case "ORDER_FOOD":
     case "ORDER_PHARMACY":
-      return startOrderTracking(action.order, result.response);
+      return startOrderTracking(action.order, result.response).then(next);
     case "ORDER_TAXI":
-      return startTaxiTracking(action.order, result.response);
+      return startTaxiTracking(action.order, result.response).then(next);
     case "MEDICATION": {
       const care = await import("../care/care.js");
       await care.refreshCare();
       setText("done-message-subtext", result.response);
       showScreen("screen-done");
-      say(result.response);
+      say(result.response).then(next);
       care.ensureNotifications();
       return;
     }
     case "REMINDER":
-      return openReminders({ spoken: result.response, highlightId: result.action_data?.reminder_id, askAlerts: true });
+      return openReminders({ spoken: result.response, highlightId: result.action_data?.reminder_id,
+                             askAlerts: !queuedStep, onSpoken: next });
     default:
       setText("done-message-subtext", result.response);
       showScreen("screen-done");
-      say(result.response);
+      say(result.response).then(next);
   }
 }
 
 export function cancelConfirmed() {
   stopConfirmListening();
   cancelPendingAction();
+  clearQueuedStep();
   haptic("tap");
   showScreen("screen-home");
-  playClip("action_cancel", "Əməliyyat ləğv edildi.");
-  toast("Əməliyyat ləğv edildi");
+  if (getLang() === "ru") speak("Действие отменено.", "ru");
+  else playClip("action_cancel", "Əməliyyat ləğv edildi.");
+  toast(getLang() === "ru" ? "Отменено" : "Əməliyyat ləğv edildi");
 }
 
+const RU_MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
 const AZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avqust", "sentyabr", "oktyabr", "noyabr", "dekabr"];
 
 export function bakuParts(iso) {
@@ -293,5 +370,5 @@ export function bakuParts(iso) {
 export function formatWhen(iso) {
   const p = bakuParts(iso);
   if (!p) return iso || "";
-  return `${p.d} ${AZ_MONTHS[p.m]} · ${String(p.hh).padStart(2, "0")}:${String(p.mm).padStart(2, "0")}`;
+  return `${p.d} ${(getLang() === "ru" ? RU_MONTHS : AZ_MONTHS)[p.m]} · ${String(p.hh).padStart(2, "0")}:${String(p.mm).padStart(2, "0")}`;
 }

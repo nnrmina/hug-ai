@@ -1,13 +1,14 @@
 // Care features on the elder's phone: SOS, medicines, daily check-in, family circle,
 // first-run setup and push subscription.
 import {
-  addFamily, addMedication, careState, doseSnooze, doseTaken, removeFamily, removeMedication,
+  addFamily, addHealth, addMedication, removeHealth, careState, doseSnooze, doseTaken, removeFamily, removeMedication,
   saveProfile, sendCheckin, sendSos, subscribeElderPush
 } from "../api.js";
 import { playClip, speak, stopSpeaking } from "../audio/tts.js";
 import { RELATION_OPTIONS, getFamily, setFamily, telHref } from "../contacts.js";
 import { ensurePushSubscription, pushSupported } from "../push.js";
 import { directCall, isNativeApp, nativeNotificationsReady, onNativeAlarmTap, scheduleMedicineAlarms } from "../native.js";
+import { getLocation } from "../location.js";
 import { haptic } from "../ui/haptics.js";
 import { announce, setText, showScreen } from "../ui/screens.js";
 import { toast } from "../ui/toast.js";
@@ -98,17 +99,6 @@ export function armSosButton() {
   ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => btn.addEventListener(ev, end));
   btn.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") startSos({ reason: "SOS düyməsi" }); });
   document.getElementById("btn-sos-cancel")?.addEventListener("click", cancelSos);
-}
-
-function getLocation() {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve(null);
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude, accuracy: p.coords.accuracy }),
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
-    );
-  });
 }
 
 export function startSos({ reason = "" } = {}) {
@@ -234,6 +224,7 @@ export function openMeds() {
 }
 
 function renderMeds() {
+  renderHealth();
   const doses = document.getElementById("doses-list");
   const meds = document.getElementById("meds-list");
   if (!doses || !meds || !state) return;
@@ -279,6 +270,73 @@ function renderMeds() {
     row.append(del);
     meds.append(row);
   }
+}
+
+const HEALTH_LABEL = { bp: "Təzyiq", sugar: "Şəkər", pulse: "Nəbz", temp: "Hərarət", weight: "Çəki" };
+const HEALTH_LEVEL = { normal: "Normal", high: "Yüksək", low: "Aşağı", critical: "Diqqət!" };
+
+function bakuStamp(iso) {
+  const d = new Date(new Date(iso).getTime() + 4 * 3600 * 1000);
+  const t = `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+  const today = new Date(Date.now() + 4 * 3600 * 1000).toISOString().slice(0, 10);
+  return d.toISOString().slice(0, 10) === today ? `bu gün ${t}` : `${d.getUTCDate()}.${String(d.getUTCMonth() + 1).padStart(2, "0")} · ${t}`;
+}
+
+function renderHealth() {
+  const list = document.getElementById("health-list");
+  if (!list || !state) return;
+  list.innerHTML = "";
+  const items = (state.health || []).slice(0, 5);
+  if (!items.length) list.innerHTML = '<p class="reminders-empty">Hələ ölçmə qeyd edilməyib.</p>';
+  for (const h of items) {
+    const row = document.createElement("div");
+    row.className = `reminder-item-card samsung-card health-row ${h.level}`;
+    row.innerHTML = `<div class="reminder-info"><h4></h4><p></p><span class="time-badge"></span></div>`;
+    row.querySelector("h4").textContent = `${HEALTH_LABEL[h.kind] || h.kind}: ${h.text}`;
+    row.querySelector("p").textContent = bakuStamp(h.at);
+    row.querySelector(".time-badge").textContent = HEALTH_LEVEL[h.level] || h.level;
+    const del = document.createElement("button");
+    del.className = "reminder-action-btn delete";
+    del.setAttribute("aria-label", `${HEALTH_LABEL[h.kind]} ${h.text} — sil`);
+    del.textContent = "✕";
+    del.addEventListener("click", async () => {
+      await removeHealth(h.id).catch(() => {});
+      await refreshCare();
+      renderMeds();
+    });
+    row.append(del);
+    list.append(row);
+  }
+}
+
+function syncHealthForm() {
+  const kind = document.getElementById("health-kind")?.value;
+  const wrap = document.getElementById("health-value2-wrap");
+  const v1 = document.getElementById("health-value");
+  if (!wrap || !v1) return;
+  wrap.hidden = kind !== "bp";
+  document.getElementById("health-value2").required = kind === "bp";
+  v1.previousSibling.textContent = kind === "bp" ? "Yuxarı" : "Göstərici";
+  v1.placeholder = { bp: "130", sugar: "6.5", pulse: "72", temp: "36.6", weight: "70" }[kind] || "";
+}
+
+async function onHealthSubmit(e) {
+  e.preventDefault();
+  const kind = document.getElementById("health-kind").value;
+  const value = parseFloat(document.getElementById("health-value").value.replace(",", "."));
+  const v2raw = document.getElementById("health-value2").value;
+  const body = { kind, value, ...(kind === "bp" ? { value2: parseFloat(v2raw) } : {}) };
+  try {
+    const saved = await addHealth(body);
+    e.target.reset();
+    syncHealthForm();
+    toast("Qeyd edildi ✓", { type: "success" });
+    if (saved?.reply) say(saved.reply);
+  } catch (err) {
+    toast(err.message || "Qeyd edilmədi", { type: "error" });
+  }
+  await refreshCare();
+  renderMeds();
 }
 
 async function onMedSubmit(e) {
@@ -496,6 +554,9 @@ export function initCare() {
   document.getElementById("btn-dose-snooze")?.addEventListener("click", snoozeCurrent);
   document.querySelectorAll(".mood-btn").forEach((b) => b.addEventListener("click", () => answerCheckin(b.dataset.mood)));
   document.getElementById("med-form")?.addEventListener("submit", onMedSubmit);
+  document.getElementById("health-form")?.addEventListener("submit", onHealthSubmit);
+  document.getElementById("health-kind")?.addEventListener("change", syncHealthForm);
+  syncHealthForm();
   document.getElementById("family-form")?.addEventListener("submit", onFamilySubmit);
   fillRelationSelect(document.getElementById("fam-relation"));
   document.getElementById("onb-form")?.addEventListener("submit", onOnboardSubmit);

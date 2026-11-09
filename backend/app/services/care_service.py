@@ -13,7 +13,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.logging import logger
-from app.models.care import CareEvent, CheckIn, DoseEvent, ElderProfile, FamilyMember, Medication
+from app.models.care import (CareEvent, CheckIn, DoseEvent, ElderProfile, FamilyMember, HealthReading,
+                              Medication)
 from app.models.reminder import Reminder
 from app.repositories.user_repository import UserRepository
 from app.services.push_service import push_to_elder, push_to_family
@@ -22,6 +23,60 @@ from app.utils.datetime_utils import BAKU_TZ
 UTC = timezone.utc
 TIME_RE = re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)$")
 MOOD_AZ = {"good": "yaxşı", "ok": "orta", "bad": "pis"}
+
+HEALTH_KINDS = ("bp", "sugar", "pulse", "temp", "weight")
+HEALTH_RANGES = {  # (min, max) accepted values
+    "bp": (50, 300), "sugar": (1, 40), "pulse": (25, 250), "temp": (33, 43), "weight": (20, 300),
+}
+HEALTH_LABEL = {
+    "az": {"bp": "Təzyiq", "sugar": "Şəkər", "pulse": "Nəbz", "temp": "Hərarət", "weight": "Çəki"},
+    "ru": {"bp": "Давление", "sugar": "Сахар", "pulse": "Пульс", "temp": "Температура", "weight": "Вес"},
+}
+
+
+def _num(v: Optional[float]) -> str:
+    if v is None:
+        return ""
+    return str(int(v)) if float(v).is_integer() else f"{v:.1f}".replace(".", ",")
+
+
+def health_value_text(kind: str, value: float, value2: Optional[float] = None) -> str:
+    if kind == "bp":
+        return f"{_num(value)}/{_num(value2)}"
+    unit = {"sugar": " mmol/L", "pulse": "", "temp": "°", "weight": " kq"}.get(kind, "")
+    return f"{_num(value)}{unit}"
+
+
+def classify_health(kind: str, value: float, value2: Optional[float] = None) -> str:
+    """Rough safety flags only (no diagnosis): normal | high | low | critical."""
+    if kind == "bp":
+        d = value2 or 0
+        if value >= 180 or d >= 110 or value < 80:
+            return "critical"
+        if value >= 140 or d >= 90:
+            return "high"
+        if value <= 90 or (d and d <= 60):
+            return "low"
+    elif kind == "sugar":
+        if value > 13.9 or value < 3.0:
+            return "critical"
+        if value > 10:
+            return "high"
+        if value < 3.9:
+            return "low"
+    elif kind == "temp":
+        if value >= 39.5 or value < 35:
+            return "critical"
+        if value >= 37.5:
+            return "high"
+    elif kind == "pulse":
+        if value > 130 or value < 40:
+            return "critical"
+        if value > 100:
+            return "high"
+        if value < 50:
+            return "low"
+    return "normal"
 
 
 # ---------------------------------------------------------------- time helpers
@@ -265,6 +320,91 @@ class CareService:
             })
         return row
 
+    # ---- health log ------------------------------------------------------
+    def add_reading(self, user_id: str, kind: str, value: float, value2: Optional[float] = None) -> HealthReading:
+        if kind not in HEALTH_KINDS:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "kind: bp | sugar | pulse | temp | weight")
+        lo, hi = HEALTH_RANGES[kind]
+        if not (lo <= value <= hi) or (kind == "bp" and (value2 is None or not 20 <= value2 <= 200)):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Göstərici real görünmür.")
+        if kind == "bp" and value2 > value:
+            value, value2 = value2, value
+        self.profile(user_id)
+        level = classify_health(kind, value, value2)
+        row = HealthReading(user_id=user_id, kind=kind, value=value, value2=value2 if kind == "bp" else None,
+                            level=level)
+        self.db.add(row)
+        self.db.commit()
+        if level == "critical":
+            name = self.elder_name(user_id)
+            label = f"{HEALTH_LABEL['az'][kind]} {health_value_text(kind, value, value2)}"
+            self.db.add(CareEvent(user_id=user_id, kind="health", message=f"Çox {'aşağı' if self._is_low(kind, value) else 'yüksək'} göstərici: {label}",
+                                  ref=row.id))
+            self.db.commit()
+            push_to_family(self.db, user_id, {
+                "title": f"⚠️ {name}: {label}",
+                "body": "Bu göstərici normadan çox fərqlənir. Zəng edib halını soruşun.",
+                "tag": f"health-{row.id}", "url": "/f/", "requireInteraction": True,
+            })
+        return row
+
+    @staticmethod
+    def _is_low(kind: str, value: float) -> bool:
+        return (kind == "bp" and value < 80) or (kind == "sugar" and value < 3.9) or \
+               (kind == "temp" and value < 35) or (kind == "pulse" and value < 50)
+
+    def readings(self, user_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+        rows = (self.db.query(HealthReading).filter(HealthReading.user_id == user_id)
+                .order_by(HealthReading.created_at.desc()).limit(limit).all())
+        return [{"id": r.id, "kind": r.kind, "value": r.value, "value2": r.value2, "level": r.level,
+                 "text": health_value_text(r.kind, r.value, r.value2),
+                 "at": _from_db(r.created_at).isoformat()} for r in rows]
+
+    def delete_reading(self, user_id: str, reading_id: str) -> None:
+        row = self.db.get(HealthReading, reading_id)
+        if not row or row.user_id != user_id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Qeyd tapılmadı.")
+        self.db.delete(row)
+        self.db.commit()
+
+    @staticmethod
+    def reading_reply(row: HealthReading, lang: str = "az") -> str:
+        lang = "ru" if lang == "ru" else "az"
+        label = HEALTH_LABEL[lang][row.kind]
+        val = health_value_text(row.kind, row.value, row.value2)
+        low = CareService._is_low(row.kind, row.value)
+        if lang == "ru":
+            tail = {
+                "normal": "Показатель в норме.",
+                "high": "Это немного выше нормы. Расскажите об этом своему врачу.",
+                "low": "Это немного ниже нормы. Расскажите об этом своему врачу.",
+                "critical": ("Это очень " + ("низкий" if low else "высокий") + " показатель. Я сообщила семье. "
+                             "Если Вам плохо — нажмите кнопку SOS."),
+            }[row.level]
+            return f"Записала: {label.lower()} {val}. {tail}"
+        tail = {
+            "normal": "Göstərici normaldır.",
+            "high": "Bu bir az yüksəkdir. Həkiminizə deyin.",
+            "low": "Bu bir az aşağıdır. Həkiminizə deyin.",
+            "critical": ("Bu çox " + ("aşağı" if low else "yüksək") + " göstəricidir. Ailənizə xəbər verdim. "
+                         "Özünüzü pis hiss etsəniz, SOS düyməsini basın."),
+        }[row.level]
+        return f"Qeyd etdim: {label.lower()} {val}. {tail}"
+
+    def health_summary(self, user_id: str, lang: str = "az") -> str:
+        items = self.readings(user_id, 20)
+        if not items:
+            return ("Пока нет записанных показателей. Скажите, например: «давление 130 на 80»." if lang == "ru"
+                    else "Hələ qeyd olunmuş göstərici yoxdur. Məsələn deyin: “təzyiqim 130-a 80”.")
+        latest: Dict[str, Dict[str, Any]] = {}
+        for it in items:
+            latest.setdefault(it["kind"], it)
+        labels = HEALTH_LABEL["ru" if lang == "ru" else "az"]
+        parts = [f"{labels[k].lower()} {v['text']}" for k, v in list(latest.items())[:3]]
+        if lang == "ru":
+            return "Последние показатели: " + ", ".join(parts) + "."
+        return "Son göstəriciləriniz: " + ", ".join(parts) + "."
+
     # ---- SOS -----------------------------------------------------------
     def sos(self, user_id: str, lat: Optional[float], lon: Optional[float],
             accuracy: Optional[float] = None, reason: str = "") -> Tuple[CareEvent, int]:
@@ -312,6 +452,7 @@ class CareService:
                            "scheduled_at": r.scheduled_at.replace(tzinfo=BAKU_TZ).isoformat()
                            if r.scheduled_at.tzinfo is None else r.scheduled_at.isoformat()} for r in reminders],
             "events": self.events(uid),
+            "health": self.readings(uid, 8),
         }
 
     # ---- scheduler tick --------------------------------------------------

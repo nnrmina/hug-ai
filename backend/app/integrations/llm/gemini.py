@@ -55,6 +55,10 @@ IntentName = Literal[
     "CREATE_MEDICATION",
     "MEDICATION_TAKEN",
     "CHECKIN",
+    "WEATHER",
+    "FIND_PLACE",
+    "LOG_HEALTH",
+    "HEALTH_QUERY",
     "GENERAL_QUESTION",
     "UNKNOWN",
 ]
@@ -84,12 +88,20 @@ class Understanding(BaseModel):
     security: Optional[SecurityAssessment] = None
     med_times: List[str] = Field(default_factory=list, description="HH:MM (24h) daily times for CREATE_MEDICATION")
     mood: Optional[Literal["good", "ok", "bad"]] = None
+    language: Literal["az", "ru"] = "az"
+    weather_day: Optional[Literal["today", "tomorrow"]] = None
+    place_type: Optional[Literal["pharmacy", "hospital"]] = None
+    health_kind: Optional[Literal["bp", "sugar", "pulse", "temp", "weight"]] = None
+    health_value: Optional[float] = None
+    health_value2: Optional[float] = None
+    next_step: Optional[str] = Field(default=None, description="The rest of a multi-step request as one standalone command")
 
 
 SYSTEM_PROMPT = """You are HUG, a warm, patient voice assistant for elderly people in Azerbaijan.
-Every user-facing string you write (answer, clarification_question, title, security texts) MUST be
-natural, polite Azerbaijani (Latin script), short and easy to understand when spoken aloud.
-Always address the user respectfully with the formal "siz" form (never "sən"): "olsanız", "dincəlin".
+language: "ru" if the user speaks Russian, otherwise "az". Every user-facing string you write
+(answer, clarification_question, title, next_step, security texts) MUST be in that language:
+natural polite Azerbaijani (Latin script) or Russian, short and easy to understand when spoken aloud.
+Always address the user respectfully: the formal "siz" form in Azerbaijani (never "sən"), "Вы" in Russian.
 
 For each turn return ONE JSON object matching the schema.
 
@@ -117,11 +129,22 @@ intent — pick exactly one:
 - CHECKIN: the user tells how they feel today without asking for anything ("özümü yaxşı hiss edirəm",
   "bu gün halım yoxdur", "başım bir az ağrıyır"): mood good | ok | bad, and answer with one short
   warm sentence in `answer`. Severe symptoms are EMERGENCY instead.
+- WEATHER: weather questions ("bu gün hava necədir", "sabah yağış yağacaq?", "какая погода"):
+  weather_day today | tomorrow. Do not answer it yourself — live data is fetched for you.
+- FIND_PLACE: where is the nearest pharmacy / hospital ("ən yaxın aptek hardadır",
+  "yaxınlıqda xəstəxana", "где ближайшая аптека"): place_type pharmacy | hospital (poliklinika = hospital).
+  Ordering medicine from a pharmacy is ORDER_PHARMACY instead.
+- LOG_HEALTH: the user reports a measurement: blood pressure "təzyiqim 140-a 90" (health_kind bp,
+  health_value 140 = systolic, health_value2 90 = diastolic), sugar "şəkərim 7.5" (sugar, mmol/L),
+  pulse "nəbzim 80" (pulse), temperature "qızdırmam 38" (temp), weight "çəkim 72 kilo" (weight).
+- HEALTH_QUERY: the user asks about their own recent measurements ("son təzyiqlərim necədir").
 - GENERAL_QUESTION: greetings, small talk, questions about you or general knowledge.
 - UNKNOWN: anything else, or when you genuinely cannot tell.
 
 Slots:
-- contact_alias: the person exactly as named, in nominative form without the dative suffix
+- contact_alias: ALWAYS an Azerbaijani word even when the user speaks Russian
+  ("дочке/дочери" -> "qızım", "сыну" -> "oğlum", "маме" -> "ana", "внуку" -> "nəvəm", "Алмаз" -> "Almaz").
+  The person exactly as named, in nominative form without the dative suffix
   ("qızıma" -> "qızım", "Almaz xalaya" -> "Almaz xala", "mamama" -> "mama"). Never invent phone
   numbers. Elderly users mostly name relatives; when the audio is unclear prefer the closest
   common word: mama, ana, ata, baba, nənə, qızım, oğlum, bacım, qardaşım, nəvəm, gəlinim,
@@ -139,11 +162,15 @@ Slots:
   card/PIN/OTP, suspicious links, impersonation of banks or officials, prizes). Explain in
   1-2 sentences and give one clear recommendation.
 - answer (GENERAL_QUESTION only): at most 2 short sentences. You have NO internet or live data:
-  for weather, news, prices or exchange rates, say kindly that you cannot see live information.
+  for news, prices or exchange rates, say kindly that you cannot see live information.
   Never give medical diagnoses or dosing advice, nor financial/investment advice.
 - blocked_action: BANK_TRANSFER for any request to send/transfer money or pay from a card;
   MEDICAL_DECISION for requests to change, stop or choose medication or treatment. Use intent
   UNKNOWN in those cases.
+
+Multi-step requests ("tantuni sifariş et, sonra qızıma de ki yemək gəlir", "...və sonra..."):
+put ONLY the first action in intent/slots, and the remaining request rephrased as one standalone
+command in next_step (e.g. "Qızıma mesaj göndər ki yemək gəlir"). Otherwise next_step is null.
 
 Use the previous turns to resolve follow-ups: if the assistant just asked a question (e.g. "Nə vaxt
 xatırladım?") the user's reply fills that slot of the SAME intent, keeping earlier details."""
@@ -264,7 +291,10 @@ class GeminiLLMAdapter(BaseLLMAdapter):
             "requires_confirmation": u.intent in CONFIRM_INTENTS,
             "transcript": transcript,
             "engine": "gemini",
+            "lang": u.language if u.language in ("az", "ru") else "az",
         }
+        if u.next_step and u.next_step.strip() and u.intent not in ("EMERGENCY", "UNKNOWN"):
+            out["next_step"] = u.next_step.strip()[:300]
         if u.missing_slots:
             out["missing_slots"] = list(u.missing_slots)
 
@@ -341,6 +371,23 @@ class GeminiLLMAdapter(BaseLLMAdapter):
             out["mood"] = u.mood or "ok"
             if u.answer:
                 out["answer"] = _cap(u.answer)
+
+        elif u.intent == "WEATHER":
+            out["weather_day"] = u.weather_day or "today"
+
+        elif u.intent == "FIND_PLACE":
+            out["place_type"] = u.place_type or "pharmacy"
+
+        elif u.intent == "LOG_HEALTH":
+            if u.health_kind and u.health_value is not None:
+                out["health_kind"] = u.health_kind
+                out["health_value"] = float(u.health_value)
+                if u.health_value2 is not None:
+                    out["health_value2"] = float(u.health_value2)
+            else:
+                out["clarification_question"] = u.clarification_question or (
+                    "Хорошо, какие показатели?" if u.language == "ru" else "Yaxşı, göstərici neçədir?")
+                out["missing_slots"] = ["health_value"]
 
         elif u.intent == "UNKNOWN" and u.clarification_question:
             out["clarification_question"] = _cap(u.clarification_question)

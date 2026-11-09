@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 VOICE = "az-AZ-BanuNeural"
+VOICES = {"az": VOICE, "ru": "ru-RU-SvetlanaNeural"}
 MAX_TEXT_LENGTH = 600
 
 
@@ -37,13 +38,13 @@ async def synthesize_mp3(text: str, voice: str = VOICE) -> Optional[Path]:
         return path
 
     tmp_path = path.with_suffix(".part")
-    try:
-        await edge_tts.Communicate(text, voice).save(str(tmp_path))
-        if tmp_path.stat().st_size == 0:
-            tmp_path.unlink(missing_ok=True)
-            return None
-        tmp_path.replace(path)
-        return path
-    except Exception:
+    for _attempt in range(2):  # the edge service occasionally drops a request: retry once
+        try:
+            await edge_tts.Communicate(text, voice).save(str(tmp_path))
+            if tmp_path.stat().st_size > 0:
+                tmp_path.replace(path)
+                return path
+        except Exception:
+            pass
         tmp_path.unlink(missing_ok=True)
-        return None
+    return None

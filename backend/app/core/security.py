@@ -54,6 +54,10 @@ ACTION_RISK_POLICY: Dict[str, Dict[str, Any]] = {
     "CREATE_MEDICATION": {"risk_level": "low_medium", "requires_confirmation": True, "allowed_in_mvp": True},
     "MEDICATION_TAKEN": {"risk_level": "low", "requires_confirmation": False, "allowed_in_mvp": True},
     "CHECKIN": {"risk_level": "low", "requires_confirmation": False, "allowed_in_mvp": True},
+    "WEATHER": {"risk_level": "low", "requires_confirmation": False, "allowed_in_mvp": True},
+    "FIND_PLACE": {"risk_level": "low", "requires_confirmation": False, "allowed_in_mvp": True},
+    "LOG_HEALTH": {"risk_level": "low", "requires_confirmation": False, "allowed_in_mvp": True},
+    "HEALTH_QUERY": {"risk_level": "low", "requires_confirmation": False, "allowed_in_mvp": True},
     "BANK_TRANSFER": {
         "risk_level": "high",
         "requires_confirmation": True,

@@ -2,7 +2,7 @@
 // Voice / typed command → FastAPI agent (Gemini or rules) → confirmation → on-device action.
 import { getCapabilities } from "./api.js";
 import { stopSpeaking, unlockAudio } from "./audio/tts.js";
-import { cancelConfirmed, cancelPendingAction, executeConfirmed, stopConfirmListening } from "./flows/assistant.js";
+import { cancelConfirmed, cancelPendingAction, clearQueuedStep, executeConfirmed, runQueuedStep, stopConfirmListening } from "./flows/assistant.js";
 import { endCall, stopCallTimer } from "./flows/call.js";
 import { cancelListening, finishListening, processText, startListening } from "./flows/listen.js";
 import { finishOrder, stopOrderTimers } from "./flows/orders.js";
@@ -18,6 +18,7 @@ import { toast } from "./ui/toast.js";
 const on = (id, event, fn) => document.getElementById(id)?.addEventListener(event, fn);
 
 function goHome() {
+  clearQueuedStep();
   cancelListening();
   stopConfirmListening();
   cancelPendingAction();
@@ -125,6 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
     toast("Taksi sifarişi ləğv edildi");
   });
   on("btn-clear-day", "click", () => clearDayFilter());
+  on("next-step-chip", "click", () => { stopCallTimer(); runQueuedStep(); });
 
   document.querySelectorAll(".btn-go-home").forEach((b) => b.addEventListener("click", goHome));
 

@@ -1,6 +1,7 @@
 // Reminders screen: live calendar + list (done / delete with undo), backed by /api/v1/reminders.
 import { deleteReminder, listReminders, updateReminder } from "../api.js";
 import { speak } from "../audio/tts.js";
+import { getLang } from "../i18n.js";
 import { bakuParts, formatWhen } from "../flows/assistant.js";
 import { haptic } from "../ui/haptics.js";
 import { announce, showScreen } from "../ui/screens.js";
@@ -35,7 +36,7 @@ function visibleReminders() {
   return state.reminders.filter((r) => !pendingDeletes.has(r.id));
 }
 
-export async function openReminders({ spoken, highlightId = null, askAlerts = false } = {}) {
+export async function openReminders({ spoken, highlightId = null, askAlerts = false, onSpoken = null } = {}) {
   state.highlightId = highlightId;
   if (!state.view) {
     const t = bakuToday();
@@ -63,8 +64,9 @@ export async function openReminders({ spoken, highlightId = null, askAlerts = fa
 
   const text = spoken || summary();
   announce(text);
-  await speak(text);
+  await speak(text, spoken ? getLang() : "az");
   if (askAlerts) ensureAlertPermission();
+  onSpoken?.();
 }
 
 function summary() {

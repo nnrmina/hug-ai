@@ -2188,7 +2188,7 @@ button.care-row { cursor: pointer; }
 .dose-row.pending .time-badge { background: #fff4d6; color: #7a5410; }
 .med-form { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
 .med-form label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; font-size: calc(14px * var(--text-scale)); color: var(--text-muted); }
-.med-form input, .family-form input, .family-form select, .onb-row input, .onb-row select {
+.med-form input, .med-form select, .family-form input, .family-form select, .onb-row input, .onb-row select {
   height: 52px;
   padding: 0 14px;
   border-radius: 14px;
@@ -2271,3 +2271,48 @@ body.family-body { display: block; min-height: 100vh; background: var(--bg); ove
 /* The family page is a normal document: let it scroll (the app's no-scroll rule is for the phone UI) */
 html:has(body.family-body), body.family-body { height: auto !important; overflow: visible !important; overscroll-behavior: auto !important; }
 .family-notify { gap: 10px; }
+
+/* ==========================================================================
+   Health log, nearest places, multi-step chip
+   ========================================================================== */
+.health-values { display: flex; gap: 10px; }
+.health-values label { flex: 1; min-width: 0; }
+.health-values label[hidden] { display: none; }
+.health-row .time-badge { margin-top: 4px; }
+.health-row.normal .time-badge { background: var(--accent-soft); color: var(--accent-strong); }
+.health-row.high .time-badge, .health-row.low .time-badge {
+  background: color-mix(in srgb, var(--warning) 20%, var(--surface)); color: color-mix(in srgb, var(--warning) 45%, var(--text));
+}
+.health-row.critical .time-badge {
+  background: color-mix(in srgb, var(--danger) 16%, var(--surface)); color: color-mix(in srgb, var(--danger) 70%, var(--text));
+}
+.health-row.critical { border: 1.5px solid color-mix(in srgb, var(--danger) 45%, transparent); }
+
+.places-main { gap: 12px; justify-content: flex-start; }
+.places-map-wrap { position: relative; padding: 0; overflow: hidden; height: 34dvh; min-height: 190px; flex-shrink: 0; }
+.places-map-wrap iframe { width: 100%; height: 100%; border: 0; display: block; background: var(--surface-2); }
+.places-status {
+  position: absolute; left: 10px; top: 10px; padding: 6px 12px; border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--text);
+  font-size: calc(13px * var(--text-scale)); font-weight: 700; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.place-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; cursor: pointer; }
+.place-card.nearest { border: 1.5px solid var(--accent); }
+.place-info { min-width: 0; }
+.place-info h4 { font-size: calc(16px * var(--text-scale)); font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.place-info p { font-size: calc(13px * var(--text-scale)); color: var(--text-muted); }
+.place-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.place-btn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 14px;
+  border-radius: 999px; background: var(--surface-2); color: var(--text); text-decoration: none; font-weight: 700;
+  font-size: calc(14px * var(--text-scale));
+}
+.place-btn.primary { background: var(--accent); color: var(--on-accent, #fff); }
+
+.next-step-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin: 4px auto 0; padding: 10px 16px;
+  border-radius: 999px; border: 1.5px solid var(--accent); background: var(--accent-soft); color: var(--accent-strong);
+  font: inherit; font-weight: 700; font-size: calc(14px * var(--text-scale)); cursor: pointer;
+}
+.next-step-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.next-step-chip[hidden] { display: none; }

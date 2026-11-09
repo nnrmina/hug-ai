@@ -20,7 +20,9 @@ from app.schemas.reminder import ReminderCreate
 from app.integrations.notifications.local import LocalNotificationFormatter
 from app.agents.tools.order_tools import ORDER_INTENTS
 from app.services.care_service import CareService
-from app.utils.datetime_utils import format_az_datetime
+from app.core.i18n import pick
+from app.services import weather_service
+from app.utils.datetime_utils import format_datetime
 
 # In-memory store of workflow action states for confirmation/cancellation lifecycle
 _ACTION_STORE: Dict[str, Dict[str, Any]] = {}
@@ -40,6 +42,8 @@ class AssistantService:
             session_id=request.session_id,
             client_history=[h.model_dump() for h in request.history],
             user_id=request.user_id,
+            lat=request.lat,
+            lon=request.lon,
         )
 
     def process_turn(
@@ -50,6 +54,8 @@ class AssistantService:
         session_id: Optional[str] = None,
         client_history: Optional[List[Dict[str, Any]]] = None,
         user_id: Optional[str] = None,
+        lat: Optional[float] = None,
+        lon: Optional[float] = None,
     ) -> AssistantResponse:
         """One conversational turn: understand (Gemini or rules) → agent graph → reply."""
         user = self.user_repo.get_or_create_default_user(user_id or DEFAULT_USER_ID)
@@ -81,16 +87,38 @@ class AssistantService:
         action_data = dict(final_state.get("action_data") or {})
         action_data.pop("transcript", None)
 
-        # Care side effects that need no confirmation
+        lang = action_data.get("lang") or "az"
+
+        # Side effects that need no confirmation
         if wf_status == "completed" and intent == "MEDICATION_TAKEN":
             dose = CareService(self.db).mark_taken(user.id)
             if dose:
                 action_data["dose_id"] = dose.id
-                response_text = "Əla, qeyd etdim! Sağlam olun."
+                response_text = pick(lang, "Əla, qeyd etdim! Sağlam olun.", "Отлично, отметила! Будьте здоровы.")
             else:
-                response_text = "Hazırda içiləsi dərman görmürəm, amma qeyd etdim. Sağlam olun."
+                response_text = pick(lang, "Hazırda içiləsi dərman görmürəm, amma qeyd etdim. Sağlam olun.",
+                                     "Сейчас я не вижу лекарств по расписанию, но отметила. Будьте здоровы.")
         elif wf_status == "completed" and intent == "CHECKIN":
             CareService(self.db).record_checkin(user.id, action_data.get("mood", "ok"), transcript)
+        elif wf_status == "completed" and intent == "WEATHER":
+            response_text, weather = weather_service.weather_reply(
+                lat, lon, action_data.get("weather_day") or "today", lang)
+            if weather:
+                action_data["weather"] = weather
+        elif wf_status == "completed" and intent == "LOG_HEALTH":
+            care = CareService(self.db)
+            try:
+                row = care.add_reading(user.id, action_data.get("health_kind") or "",
+                                       float(action_data.get("health_value") or 0),
+                                       action_data.get("health_value2"))
+                response_text = care.reading_reply(row, lang)
+                action_data["reading"] = care.readings(user.id, 1)[0]
+            except HTTPException:
+                response_text = pick(lang, "Bu göstəricini düzgün eşitmədim. Bir daha deyə bilərsiniz?",
+                                     "Я не расслышала показатель. Повторите, пожалуйста.")
+                wf_status = "needs_clarification"
+        elif wf_status == "completed" and intent == "HEALTH_QUERY":
+            response_text = CareService(self.db).health_summary(user.id, lang)
 
         action_id = str(uuid.uuid4())
         _ACTION_STORE[action_id] = {
@@ -134,6 +162,8 @@ class AssistantService:
             action_data=action_data,
             transcript=transcript,
             engine=engine,
+            lang=lang,
+            next_step=action_data.get("next_step") if wf_status in ("completed", "needs_confirmation") else None,
             action_token=sign_action(_ACTION_STORE[action_id]) if wf_status == "needs_confirmation" else None,
         )
 
@@ -189,6 +219,7 @@ class AssistantService:
         intent = record["intent"]
         action_data = dict(record.get("action_data") or {})
         user_id = record.get("user_id") or DEFAULT_USER_ID
+        lang = action_data.get("lang") or "az"
 
         if intent == "CREATE_REMINDER":
             scheduled_str = action_data.get("scheduled_at")
@@ -217,28 +248,33 @@ class AssistantService:
                     timezone=reminder.timezone,
                 )
             )
-            when = format_az_datetime(reminder.scheduled_at)
-            record["response"] = f'"{title}" xatırlatması yaradıldı. {when[:1].upper()}{when[1:]} sizə xatırladacağam.'
+            when = format_datetime(reminder.scheduled_at, lang)
+            when = f"{when[:1].upper()}{when[1:]}"
+            record["response"] = pick(lang, f'"{title}" xatırlatması yaradıldı. {when} sizə xatırladacağam.',
+                                      f"Напоминание «{title}» создано. {when} я Вам напомню.")
         elif intent == "MAKE_CALL":
             alias = action_data.get("contact_alias", "kontakt")
             action_data["authorized_execution"] = "OPEN_DIALER"
-            record["response"] = f'"{alias}" üçün zəng təsdiqləndi. Nömrə yığıcı açılır.'
+            record["response"] = pick(lang, f'"{alias}" üçün zəng təsdiqləndi. Nömrə yığıcı açılır.',
+                                      "Звоню.")
         elif intent == "CREATE_MEDICATION":
             med = CareService(self.db).add_medication(
                 user_id, action_data.get("title") or "Dərman", action_data.get("med_times") or []
             )
             action_data["medication_id"] = med.id
-            record["response"] = f"Hazırdır! “{med.name}” üçün hər gün saat {' və '.join(med.times.split(','))}-da xatırladacağam."
+            times = med.times.split(",")
+            record["response"] = pick(lang, f"Hazırdır! “{med.name}” üçün hər gün saat {' və '.join(times)}-da xatırladacağam.",
+                                      f"Готово! Буду напоминать про «{med.name}» каждый день в {' и '.join(times)}.")
         elif intent in ORDER_INTENTS:
             order = action_data.get("order") or {}
             action_data["authorized_execution"] = "SIMULATED_ORDER"
-            record["response"] = order.get("done_text") or "Sifarişiniz qəbul olundu."
+            record["response"] = order.get("done_text") or pick(lang, "Sifarişiniz qəbul olundu.", "Ваш заказ принят.")
         elif intent == "SEND_VOICE_MESSAGE":
-            alias = action_data.get("contact_alias", "kontakt")
             action_data["authorized_execution"] = "OPEN_SMS_COMPOSER"
-            record["response"] = "Mesajınız hazırdır. Göndərmək üçün mesajlar tətbiqi açılır."
+            record["response"] = pick(lang, "Mesajınız hazırdır. Göndərmək üçün mesajlar tətbiqi açılır.",
+                                      "Сообщение готово. Открываю приложение сообщений.")
         else:
-            record["response"] = "Əməliyyat təsdiqləndi və icra olundu."
+            record["response"] = pick(lang, "Əməliyyat təsdiqləndi və icra olundu.", "Готово.")
 
         record["status"] = "completed"
         record["action_data"] = action_data
@@ -260,7 +296,8 @@ class AssistantService:
             )
 
         record["status"] = "cancelled"
-        record["response"] = "Əməliyyat istifadəçi tərəfindən ləğv edildi."
+        record["response"] = pick((record.get("action_data") or {}).get("lang"),
+                                  "Əməliyyat istifadəçi tərəfindən ləğv edildi.", "Действие отменено.")
 
         self.user_repo.log_agent_event(
             user_id=record.get("user_id") or DEFAULT_USER_ID,

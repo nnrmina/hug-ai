@@ -122,3 +122,17 @@ class CareEvent(Base):
     lat = Column(Float, nullable=True)
     lon = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_now)
+
+
+class HealthReading(Base):
+    """Self-reported measurements: blood pressure, sugar, pulse, temperature, weight."""
+
+    __tablename__ = "health_readings"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    user_id = Column(String(36), nullable=False, index=True)
+    kind = Column(String(10), nullable=False)  # bp | sugar | pulse | temp | weight
+    value = Column(Float, nullable=False)
+    value2 = Column(Float, nullable=True)  # diastolic for bp
+    level = Column(String(10), nullable=False, default="normal")  # normal | high | low | critical
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_now)

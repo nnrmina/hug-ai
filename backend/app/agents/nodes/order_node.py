@@ -7,7 +7,8 @@ def order_node(state: AgentState) -> AgentState:
     action_data = dict(state.get("action_data") or {})
     intent = state.get("intent") or "ORDER_FOOD"
 
-    tool_result = prepare_order(intent, state["user_message"], action_data.get("food_item"))
+    tool_result = prepare_order(intent, state["user_message"], action_data.get("food_item"),
+                               action_data.get("lang") or "az")
 
     return {
         **state,

@@ -200,3 +200,29 @@ def format_az_datetime(value, reference_time: Optional[datetime] = None) -> str:
     else:
         day = f"{local.day} {AZ_MONTHS[local.month - 1]}"
     return f"{day} saat {local:%H:%M}"
+
+
+RU_MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа",
+             "сентября", "октября", "ноября", "декабря"]
+
+
+def format_ru_datetime(value, reference_time: Optional[datetime] = None) -> str:
+    """Speakable Russian form of a datetime, e.g. 'завтра в 10:00'."""
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return value
+    if not isinstance(value, datetime):
+        return ""
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=BAKU_TZ)
+    local = value.astimezone(BAKU_TZ)
+    today = (reference_time or now_baku()).astimezone(BAKU_TZ).date()
+    delta_days = (local.date() - today).days
+    day = {0: "сегодня", 1: "завтра", 2: "послезавтра"}.get(delta_days, f"{local.day} {RU_MONTHS[local.month - 1]}")
+    return f"{day} в {local:%H:%M}"
+
+
+def format_datetime(value, lang: Optional[str] = None) -> str:
+    return format_ru_datetime(value) if lang == "ru" else format_az_datetime(value)

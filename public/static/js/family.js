@@ -78,12 +78,22 @@ function render() {
     meds.append(el);
   }
 
+  const health = $("fam-health");
+  health.innerHTML = "";
+  const hlabel = { bp: "Təzyiq", sugar: "Şəkər", pulse: "Nəbz", temp: "Hərarət", weight: "Çəki" };
+  const hlevel = { normal: ["Normal", "ok"], high: ["Yüksək", "wait"], low: ["Aşağı", "wait"], critical: ["Diqqət!", "bad"] };
+  if (!(data.health || []).length) health.append(row("Hələ qeyd yoxdur"));
+  for (const h of (data.health || []).slice(0, 6)) {
+    const [label, kind] = hlevel[h.level] || ["", ""];
+    health.append(row(`${hlabel[h.kind] || h.kind} ${h.text} · ${bakuTime(h.at)}`, label, kind));
+  }
+
   const events = $("fam-events");
   events.innerHTML = "";
   if (!data.events.length) events.append(row("Hələ hadisə yoxdur"));
-  const icon = { sos: "🚨", dose_missed: "💊", dose_taken: "✓", checkin: "☀️", checkin_missed: "☎️" };
+  const icon = { health: "❤️", sos: "🚨", dose_missed: "💊", dose_taken: "✓", checkin: "☀️", checkin_missed: "☎️" };
   for (const e of data.events.slice(0, 15)) {
-    events.append(row(`${icon[e.kind] || "•"} ${e.message}`, bakuTime(e.at), e.kind === "sos" || e.kind === "dose_missed" ? "bad" : ""));
+    events.append(row(`${icon[e.kind] || "•"} ${e.message}`, bakuTime(e.at), ["sos", "dose_missed", "health"].includes(e.kind) ? "bad" : ""));
   }
 
   const sos = data.events.find((e) => e.kind === "sos" && Date.now() - new Date(e.at).getTime() < 24 * 3600 * 1000);

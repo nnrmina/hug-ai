@@ -58,6 +58,8 @@ def process_voice(
     transcript: Optional[str] = Form(default=None, max_length=2000),
     session_id: Optional[str] = Form(default=None, max_length=64),
     history: Optional[str] = Form(default=None, description="JSON list of recent turns"),
+    lat: Optional[float] = Form(default=None, ge=-90, le=90),
+    lon: Optional[float] = Form(default=None, ge=-180, le=180),
     uid: str = Depends(device_user_id),
     db: Session = Depends(get_db),
 ):
@@ -85,6 +87,8 @@ def process_voice(
         session_id=session_id,
         client_history=turns,
         user_id=uid,
+        lat=lat,
+        lon=lon,
     )
 
 

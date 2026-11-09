@@ -17,6 +17,8 @@ class AssistantRequest(BaseModel):
     user_id: Optional[str] = Field(default=None, description="İstifadəçi identifikatoru (opsional)")
     session_id: Optional[str] = Field(default=None, max_length=64, description="Söhbət sessiyası (qısa yaddaş)")
     history: List[HistoryTurn] = Field(default_factory=list, max_length=6)
+    lat: Optional[float] = Field(default=None, ge=-90, le=90)
+    lon: Optional[float] = Field(default=None, ge=-180, le=180)
 
 
 class AssistantResponse(BaseModel):
@@ -33,6 +35,8 @@ class AssistantResponse(BaseModel):
     transcript: Optional[str] = None
     engine: Optional[str] = Field(default=None, description="gemini | rule_based")
     action_token: Optional[str] = Field(default=None, description="Signed action for stateless confirm/cancel")
+    lang: str = Field(default="az", description="Reply language: az | ru")
+    next_step: Optional[str] = Field(default=None, description="Rest of a multi-step request, sent next by the client")
 
 
 class ConfirmRequest(BaseModel):

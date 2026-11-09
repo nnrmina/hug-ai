@@ -34,7 +34,7 @@ export function stopSpeaking() {
 
 export const isSpeaking = () => Boolean(current);
 
-function playUrl(url, fallbackText) {
+function playUrl(url, fallbackText, lang = "az") {
   return new Promise((resolve) => {
     stopSpeaking();
     const audio = new Audio(url);
@@ -51,7 +51,7 @@ function playUrl(url, fallbackText) {
       if (settled || current?.audio !== audio) return;
       current = null;
       settled = true;
-      browserSpeak(fallbackText).then(resolve);
+      browserSpeak(fallbackText, lang).then(resolve);
     };
     const p = audio.play();
     if (p?.catch) {
@@ -59,16 +59,16 @@ function playUrl(url, fallbackText) {
         if (settled || current?.audio !== audio) return;
         current = null;
         settled = true;
-        browserSpeak(fallbackText).then(resolve);
+        browserSpeak(fallbackText, lang).then(resolve);
       });
     }
   });
 }
 
-// Speak an Azerbaijani sentence. Resolves when finished (true) or interrupted (false).
-export function speak(text) {
+// Speak a sentence (Azerbaijani, or Russian with lang "ru"). Resolves when finished (true) or interrupted (false).
+export function speak(text, lang = "az") {
   if (!text) return Promise.resolve(true);
-  return playUrl(ttsUrl(text), text);
+  return playUrl(ttsUrl(text, lang), text, lang);
 }
 
 export function playClip(key, fallbackText) {
@@ -76,20 +76,20 @@ export function playClip(key, fallbackText) {
   return url ? playUrl(url, fallbackText) : speak(fallbackText);
 }
 
-function browserSpeak(text) {
+function browserSpeak(text, lang = "az") {
   return new Promise((resolve) => {
     const synth = window.speechSynthesis;
     if (!synth || !text) return resolve(true);
     try {
       synth.cancel();
       const voices = synth.getVoices() || [];
-      let voice = voices.find((v) => v.lang?.toLowerCase().startsWith("az"));
-      if (!voice) voice = voices.find((v) => v.lang?.toLowerCase().startsWith("tr"));
+      let voice = voices.find((v) => v.lang?.toLowerCase().startsWith(lang === "ru" ? "ru" : "az"));
+      if (!voice && lang !== "ru") voice = voices.find((v) => v.lang?.toLowerCase().startsWith("tr"));
       // A Turkish voice reads Azerbaijani well enough once "ə" becomes "e"
       const spoken = voice?.lang?.toLowerCase().startsWith("tr") ? text.replace(/ə/g, "e").replace(/Ə/g, "E") : text;
       const u = new SpeechSynthesisUtterance(spoken);
       if (voice) u.voice = voice;
-      u.lang = voice?.lang || "tr-TR";
+      u.lang = voice?.lang || (lang === "ru" ? "ru-RU" : "tr-TR");
       u.rate = 0.92;
       u.onend = () => resolve(true);
       u.onerror = () => resolve(true);

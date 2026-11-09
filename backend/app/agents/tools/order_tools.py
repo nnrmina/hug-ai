@@ -65,6 +65,18 @@ _TAXI_ORDER = {
 }
 
 
+_RU_TEXTS = {
+    "Chef Tantuni": ("Заказать одну порцию тантуни в Chef Tantuni? Всего восемь манатов пятьдесят гяпиков.",
+                     "Заказ из Chef Tantuni принят. Курьер уже в пути."),
+    "Dönər · 1 pors": ("Заказать одну порцию дёнера? Всего семь манатов.", "Заказ дёнера принят. Курьер уже в пути."),
+    "Bozbaş · Orta pors": ("Заказать порцию бозбаша? Всего двенадцать манатов.", "Заказ бозбаша принят. Курьер уже в пути."),
+    "Kardiomaqnil 75 mq": ("Заказать в аптеке кардиомагнил? Всего шесть манатов двадцать гяпиков.",
+                           "Заказ из аптеки принят. Курьер уже в пути."),
+    "Wolt Taxi": ("Вызвать такси с улицы Низами в центр города? Цена пять манатов.",
+                  "Такси подтверждено. Toyota Camry будет через три минуты."),
+}
+
+
 def _pick_food(text: str) -> Dict[str, Any]:
     lower = text.lower()
     if "dönər" in lower or "doner" in lower:
@@ -74,7 +86,7 @@ def _pick_food(text: str) -> Dict[str, Any]:
     return _FOOD_CATALOG["tantuni"]
 
 
-def prepare_order(intent: str, text: str, food_item: Optional[str] = None) -> Dict[str, Any]:
+def prepare_order(intent: str, text: str, food_item: Optional[str] = None, lang: str = "az") -> Dict[str, Any]:
     """Build a simulated order preview for the given order intent."""
     if intent == "ORDER_PHARMACY":
         order = _PHARMACY_ORDER
@@ -85,9 +97,14 @@ def prepare_order(intent: str, text: str, food_item: Optional[str] = None) -> Di
     else:
         order = _pick_food(text)
 
+    order = dict(order)
+    if lang == "ru":
+        ru = _RU_TEXTS.get(order.get("item")) or _RU_TEXTS.get(order.get("vendor"))
+        if ru:
+            order["confirm_text"], order["done_text"] = ru
     return {
         "action_type": intent,
-        "order": dict(order),
+        "order": order,
         "simulated": True,
         "requires_confirmation": True,
     }

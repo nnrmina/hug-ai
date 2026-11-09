@@ -44,16 +44,19 @@ export function recognizeOnce({ onInterim, lang = "az-AZ" } = {}) {
 const YES = new Set(["bəli", "beli", "hə", "he", "həri", "heri", "hı", "oldu", "aha", "yes", "ok", "okay",
   "təsdiq", "təsdiqlə", "təsdiqləyirəm", "razıyam", "əlbəttə", "elbette", "olsun", "et", "elə"]);
 const NO = new Set(["xeyr", "yox", "ləğv", "legv", "no", "dayan", "lazım", "istəmirəm", "imtina"]);
+const YES_RU = new Set(["да", "ага", "конечно", "давай", "подтверждаю", "хорошо", "звони", "можно"]);
+const NO_RU = new Set(["нет", "не", "отмена", "отмени", "стоп", "не надо"]);
 
-export function classifyYesNo(text) {
-  const words = (text || "").toLocaleLowerCase("az").split(/[\s,.!?;:]+/).filter(Boolean);
-  if (words.some((w) => NO.has(w))) return "no";
-  if (words.some((w) => YES.has(w))) return "yes";
+export function classifyYesNo(text, lang = "az") {
+  const words = (text || "").toLocaleLowerCase(lang).split(/[\s,.!?;:]+/).filter(Boolean);
+  const [yes, no] = lang === "ru" ? [YES_RU, NO_RU] : [YES, NO];
+  if (words.some((w) => no.has(w))) return "no";
+  if (words.some((w) => yes.has(w))) return "yes";
   return null;
 }
 
 // Listen for one yes/no answer. Returns { promise → "yes" | "no" | null, stop }.
-export function listenYesNo() {
-  const { promise, stop } = recognizeOnce();
-  return { promise: promise.then(classifyYesNo).catch(() => null), stop };
+export function listenYesNo(lang = "az") {
+  const { promise, stop } = recognizeOnce({ lang: lang === "ru" ? "ru-RU" : "az-AZ" });
+  return { promise: promise.then((t) => classifyYesNo(t, lang)).catch(() => null), stop };
 }

@@ -234,6 +234,8 @@
             <span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span>
           </div>
 
+          <button id="next-step-chip" class="next-step-chip" hidden>⏭️ Növbəti: <span></span></button>
+
           <div class="call-action-buttons">
             <a id="native-dialer-btn" href="tel:" class="dialer-native-link samsung-card">📞 Telefonda zəng et</a>
             <button id="btn-end-active-call" class="samsung-danger-pill-btn">Zəngi bitir</button>
@@ -377,6 +379,23 @@
       </section>
 
 
+      <!-- ============ NEAREST PHARMACY / HOSPITAL ============ -->
+      <section id="screen-places" class="screen-view" aria-label="Yaxın yerlər">
+        <header class="top-nav samsung-top-nav">
+          <button class="samsung-icon-btn btn-go-home" aria-label="Geri"><svg width="22" height="22" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h2 id="places-title" class="center-screen-title" data-screen-title>Yaxın apteklər</h2>
+          <span class="nav-spacer"></span>
+        </header>
+        <main class="reminders-main places-main">
+          <div class="places-map-wrap samsung-card">
+            <iframe id="places-map" title="Xəritə" loading="lazy" referrerpolicy="no-referrer"></iframe>
+            <span id="places-status" class="places-status">Yerinizi müəyyən edirəm…</span>
+          </div>
+          <div id="places-list" class="reminders-list-container"></div>
+          <p class="checkin-hint">Xəritə: © OpenStreetMap</p>
+        </main>
+      </section>
+
       <!-- ============ SOS ============ -->
       <section id="screen-sos" class="screen-view sos-screen" aria-label="SOS">
         <main class="sos-main">
@@ -455,6 +474,26 @@
             <button type="submit" class="samsung-primary-pill-btn">Dərman əlavə et</button>
           </form>
           <p class="checkin-hint">Səslə də olar: “Hər gün səhər 9-da və axşam 9-da təzyiq dərmanımı xatırlat”</p>
+
+          <h3 class="reminders-list-title">Sağlamlıq qeydləri</h3>
+          <div id="health-list" class="reminders-list-container"></div>
+          <form id="health-form" class="samsung-card med-form health-form" autocomplete="off">
+            <label>Nə ölçdünüz?
+              <select id="health-kind">
+                <option value="bp">Təzyiq</option>
+                <option value="sugar">Şəkər (mmol/L)</option>
+                <option value="pulse">Nəbz</option>
+                <option value="temp">Hərarət</option>
+                <option value="weight">Çəki (kq)</option>
+              </select>
+            </label>
+            <div class="health-values">
+              <label>Göstərici<input id="health-value" type="number" inputmode="decimal" step="0.1" min="1" max="300" placeholder="130" required /></label>
+              <label id="health-value2-wrap">Aşağı<input id="health-value2" type="number" inputmode="numeric" min="20" max="200" placeholder="80" /></label>
+            </div>
+            <button type="submit" class="samsung-primary-pill-btn">Qeyd et</button>
+          </form>
+          <p class="checkin-hint">Səslə də olar: “Təzyiqim 130-a 80”</p>
         </main>
       </section>
 

@@ -1,6 +1,7 @@
 // Simulated Wolt order / taxi tracking. Clearly labelled as a demo; the Wolt button opens
 // Wolt's real search page for the item.
 import { playClip, speak } from "../audio/tts.js";
+import { getLang } from "../i18n.js";
 import { announce, setText, showScreen } from "../ui/screens.js";
 
 let etaTimer = null;
@@ -37,7 +38,7 @@ export function startOrderTracking(order = {}, spoken = "") {
   countdown("order-eta-countdown", 25 * 60);
   const text = spoken || "Sifarişiniz qəbul olundu. Kuryer yoldadır.";
   announce(text);
-  speak(text);
+  return speak(text, getLang());
 }
 
 export function startTaxiTracking(order = {}, spoken = "") {
@@ -48,7 +49,7 @@ export function startTaxiTracking(order = {}, spoken = "") {
   showScreen("screen-taxi-tracking");
   const text = spoken || "Taksi təsdiqləndi.";
   announce(text);
-  speak(text);
+  return speak(text, getLang());
 }
 
 export function finishOrder() {

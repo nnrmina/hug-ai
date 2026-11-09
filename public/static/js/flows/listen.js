@@ -170,7 +170,7 @@ export function finishListening() {
 }
 
 // Typed or recognized text → agent
-export async function processText(text, { silentScreen = false } = {}) {
+export async function processText(text, { silentScreen = false, badge = "⏳ Düşünürəm..." } = {}) {
   text = (text || "").trim();
   if (!text) return;
   stopSpeaking();
@@ -179,7 +179,7 @@ export async function processText(text, { silentScreen = false } = {}) {
     cancelPendingAction();
     showScreen("screen-listening");
   }
-  setListeningUi({ badge: "⏳ Düşünürəm...", quote: `“${text}”`, mode: "thinking", showFinish: false });
+  setListeningUi({ badge, quote: `“${text}”`, mode: "thinking", showFinish: false });
   try {
     const data = await sendText(text);
     handleResponse(data, text);

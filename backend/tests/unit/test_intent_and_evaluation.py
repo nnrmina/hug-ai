@@ -44,7 +44,7 @@ def test_intent_classification_evaluation_dataset():
         ("Bu SMS-i yoxla", "ANALYZE_MESSAGE"),
         ("Bank hesabınız bloklanıb linkə daxil olun", "ANALYZE_MESSAGE"),
         ("Anama səs göndərmək istəyirəm", "SEND_VOICE_MESSAGE"),
-        ("Sabah hava necə olacaq?", "GENERAL_QUESTION"),
+        ("Sabah hava necə olacaq?", "WEATHER"),
     ]
 
     correct = 0

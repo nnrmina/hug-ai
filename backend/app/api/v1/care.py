@@ -80,8 +80,32 @@ def care_state(uid: str = Depends(device_user_id), db: Session = Depends(get_db)
                         for m in svc.medications(uid)],
         "checkin": {"mood": check.mood} if check else None,
         "checkin_due": svc.checkin_due(uid),
+        "health": svc.readings(uid, 8),
         "push": {"enabled": push_enabled(), "public_key": settings.VAPID_PUBLIC_KEY},
     }
+
+
+class HealthIn(BaseModel):
+    kind: str
+    value: float
+    value2: Optional[float] = None
+
+
+@router.get("/care/health")
+def list_health(uid: str = Depends(device_user_id), db: Session = Depends(get_db)):
+    return CareService(db).readings(uid, 30)
+
+
+@router.post("/care/health", status_code=status.HTTP_201_CREATED)
+def add_health(body: HealthIn, uid: str = Depends(device_user_id), db: Session = Depends(get_db)):
+    svc = CareService(db)
+    row = svc.add_reading(uid, body.kind, body.value, body.value2)
+    return {**svc.readings(uid, 1)[0], "reply": svc.reading_reply(row)}
+
+
+@router.delete("/care/health/{reading_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_health(reading_id: str, uid: str = Depends(device_user_id), db: Session = Depends(get_db)):
+    CareService(db).delete_reading(uid, reading_id)
 
 
 @router.put("/care/profile")

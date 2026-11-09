@@ -1,4 +1,6 @@
 import re
+
+from app.core.i18n import detect_lang
 from datetime import datetime
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
@@ -21,9 +23,42 @@ INTENTS = [
     "CREATE_MEDICATION",
     "MEDICATION_TAKEN",
     "CHECKIN",
+    "WEATHER",
+    "FIND_PLACE",
+    "LOG_HEALTH",
+    "HEALTH_QUERY",
     "GENERAL_QUESTION",
     "UNKNOWN",
 ]
+
+_NUM = r"(\d{1,3}(?:[.,]\d)?)"
+HEALTH_PATTERNS = [
+    ("bp", re.compile(r"t[əe]zyiq\w*\D{0,12}?(\d{2,3})\D{1,8}?(\d{2,3})")),
+    ("sugar", re.compile(r"ş[əe]k[əe]r\w*\D{0,12}?" + _NUM)),
+    ("pulse", re.compile(r"n[əe]bz\w*\D{0,12}?(\d{2,3})")),
+    ("temp", re.compile(r"(?:qızdırma|qizdirma|temperatur|hərarət|hərarət)\w*\D{0,12}?" + _NUM)),
+    ("weight", re.compile(r"(?:çəki|ceki)\w*\D{0,12}?" + _NUM)),
+]
+_STEP_SPLIT = re.compile(r"(?i)\s*,?\s+(?:və\s+)?(?:sonra|ardınca|daha sonra)\s+")
+PLACE_WORDS = {"pharmacy": ["aptek", "aptekə", "apteka"], "hospital": ["xəstəxana", "xestexana", "poliklinika", "klinika"]}
+NEAR_WORDS = ["yaxın", "yaxin", "harada", "hardadır", "hardadir", "harda", "haradadır", "yaxınlıq"]
+WEATHER_WORDS = ["hava ", "hava?", "havanı", "havalar", "yağış", "yagis", "qar yağ", "neçə dərəcə", "temperatur necə"]
+HEALTH_QUERY_WORDS = ["son təzyiq", "təzyiqlərim", "göstəricilərim", "ölçülərim", "son ölçmə"]
+
+
+def parse_health(lower: str) -> Optional[Dict[str, Any]]:
+    for kind, rx in HEALTH_PATTERNS:
+        m = rx.search(lower)
+        if not m:
+            continue
+        vals = [float(g.replace(",", ".")) for g in m.groups() if g]
+        out = {"health_kind": kind, "health_value": vals[0]}
+        if kind == "bp":
+            if not (60 <= vals[0] <= 260 and 30 <= vals[1] <= 160):
+                continue
+            out["health_value2"] = vals[1]
+        return out
+    return None
 
 EMERGENCY_KEYWORDS = [
     "kömək edin", "kömək et", "komek et", "imdad", "yıxıldım", "yixildim", "təcili yardım",
@@ -235,6 +270,21 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
                 parsed["missing_slots"] = ["med_times"]
             return parsed
 
+        # 0d. Health measurements, weather, nearest places
+        if any(kw in lower for kw in HEALTH_QUERY_WORDS):
+            return {"intent": "HEALTH_QUERY", "confidence": 0.85, "requires_confirmation": False}
+        health = parse_health(lower)
+        if health:
+            return {"intent": "LOG_HEALTH", "confidence": 0.88, "requires_confirmation": False, **health}
+        if any(kw in lower + " " for kw in WEATHER_WORDS):
+            day = "tomorrow" if ("sabah" in lower and "sabahınız" not in lower) else "today"
+            return {"intent": "WEATHER", "confidence": 0.86, "weather_day": day, "requires_confirmation": False}
+        if any(kw in lower for kw in NEAR_WORDS):
+            for place, words in PLACE_WORDS.items():
+                if any(w in lower for w in words):
+                    return {"intent": "FIND_PLACE", "confidence": 0.88, "place_type": place,
+                            "requires_confirmation": False}
+
         # 1. Out-of-scope high-risk actions (Bank transfer)
         if any(
             kw in lower
@@ -398,7 +448,23 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
             }
         text = text.strip()
         meta["transcript"] = text
+        meta["lang"] = detect_lang(text)
         pending = (history[-1].get("pending") if history else None) or {}
+
+        # Multi-step: "tantuni sifariş et, sonra qızıma de ki ..." -> first step now, rest queued
+        parts = _STEP_SPLIT.split(text, maxsplit=1)
+        if len(parts) == 2 and len(parts[0].split()) >= 2 and len(parts[1].split()) >= 2:
+            first = self.understand(text=parts[0], history=history, now=now)
+            if first.get("intent") not in ("UNKNOWN", "EMERGENCY"):
+                first["next_step"] = parts[1].strip()[:300]
+                first["transcript"] = text
+                return first
+
+        if meta["lang"] == "ru":
+            return {"intent": "UNKNOWN", "confidence": 0.3, "requires_confirmation": False,
+                    "clarification_question": "Извините, сейчас я понимаю по-русски только простые фразы. "
+                                              "Попробуйте ещё раз или скажите по-азербайджански.",
+                    **meta}
 
         # Follow-up: the previous turn asked "Nə vaxt?" for a reminder
         if pending.get("intent") == "CREATE_REMINDER":
