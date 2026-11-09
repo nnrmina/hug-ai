@@ -42,7 +42,12 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: "reload" bypasses the browser's HTTP cache, so a new version never precaches old files
+  event.waitUntil(
+    caches.open(VERSION)
+      .then((cache) => cache.addAll(SHELL.map((u) => new Request(u, { cache: "reload" }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -72,17 +77,31 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets: stale-while-revalidate
-  event.respondWith(
-    caches.match(req).then((cached) => {
-      const network = fetch(req)
+  // Code (CSS/JS/HTML): network first, so online users always get the deployed version;
+  // the cache is only the offline fallback. Media (audio, icons): cache first.
+  const isCode = /\.(css|js|html|json|webmanifest)$/.test(url.pathname);
+  if (isCode) {
+    event.respondWith(
+      fetch(req, { cache: "no-cache" })
         .then((res) => {
-          if (res.ok) caches.open(VERSION).then((c) => c.put(req, res.clone()));
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(VERSION).then((c) => c.put(req, copy));
+          }
           return res;
         })
-        .catch(() => cached);
-      return cached || network;
-    })
+        .catch(() => caches.match(req, { ignoreSearch: true }))
+    );
+    return;
+  }
+  event.respondWith(
+    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
+      if (res.ok) {
+        const copy = res.clone();
+        caches.open(VERSION).then((c) => c.put(req, copy));
+      }
+      return res;
+    }))
   );
 });
 

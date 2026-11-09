@@ -62,7 +62,20 @@ async function loadCapabilities() {
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1" && location.protocol !== "https:") return;
-  navigator.serviceWorker.register("/sw.js").catch(() => {});
+  // After a deploy the new service worker takes over: reload once so the page runs the new code
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController) return; // first install, page is already current
+    try {
+      if (sessionStorage.getItem("hug_sw_reloaded") === "1") return;
+      sessionStorage.setItem("hug_sw_reloaded", "1");
+    } catch (_) {}
+    location.reload();
+  });
+  window.addEventListener("load", () => setTimeout(() => {
+    try { sessionStorage.removeItem("hug_sw_reloaded"); } catch (_) {}
+  }, 10000));
+  navigator.serviceWorker.register("/sw.js").then((reg) => reg.update?.()).catch(() => {});
   navigator.serviceWorker.addEventListener("message", (e) => {
     if (e.data?.type === "open-reminders") openReminders();
   });

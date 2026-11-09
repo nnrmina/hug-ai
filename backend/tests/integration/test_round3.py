@@ -229,3 +229,12 @@ def test_tts_russian_voice(client, monkeypatch):
     monkeypatch.setattr(tts_mod, "synthesize_mp3", fake)
     client.get("/api/v1/tts", params={"text": "Привет", "lang": "ru"})
     assert seen["voice"] == "ru-RU-SvetlanaNeural"
+
+
+def test_code_is_always_revalidated_and_entry_files_versioned(client):
+    css = client.get("/static/styles.css")
+    js = client.get("/static/js/main.js")
+    assert css.headers["cache-control"] == "no-cache" and js.headers["cache-control"] == "no-cache"
+    assert "max-age" in client.get("/static/audio/call_end.mp3").headers["cache-control"]
+    page = client.get("/").text
+    assert 'href="/static/styles.css?v=' in page and 'src="/static/js/main.js?v=' in page

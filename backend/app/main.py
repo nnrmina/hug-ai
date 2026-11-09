@@ -66,6 +66,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+
+@app.middleware("http")
+async def static_cache_headers(request, call_next):
+    """Code (CSS/JS) must always be revalidated, or a deploy shows new HTML with old styles.
+    ETags keep that cheap (304). Media rarely changes and can be cached for a week."""
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/static/") or path.startswith("/icons/"):
+        if path.endswith((".css", ".js", ".html", ".json")):
+            response.headers["Cache-Control"] = "no-cache"
+        else:
+            response.headers.setdefault("Cache-Control", "public, max-age=604800")
+    return response
+
+
 app.include_router(api_router, prefix="/api/v1")
 
 for _sub in ("static", "icons"):
@@ -80,7 +96,12 @@ async def web_app():
     index_path = PUBLIC_DIR / "index.html"
     if not index_path.exists():
         raise HTTPException(status_code=404, detail="public/index.html not found")
-    return FileResponse(index_path, media_type="text/html", headers={"Cache-Control": "no-cache"})
+    # Version the entry files so a new deploy can never pair new HTML with old CSS/JS
+    version = os.environ.get("GIT_SHA", "dev")
+    html = index_path.read_text(encoding="utf-8")
+    html = html.replace('href="/static/styles.css"', f'href="/static/styles.css?v={version}"')
+    html = html.replace('src="/static/js/main.js"', f'src="/static/js/main.js?v={version}"')
+    return Response(html, media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/f/{token}", include_in_schema=False)
