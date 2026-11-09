@@ -317,10 +317,17 @@ body {
 }
 
 .samsung-brand-logo {
-  font-size: calc(19px * var(--text-scale));
-  font-weight: 800;
-  color: var(--text);
-  letter-spacing: -0.2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.samsung-brand-logo img { width: 48px; height: 48px; display: block; }
+.brand-logo-night { display: none !important; }
+:root[data-theme="dark"] .brand-logo-day { display: none !important; }
+:root[data-theme="dark"] .brand-logo-night { display: block !important; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-logo-day { display: none !important; }
+  :root:not([data-theme="light"]) .brand-logo-night { display: block !important; }
 }
 
 .center-screen-title {

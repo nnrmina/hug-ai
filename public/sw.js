@@ -38,6 +38,8 @@ const SHELL = [
   "/manifest.webmanifest",
   "/favicon.ico",
   "/icons/logo.png",
+  "/icons/logo-96.png",
+  "/icons/logo-light-96.png",
   "/icons/favicon-32.png",
   "/icons/icon-192.png",
   "/icons/icon-512.png"
