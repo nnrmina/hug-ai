@@ -75,7 +75,7 @@ async def static_cache_headers(request, call_next):
     response = await call_next(request)
     path = request.url.path
     if path.startswith("/static/") or path.startswith("/icons/"):
-        if path.endswith((".css", ".js", ".html", ".json")):
+        if path.startswith("/icons/") or path.endswith((".css", ".js", ".html", ".json")):
             response.headers["Cache-Control"] = "no-cache"
         else:
             response.headers.setdefault("Cache-Control", "public, max-age=604800")

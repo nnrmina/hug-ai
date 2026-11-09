@@ -36,7 +36,9 @@ const SHELL = [
   "/static/audio/order_done.mp3",
   "/static/audio/action_cancel.mp3",
   "/manifest.webmanifest",
-  "/favicon.svg",
+  "/favicon.ico",
+  "/icons/logo.png",
+  "/icons/favicon-32.png",
   "/icons/icon-192.png",
   "/icons/icon-512.png"
 ];
