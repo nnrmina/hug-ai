@@ -5,6 +5,7 @@ Time rules (SQLite drops tzinfo): every NEW table stores UTC; the legacy `remind
 table stores Baku wall-clock time. `_utc()` / `_from_db()` keep that straight.
 """
 import re
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -302,26 +303,31 @@ class CareService:
         return (self.checkin_today(user_id, now) is None
                 and now >= _slot_utc(baku_day(now), prof.checkin_time))
 
-    def record_checkin(self, user_id: str, mood: str, note: str = "") -> CheckIn:
+    def record_checkin(self, user_id: str, mood: str, note: str = "") -> Tuple[CheckIn, int]:
         if mood not in MOOD_AZ:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "mood: good | ok | bad")
         self.profile(user_id)
         row = CheckIn(user_id=user_id, day=baku_day(), mood=mood, note=(note or "")[:300])
         self.db.add(row)
         name = self.elder_name(user_id)
-        self.db.add(CareEvent(user_id=user_id, kind="checkin", message=f"Özünü {MOOD_AZ[mood]} hiss edir",
-                              ref=row.day))
-        self.db.commit()
+        sent = 0
+        family = self.family(user_id)
         if mood == "bad":
-            push_to_family(self.db, user_id, {
+            sent = push_to_family(self.db, user_id, {
                 "title": f"⚠️ {name} özünü pis hiss edir",
                 "body": "Bu gün halını soruşduq — “pis” cavabını verdi. Zəng etməyiniz yaxşı olardı.",
                 "tag": f"checkin-{row.day}", "url": "/f/", "requireInteraction": True,
             })
-        return row
+        checkin_status = "delivered" if sent > 0 else ("no_devices" if len(family) > 0 else "no_family")
+        self.db.add(CareEvent(user_id=user_id, kind="checkin", status=checkin_status,
+                              notified_count=sent,
+                              message=f"Özünü {MOOD_AZ[mood]} hiss edir",
+                              ref=row.day))
+        self.db.commit()
+        return row, sent
 
     # ---- health log ------------------------------------------------------
-    def add_reading(self, user_id: str, kind: str, value: float, value2: Optional[float] = None) -> HealthReading:
+    def add_reading(self, user_id: str, kind: str, value: float, value2: Optional[float] = None) -> Tuple[HealthReading, int]:
         if kind not in HEALTH_KINDS:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "kind: bp | sugar | pulse | temp | weight")
         lo, hi = HEALTH_RANGES[kind]
@@ -335,18 +341,23 @@ class CareService:
                             level=level)
         self.db.add(row)
         self.db.commit()
+        sent = 0
         if level == "critical":
             name = self.elder_name(user_id)
             label = f"{HEALTH_LABEL['az'][kind]} {health_value_text(kind, value, value2)}"
-            self.db.add(CareEvent(user_id=user_id, kind="health", message=f"Çox {'aşağı' if self._is_low(kind, value) else 'yüksək'} göstərici: {label}",
-                                  ref=row.id))
-            self.db.commit()
-            push_to_family(self.db, user_id, {
+            sent = push_to_family(self.db, user_id, {
                 "title": f"⚠️ {name}: {label}",
                 "body": "Bu göstərici normadan çox fərqlənir. Zəng edib halını soruşun.",
                 "tag": f"health-{row.id}", "url": "/f/", "requireInteraction": True,
             })
-        return row
+            family = self.family(user_id)
+            health_status = "delivered" if sent > 0 else ("no_devices" if len(family) > 0 else "no_family")
+            self.db.add(CareEvent(user_id=user_id, kind="health", status=health_status,
+                                  notified_count=sent,
+                                  message=f"Çox {'aşağı' if self._is_low(kind, value) else 'yüksək'} göstərici: {label}",
+                                  ref=row.id))
+            self.db.commit()
+        return row, sent
 
     @staticmethod
     def _is_low(kind: str, value: float) -> bool:
@@ -368,27 +379,44 @@ class CareService:
         self.db.commit()
 
     @staticmethod
-    def reading_reply(row: HealthReading, lang: str = "az") -> str:
+    def reading_reply(row: HealthReading, lang: str = "az", notified_count: int = 0) -> str:
         lang = "ru" if lang == "ru" else "az"
         label = HEALTH_LABEL[lang][row.kind]
         val = health_value_text(row.kind, row.value, row.value2)
         low = CareService._is_low(row.kind, row.value)
         if lang == "ru":
-            tail = {
-                "normal": "Показатель в норме.",
-                "high": "Это немного выше нормы. Расскажите об этом своему врачу.",
-                "low": "Это немного ниже нормы. Расскажите об этом своему врачу.",
-                "critical": ("Это очень " + ("низкий" if low else "высокий") + " показатель. Я сообщила семье. "
-                             "Если Вам плохо — нажмите кнопку SOS."),
-            }[row.level]
+            if row.level == "critical":
+                if notified_count > 0:
+                    tail = (f"Это очень {'низкий' if low else 'высокий'} показатель. "
+                            f"Я сообщила семье ({notified_count} устр.). "
+                            "Если Вам плохо — срочно звоните в 103 или нажмите SOS.")
+                else:
+                    tail = (f"ВНИМАНИЕ: Это очень {'низкий' if low else 'высокий'} показатель! "
+                            "Уведомление семье НЕ доставлено (нет активных устройств). "
+                            "Пожалуйста, немедленно позвоните в скорую 103 или врачу!")
+            else:
+                tail = {
+                    "normal": "Показатель в норме.",
+                    "high": "Это немного выше нормы. Расскажите об этом своему врачу.",
+                    "low": "Это немного ниже нормы. Расскажите об этом своему врачу.",
+                }[row.level]
             return f"Записала: {label.lower()} {val}. {tail}"
-        tail = {
-            "normal": "Göstərici normaldır.",
-            "high": "Bu bir az yüksəkdir. Həkiminizə deyin.",
-            "low": "Bu bir az aşağıdır. Həkiminizə deyin.",
-            "critical": ("Bu çox " + ("aşağı" if low else "yüksək") + " göstəricidir. Ailənizə xəbər verdim. "
-                         "Özünüzü pis hiss etsəniz, SOS düyməsini basın."),
-        }[row.level]
+
+        if row.level == "critical":
+            if notified_count > 0:
+                tail = (f"Bu çox {'aşağı' if low else 'yüksək'} göstəricidir. "
+                        f"Ailənizə xəbər verdim ({notified_count} cihaza çatdı). "
+                        "Özünüzü pis hiss etsəniz, dərhal 103-ə zəng edin və ya SOS düyməsini basın.")
+            else:
+                tail = (f"DİQQƏT: Bu çox {'aşağı' if low else 'yüksək'} göstəricidir! "
+                        "Ailə cihazlarına bildiriş çatmadı. "
+                        "Zəhmət olmasa dərhal 103 Təcili Tibbi Yardıma və ya həkiminizə zəng edin!")
+        else:
+            tail = {
+                "normal": "Göstərici normaldır.",
+                "high": "Bu bir az yüksəkdir. Həkiminizə deyin.",
+                "low": "Bu bir az aşağıdır. Həkiminizə deyin.",
+            }[row.level]
         return f"Qeyd etdim: {label.lower()} {val}. {tail}"
 
     def health_summary(self, user_id: str, lang: str = "az") -> str:
@@ -410,27 +438,60 @@ class CareService:
             accuracy: Optional[float] = None, reason: str = "") -> Tuple[CareEvent, int]:
         self.profile(user_id)
         name = self.elder_name(user_id)
+        family = self.family(user_id)
         where = f"https://maps.google.com/?q={lat:.6f},{lon:.6f}" if lat is not None and lon is not None else None
-        ev = CareEvent(user_id=user_id, kind="sos", lat=lat, lon=lon,
-                       message=(reason or "Təcili kömək istəyir")[:300])
-        self.db.add(ev)
-        self.db.commit()
         body = f"{name} təcili kömək istəyir!" + (f" Yer: {where}" if where else " Yer məlum deyil.")
+        ev_id = str(uuid.uuid4())
         sent = push_to_family(self.db, user_id, {
             "title": "🚨 SOS — təcili kömək",
-            "body": body, "tag": f"sos-{ev.id}", "url": where or "/f/",
+            "body": body, "tag": f"sos-{ev_id}", "url": where or "/f/",
             "requireInteraction": True, "kind": "sos",
         })
-        logger.warning("SOS for user %s delivered to %d family devices", user_id[:8], sent)
+
+        if sent > 0:
+            sos_status = "delivered"
+        elif len(family) > 0:
+            sos_status = "no_devices"
+        else:
+            sos_status = "no_family"
+
+        ev = CareEvent(
+            id=ev_id,
+            user_id=user_id,
+            kind="sos",
+            status=sos_status,
+            notified_count=sent,
+            lat=lat,
+            lon=lon,
+            message=(reason or "Təcili kömək istəyir")[:300],
+        )
+        self.db.add(ev)
+        self.db.commit()
+
+        logger.warning("SOS for user %s status=%s delivered to %d family devices", user_id[:8], sos_status, sent)
         return ev, sent
+
+    def cancel_sos(self, user_id: str) -> CareEvent:
+        ev = CareEvent(
+            user_id=user_id,
+            kind="sos_cancelled",
+            status="cancelled",
+            notified_count=0,
+            message="SOS geri sayımı istifadəçi tərəfindən ləğv edildi",
+        )
+        self.db.add(ev)
+        self.db.commit()
+        logger.info("SOS cancelled by user %s", user_id[:8])
+        return ev
 
     # ---- timeline / family view ------------------------------------------
     def events(self, user_id: str, limit: int = 30) -> List[Dict[str, Any]]:
         rows = (self.db.query(CareEvent)
                 .filter(CareEvent.user_id == user_id,
-                        CareEvent.kind.in_(("sos", "dose_missed", "dose_taken", "checkin", "checkin_missed")))
+                        CareEvent.kind.in_(("sos", "sos_cancelled", "dose_missed", "dose_taken", "checkin", "checkin_missed", "health")))
                 .order_by(CareEvent.created_at.desc()).limit(limit).all())
-        return [{"id": e.id, "kind": e.kind, "message": e.message, "lat": e.lat, "lon": e.lon,
+        return [{"id": e.id, "kind": e.kind, "message": e.message, "status": e.status,
+                 "notified_count": e.notified_count or 0, "lat": e.lat, "lon": e.lon,
                  "at": _from_db(e.created_at).isoformat()} for e in rows]
 
     def family_view(self, token: str) -> Dict[str, Any]:

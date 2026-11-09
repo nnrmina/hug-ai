@@ -99,8 +99,8 @@ def list_health(uid: str = Depends(device_user_id), db: Session = Depends(get_db
 @router.post("/care/health", status_code=status.HTTP_201_CREATED)
 def add_health(body: HealthIn, uid: str = Depends(device_user_id), db: Session = Depends(get_db)):
     svc = CareService(db)
-    row = svc.add_reading(uid, body.kind, body.value, body.value2)
-    return {**svc.readings(uid, 1)[0], "reply": svc.reading_reply(row)}
+    row, sent = svc.add_reading(uid, body.kind, body.value, body.value2)
+    return {**svc.readings(uid, 1)[0], "reply": svc.reading_reply(row, notified_count=sent), "notified_devices": sent}
 
 
 @router.delete("/care/health/{reading_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -157,16 +157,22 @@ def dose_snooze(dose_id: str, body: SnoozeIn, uid: str = Depends(device_user_id)
 
 @router.post("/care/checkin")
 def checkin(body: CheckInIn, uid: str = Depends(device_user_id), db: Session = Depends(get_db)):
-    row = CareService(db).record_checkin(uid, body.mood, body.note)
-    return {"day": row.day, "mood": row.mood}
+    row, sent = CareService(db).record_checkin(uid, body.mood, body.note)
+    return {"day": row.day, "mood": row.mood, "notified_devices": sent}
 
 
 @router.post("/care/sos")
 def sos(body: SosIn, uid: str = Depends(device_user_id), db: Session = Depends(get_db)):
     svc = CareService(db)
     ev, sent = svc.sos(uid, body.lat, body.lon, body.accuracy, body.reason)
-    return {"id": ev.id, "notified_devices": sent,
+    return {"id": ev.id, "status": ev.status, "notified_devices": sent,
             "family": [_member_out(svc, m) for m in svc.family(uid)]}
+
+
+@router.post("/care/sos/cancel")
+def cancel_sos(uid: str = Depends(device_user_id), db: Session = Depends(get_db)):
+    ev = CareService(db).cancel_sos(uid)
+    return {"id": ev.id, "status": ev.status}
 
 
 @router.post("/care/push/subscribe", status_code=status.HTTP_201_CREATED)

@@ -2028,99 +2028,49 @@ body { background: var(--page); color: var(--text); }
 }
 
 /* ==========================================================================
-   SOS button (header): tactile 3D emergency beacon, hold to activate
+   Emergency call button (home, under "Danışmaq üçün toxunun"): hold to activate,
+   the darker fill sweeping left to right shows the 1.5 s hold progress
    ========================================================================== */
+.home-action-container { display: flex; flex-direction: column; gap: 12px; }
+
 .sos-btn {
   position: relative;
-  width: 48px;
-  height: 48px;
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  background: radial-gradient(circle at 35% 30%, #ff5252 0%, #d32f2f 55%, #8b0000 100%);
+  overflow: hidden;
+  isolation: isolate;
+  width: 100%;
+  height: 56px;
+  border-radius: 28px;
+  border: none;
+  background: #d32f2f;
   color: #ffffff;
-  font-weight: 900;
-  display: grid;
-  place-items: center;
+  font-size: calc(16.5px * var(--text-scale));
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(211, 47, 47, 0.42), inset 0 2px 3px rgba(255, 255, 255, 0.5), inset 0 -2px 4px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 20px rgba(211, 47, 47, 0.30);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  animation: sos-beacon-breathe 2.4s infinite ease-in-out;
-  transition: transform 0.15s ease, filter 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease;
 }
-
-@keyframes sos-beacon-breathe {
-  0%, 100% {
-    box-shadow: 0 4px 14px rgba(211, 47, 47, 0.42), 0 0 0 0 rgba(211, 47, 47, 0.25);
-  }
-  50% {
-    box-shadow: 0 6px 18px rgba(211, 47, 47, 0.65), 0 0 0 5px rgba(211, 47, 47, 0.12);
-  }
-}
-
-.sos-badge-wrap {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-}
-
-.sos-live-beacon {
-  width: 5px;
-  height: 5px;
-  background: #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 0 6px #ffffff;
-  animation: beacon-blink 1.2s infinite ease-in-out;
-}
-
-@keyframes beacon-blink {
-  0%, 100% { opacity: 0.9; transform: scale(1); }
-  50% { opacity: 0.35; transform: scale(0.75); }
-}
-
-.sos-title {
-  font-size: calc(12px * var(--text-scale));
-  font-weight: 900;
-  letter-spacing: 0.8px;
-  line-height: 1;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-}
-
-.sos-ring {
+.sos-btn svg { flex-shrink: 0; }
+.sos-btn::before {
+  content: "";
   position: absolute;
-  inset: -5px;
-  width: 58px;
-  height: 58px;
-  transform: rotate(-90deg);
-  pointer-events: none;
-  z-index: 1;
+  inset: 0;
+  z-index: -1;
+  background: #8e1b1b;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.2s ease-out;
 }
-
-.sos-ring circle {
-  fill: none;
-  stroke: #ff1744;
-  stroke-width: 3.5;
-  stroke-dasharray: 170;
-  stroke-dashoffset: 170;
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 4px rgba(255, 23, 68, 0.7));
-}
-
-.sos-btn.holding .sos-ring circle {
-  transition: stroke-dashoffset 1.5s linear;
-  stroke-dashoffset: 0;
-}
-
-.sos-btn.holding {
-  transform: scale(0.94);
-  filter: brightness(1.15);
-  animation: none;
-}
+.sos-btn.holding::before { transform: scaleX(1); transition: transform 1.5s linear; }
+.sos-btn.holding { transform: scale(0.98); }
+.sos-btn:focus-visible { outline: 3px solid color-mix(in srgb, #d32f2f 55%, var(--text)); outline-offset: 3px; }
 
 /* ==========================================================================
    Home: today card (check-in prompt + next medicine)
@@ -2203,16 +2153,37 @@ button.care-row { cursor: pointer; }
 @keyframes sosPulse { 50% { transform: scale(1.05); } }
 .sos-title { font-size: calc(28px * var(--text-scale)); font-weight: 800; color: var(--text); }
 .sos-sub { font-size: calc(17px * var(--text-scale)); color: var(--text-muted); max-width: 300px; }
-.sos-cancel-btn {
-  margin-top: 18px;
+.sos-countdown-actions {
   width: 100%;
-  height: 72px;
-  border-radius: 36px;
-  border: 3px solid var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+.sos-direct-emergency-btn {
+  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+  color: #ffffff !important;
+  border: none;
+  box-shadow: 0 4px 16px rgba(211, 47, 47, 0.42);
+  animation: sosPulse 1.4s infinite ease-in-out;
+}
+.sos-warning-ring {
+  background: linear-gradient(135deg, #e65100 0%, #d50000 100%) !important;
+  box-shadow: 0 0 0 12px rgba(229, 57, 53, 0.24), 0 0 0 24px rgba(229, 57, 53, 0.1) !important;
+  animation: sosPulse 1.2s infinite ease-in-out;
+}
+.sos-title-alert {
+  color: #d32f2f !important;
+}
+.sos-cancel-btn {
+  width: 100%;
+  height: 64px;
+  border-radius: 32px;
+  border: 2px solid var(--border-strong, var(--border));
   background: var(--surface);
   color: var(--text);
-  font-size: calc(24px * var(--text-scale));
-  font-weight: 800;
+  font-size: calc(20px * var(--text-scale));
+  font-weight: 700;
   cursor: pointer;
 }
 .sos-actions { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
@@ -2230,7 +2201,22 @@ button.care-row { cursor: pointer; }
   font-weight: 800;
   text-decoration: none;
 }
-.sos-call-btn.family { background: #d93025; color: #ffffff; }
+.sos-call-btn.emergency-103 {
+  background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+  color: #ffffff;
+  border: 2px solid #b71c1c;
+  box-shadow: 0 4px 14px rgba(211, 47, 47, 0.35);
+}
+.sos-call-btn.emergency-112 {
+  background: var(--surface);
+  border: 2px solid #e65100;
+  color: var(--text);
+}
+.sos-call-btn.family {
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  color: var(--text);
+}
 
 /* ==========================================================================
    Dose alert + daily check-in
@@ -2406,14 +2392,19 @@ html:has(body.family-body), body.family-body { height: auto !important; overflow
 .samsung-brand-logo img { width: 64px; height: 64px; }
 
 #screen-home .top-nav-right { gap: 2px; }
-#screen-home .top-nav-right .samsung-icon-btn {
+#screen-home .top-nav-right .samsung-icon-btn,
+#screen-home #btn-open-settings {
   width: 44px; height: 44px; border-radius: 22px;           /* keep a big touch target */
   background: transparent; box-shadow: none; color: var(--text);
 }
-#screen-home .top-nav-right .samsung-icon-btn svg { width: 22px; height: 22px; }
+#screen-home .top-nav-right .samsung-icon-btn svg,
+#screen-home #btn-open-settings svg { width: 22px; height: 22px; }
 #screen-home .top-nav-right .samsung-icon-btn:hover,
 #screen-home .top-nav-right .samsung-icon-btn:active,
-#screen-home .top-nav-right .samsung-icon-btn:focus-visible {
+#screen-home .top-nav-right .samsung-icon-btn:focus-visible,
+#screen-home #btn-open-settings:hover,
+#screen-home #btn-open-settings:active,
+#screen-home #btn-open-settings:focus-visible {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 

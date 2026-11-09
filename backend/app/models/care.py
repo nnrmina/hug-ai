@@ -7,7 +7,7 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 
 from app.core.database import Base
 
@@ -116,8 +116,10 @@ class CareEvent(Base):
     id = Column(String(36), primary_key=True, default=_uuid)
     user_id = Column(String(36), nullable=False, index=True)
     kind = Column(String(30), nullable=False)
-    # sos | dose_missed | dose_taken | checkin | checkin_missed | checkin_prompt | reminder_push
+    # sos | sos_cancelled | dose_missed | dose_taken | checkin | checkin_missed | checkin_prompt | reminder_push | health
     message = Column(String(300), nullable=False, default="")
+    status = Column(String(30), nullable=True)  # delivered | no_devices | no_family | cancelled | failed
+    notified_count = Column(Integer, nullable=True, default=0)
     ref = Column(String(64), nullable=True, index=True)  # e.g. reminder id / day, for idempotency
     lat = Column(Float, nullable=True)
     lon = Column(Float, nullable=True)

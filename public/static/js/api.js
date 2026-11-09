@@ -89,5 +89,6 @@ export const sendCheckin = (mood, note = "") => request("/care/checkin", { metho
 export const addHealth = (body) => request("/care/health", { method: "POST", json: body });
 export const removeHealth = (id) => request(`/care/health/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const sendSos = (body) => request("/care/sos", { method: "POST", json: body, timeoutMs: 15000 });
+export const cancelSosApi = () => request("/care/sos/cancel", { method: "POST" });
 export const subscribeElderPush = (subscription) =>
   request("/care/push/subscribe", { method: "POST", json: { subscription } });

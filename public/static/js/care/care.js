@@ -1,8 +1,8 @@
 // Care features on the elder's phone: SOS, medicines, daily check-in, family circle,
 // first-run setup and push subscription.
 import {
-  addFamily, addHealth, addMedication, removeHealth, careState, doseSnooze, doseTaken, removeFamily, removeMedication,
-  saveProfile, sendCheckin, sendSos, subscribeElderPush
+  addFamily, addHealth, addMedication, cancelSosApi, careState, doseSnooze, doseTaken, removeFamily, removeMedication,
+  removeHealth, saveProfile, sendCheckin, sendSos, subscribeElderPush
 } from "../api.js";
 import { playClip, speak, stopSpeaking } from "../audio/tts.js";
 import { RELATION_OPTIONS, getFamily, setFamily, telHref } from "../contacts.js";
@@ -92,7 +92,7 @@ export function armSosButton() {
     if (holdTimer) {
       clearTimeout(holdTimer);
       holdTimer = null;
-      if (btn.classList.contains("holding")) toast("Təcili kömək üçün SOS düyməsini 2 saniyə basıb saxlayın", { duration: 3500 });
+      if (btn.classList.contains("holding")) toast("Təcili zəng üçün düyməni basıb saxlayın", { duration: 3500 });
     }
     btn.classList.remove("holding");
   };
@@ -113,7 +113,7 @@ export function startSos({ reason = "" } = {}) {
   const locationPromise = getLocation(); // ask for location while counting down
   let left = 5;
   setText("sos-count", String(left));
-  say("Ailənizə xəbər verirəm. Ləğv etmək üçün düyməyə toxunun.");
+  say("SOS başladı. 5 saniyə sonra ailənizə xəbər veriləcək. Dərhal 103-ə zəng edə və ya ləğv edə bilərsiniz.");
   sosTimer = setInterval(async () => {
     left -= 1;
     setText("sos-count", String(Math.max(left, 0)));
@@ -125,17 +125,20 @@ export function startSos({ reason = "" } = {}) {
     let result = null;
     try {
       result = await sendSos({ ...(loc || {}), reason });
-    } catch (_) { /* still offer the call buttons */ }
+    } catch (_) { /* still offer the emergency direct call buttons */ }
     showSosSent(result, Boolean(loc));
   }, 1000);
 }
 
-function cancelSos() {
+async function cancelSos() {
   sosCancelled = true;
   clearInterval(sosTimer);
   haptic("tap");
+  try {
+    await cancelSosApi();
+  } catch (_) {}
   showScreen("screen-home");
-  playClip("action_cancel", "Əməliyyat ləğv edildi.");
+  playClip("action_cancel", "SOS əməliyyatı ləğv edildi.");
 }
 
 function showSosSent(result, hadLocation) {
@@ -144,26 +147,52 @@ function showSosSent(result, hadLocation) {
   const family = (result?.family || state?.family || []);
   const first = family[0];
   const callBtn = document.getElementById("sos-call-family");
-  if (first) {
+  if (first && first.phone) {
     callBtn.href = `tel:${first.phone}`;
     setText("sos-call-family-name", `${first.name} — zəng et`);
     callBtn.hidden = false;
   } else {
     callBtn.hidden = true;
   }
+
   const n = result?.notified_devices ?? 0;
-  const sub = !result
-    ? "İnternet yoxdur — birbaşa zəng edin."
-    : n > 0
-      ? `${n} ailə cihazına bildiriş getdi${hadLocation ? ", yeriniz də göndərildi" : ""}.`
-      : family.length
-        ? "Ailəniz bildirişləri hələ açmayıb — zəng edin."
-        : "Ailə üzvü əlavə edilməyib — 103-ə zəng edin.";
-  setText("sos-sent-sub", sub);
-  haptic("success");
-  say(first ? `Xəbər verdim. İndi ${first.name} ilə əlaqə saxlayıram.` : "Xəbər verdim. Lazım olsa 103-ə zəng edin.");
-  // Hand off to the dialer automatically when there is someone to call
-  if (first) setTimeout(() => directCall(first.phone), 2500);
+  const status = result?.status || (n > 0 ? "delivered" : "no_devices");
+  const ring = document.getElementById("sos-sent-ring");
+  const title = document.getElementById("sos-sent-title");
+
+  if (n > 0) {
+    if (ring) {
+      ring.className = "sos-done-ring";
+      ring.textContent = "✓";
+    }
+    if (title) {
+      title.className = "sos-title";
+      title.textContent = "Ailənizə xəbər verildi";
+    }
+    const sub = `${n} ailə üzvünün cihazına bildiriş çatdı${hadLocation ? ", yeriniz də göndərildi" : ""}.`;
+    setText("sos-sent-sub", sub);
+    haptic("success");
+    say(first ? `Ailənizə bildiriş çatdırıldı. İndi ${first.name} ilə əlaqə saxlayıram.` : "Ailənizə bildiriş çatdırıldı. Lazım olsa 103-ə zəng edin.");
+    if (first && first.phone) setTimeout(() => directCall(first.phone), 3000);
+  } else {
+    if (ring) {
+      ring.className = "sos-done-ring sos-warning-ring";
+      ring.textContent = "⚠️";
+    }
+    if (title) {
+      title.className = "sos-title sos-title-alert";
+      title.textContent = "Ailəyə bildiriş çatmadı!";
+    }
+    let sub = "Ailə üzvlərinin tətbiq bildirişləri aktiv deyil. Dərhal 103-ə və ya ailənizə zəng edin!";
+    if (!result) {
+      sub = "İnternet bağlantısı yoxdur. Dərhal 103 Təcili Tibbi Yardıma zəng edin!";
+    } else if (status === "no_family" || !family.length) {
+      sub = "Ailə üzvü əlavə edilməyib. Dərhal 103 Təcili Tibbi Yardıma zəng edin!";
+    }
+    setText("sos-sent-sub", sub);
+    haptic("error");
+    say("Diqqət! Ailənizə bildiriş çatmadı. Zəhmət olmasa dərhal 103 Təcili Tibbi Yardıma zəng edin!");
+  }
 }
 
 // ------------------------------------------------------------------ medicines
@@ -369,21 +398,27 @@ export function showCheckin() {
 
 async function answerCheckin(mood) {
   haptic(mood === "bad" ? "warning" : "success");
+  let res = null;
   try {
-    await sendCheckin(mood);
+    res = await sendCheckin(mood);
   } catch (err) {
     toast(err.message || "Göndərilmədi", { type: "error" });
   }
   await refreshCare();
   const doses = (state?.doses || []).filter((d) => d.status === "pending");
   const plan = doses.length ? ` Bu gün ${doses.length} dərmanınız var: ${doses.map((d) => `saat ${d.time} ${d.name}`).join(", ")}.` : "";
+  const notified = (res?.notified_devices ?? 0) > 0;
   const reply = {
     good: "Buna çox sevindim!" + plan,
     ok: "Anladım. Özünüzü yorğun hiss etsəniz, dincəlin." + plan,
-    bad: "Çox təəssüf. Ailənizə xəbər verdim, sizə zəng edəcəklər."
+    bad: notified
+      ? `Çox təəssüf. Ailənizə xəbər verdim (${res.notified_devices} cihaza çatdı), sizə zəng edəcəklər.`
+      : "Çox təəssüf. Ailənizə bildiriş çatmadı — zəhmət olmasa dərhal ailənizə və ya 103-ə zəng edin."
   }[mood];
   showScreen("screen-home");
-  toast(mood === "bad" ? "Ailənizə xəbər verildi" : "Təşəkkürlər! ✓", { type: mood === "bad" ? "info" : "success" });
+  toast(mood === "bad" ? (notified ? "Ailənizə xəbər verildi" : "Ailəyə bildiriş çatmadı!") : "Təşəkkürlər! ✓", {
+    type: mood === "bad" ? (notified ? "info" : "error") : "success"
+  });
   say(reply);
 }
 

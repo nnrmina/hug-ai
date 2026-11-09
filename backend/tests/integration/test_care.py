@@ -48,9 +48,29 @@ def test_sos_notifies_family_with_location(client, pushes):
     _setup_family(client)
     res = client.post("/api/v1/care/sos", json={"lat": 40.4093, "lon": 49.8671, "reason": "Yıxıldım"}, headers=ELDER)
     assert res.status_code == 200
-    assert res.json()["family"][0]["phone"] == "+994501234567"
+    data = res.json()
+    assert data["family"][0]["phone"] == "+994501234567"
+    assert data["status"] == "delivered"
+    assert data["notified_devices"] == 1
     kind, _, payload = pushes[-1]
     assert kind == "family" and "SOS" in payload["title"] and "maps.google.com" in payload["body"]
+
+
+def test_sos_cancel_records_cancelled_status(client):
+    res = client.post("/api/v1/care/sos/cancel", headers=ELDER)
+    assert res.status_code == 200
+    assert res.json()["status"] == "cancelled"
+
+
+def test_health_critical_reading_notifies_family_truthfully(client, pushes):
+    _setup_family(client)
+    # Critical BP reading
+    res = client.post("/api/v1/care/health", json={"kind": "bp", "value": 190, "value2": 115}, headers=ELDER)
+    assert res.status_code == 201
+    data = res.json()
+    assert data["notified_devices"] == 1
+    assert "Ailənizə xəbər verdim (1 cihaza çatdı)" in data["reply"]
+
 
 
 def test_medicine_due_then_missed_then_family_alert(client, pushes, db_session):

@@ -108,11 +108,12 @@ class AssistantService:
         elif wf_status == "completed" and intent == "LOG_HEALTH":
             care = CareService(self.db)
             try:
-                row = care.add_reading(user.id, action_data.get("health_kind") or "",
-                                       float(action_data.get("health_value") or 0),
-                                       action_data.get("health_value2"))
-                response_text = care.reading_reply(row, lang)
+                row, sent = care.add_reading(user.id, action_data.get("health_kind") or "",
+                                             float(action_data.get("health_value") or 0),
+                                             action_data.get("health_value2"))
+                response_text = care.reading_reply(row, lang, notified_count=sent)
                 action_data["reading"] = care.readings(user.id, 1)[0]
+                action_data["notified_devices"] = sent
             except HTTPException:
                 response_text = pick(lang, "Bu göstəricini düzgün eşitmədim. Bir daha deyə bilərsiniz?",
                                      "Я не расслышала показатель. Повторите, пожалуйста.")
