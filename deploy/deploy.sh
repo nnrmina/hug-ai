@@ -12,7 +12,10 @@ COMPOSE=(docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env
 
 if [ "${SKIP_PULL:-0}" != "1" ]; then
   echo "==> pull"
-  git pull --ff-only
+  # Match origin/main exactly (also after a history rewrite / force push, where a fast-forward
+  # pull would fail forever). Only tracked files are reset; deploy/.env and deploy/.state stay.
+  git fetch -q origin main
+  git reset -q --hard origin/main
   # Bash keeps running the old copy of this file after the pull replaces it; restart with the new one.
   SKIP_PULL=1 exec "$0" "$@"
 fi
