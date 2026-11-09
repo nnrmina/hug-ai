@@ -220,6 +220,12 @@
 
           <button id="next-step-chip" class="next-step-chip" hidden>⏭️ Növbəti: <span></span></button>
 
+          <!-- Dual-SIM phones (Android app): which SIM to call from, asked by voice too -->
+          <div id="sim-choice" class="sim-choice" hidden>
+            <button type="button" class="sim-choice-btn" data-sim="0"></button>
+            <button type="button" class="sim-choice-btn" data-sim="1"></button>
+          </div>
+
           <div class="call-action-buttons">
             <a id="native-dialer-btn" href="tel:" class="dialer-native-link samsung-card">📞 Telefonda zəng et</a>
             <button id="btn-end-active-call" class="samsung-danger-pill-btn">Zəngi bitir</button>

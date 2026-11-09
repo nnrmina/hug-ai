@@ -3,7 +3,7 @@
 import { playClip, speak } from "../audio/tts.js";
 import { getLang } from "../i18n.js";
 import { smsHref, telHref } from "../contacts.js";
-import { directCall, isNativeApp } from "../native.js";
+import { directCall, isNativeApp, listSims } from "../native.js";
 import { announce, setText, showScreen } from "../ui/screens.js";
 
 let timer = null;
@@ -32,6 +32,19 @@ export function startCall(contact) {
   }
 
   document.getElementById("screen-calling")?.classList.remove("needs-tap");
+  placeNativeCall(contact, ru);
+}
+
+async function placeNativeCall(contact, ru) {
+  const callId = ++activeCall;
+  // Dual-SIM: ask which SIM instead of leaving it to Android's picker
+  let sim;
+  const sims = await listSims();
+  if (sims.length >= 2) {
+    sim = await askSim(sims, ru, callId);
+    if (sim === undefined || callId !== activeCall) return; // cancelled or left the screen
+  }
+
   seconds = 0;
   const tick = () => {
     const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
@@ -46,11 +59,99 @@ export function startCall(contact) {
   announce(line);
   speak(line, getLang()).then(() => {
     // Android app: calls directly (the user already said "Bəli")
-    directCall(contact.phone_number);
+    if (callId === activeCall) directCall(contact.phone_number, sim);
   });
 }
 
+// ---------------------------------------------------------------- SIM choice
+
+let activeCall = 0;
+let simListener = null;
+
+const simName = (s, ru) => `SIM ${s.slot}${s.carrier ? ` · ${s.carrier}` : ""}`;
+const fold = (w) => w.toLocaleLowerCase("az")
+  .replace(/ə/g, "e").replace(/ı/g, "i").replace(/ö/g, "o").replace(/ü/g, "u")
+  .replace(/ğ/g, "g").replace(/ş/g, "s").replace(/ç/g, "c");
+
+// "birinci", "bir", "1", "Azercell" → that SIM's index; "yox" / "ləğv" → "cancel"; else null
+export function parseSimAnswer(text, sims) {
+  const words = fold(text || "").split(/[\s,.!?;:|\-]+/).filter(Boolean);
+  if (words.some((w) => ["yox", "xeyr", "legv", "istemirem", "нет", "отмена"].includes(w))) return "cancel";
+  const bySlot = (n) => sims.find((s) => s.slot === n)?.index ?? null;
+  for (const w of words) {
+    if (/^(1|bir|birinci|birinc|birinciden|birinciye|biri|birinden|birden|один|первая|первой|первую)/.test(w)) return bySlot(1);
+    if (/^(2|iki|ikinci|ikinciden|ikinciye|ikisi|ikiden|два|вторая|второй|вторую)/.test(w)) return bySlot(2);
+  }
+  for (const s of sims) {
+    const carrier = fold(s.carrier || "").replace(/[^a-z0-9]/g, "");
+    if (carrier.length >= 3 && words.some((w) => w.replace(/[^a-z0-9]/g, "").startsWith(carrier.slice(0, 4)))) return s.index; // "azersel" ≈ Azercell
+  }
+  return null;
+}
+
+function askSim(sims, ru, callId) {
+  const box = document.getElementById("sim-choice");
+  const two = sims.slice(0, 2);
+  setText("calling-status-timer", ru ? "С какой SIM-карты позвонить?" : "Hansı SIM-dən zəng edək?");
+
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (value) => {
+      if (done) return;
+      done = true;
+      simListener?.stop();
+      simListener = null;
+      if (box) box.hidden = true;
+      resolve(value);
+    };
+
+    if (box) {
+      box.querySelectorAll(".sim-choice-btn").forEach((btn, i) => {
+        const s = two[i];
+        btn.hidden = !s;
+        if (!s) return;
+        btn.textContent = simName(s, ru);
+        btn.onclick = () => finish(s.index);
+      });
+      box.hidden = false;
+    }
+
+    const options = two.map((s) => (ru ? `${s.slot === 1 ? "первой" : "второй"}${s.carrier ? `, ${s.carrier}` : ""}` : `${s.slot === 1 ? "birinci" : "ikinci"}${s.carrier ? `, ${s.carrier}` : ""}`));
+    const question = ru
+      ? `С какой SIM-карты позвонить: ${options.join(", или ")}?`
+      : `Hansı SIM-dən zəng edək: ${options.join(", yoxsa ")}?`;
+    announce(question);
+
+    const listen = async (tries) => {
+      if (done || callId !== activeCall) return finish(undefined);
+      const { recognizeOnce, webSpeechSupported } = await import("../audio/webspeech.js");
+      if (!webSpeechSupported) return; // buttons only
+      simListener = recognizeOnce({ lang: ru ? "ru-RU" : "az-AZ", alternatives: 5 });
+      const text = await simListener.promise.catch(() => "");
+      if (done) return;
+      const answer = parseSimAnswer(text, two);
+      if (answer === "cancel") {
+        finish(undefined);
+        showScreen("screen-home");
+        return;
+      }
+      if (answer !== null) return finish(answer);
+      if (tries > 1) listen(tries - 1);
+    };
+    speak(question, getLang()).then(() => listen(2));
+  });
+}
+
+export function cancelSimChoice() {
+  activeCall += 1;
+  simListener?.stop();
+  simListener = null;
+  const box = document.getElementById("sim-choice");
+  if (box) box.hidden = true;
+}
+
 export function endCall() {
+  cancelSimChoice();
   clearInterval(timer);
   setText("done-message-subtext", "Zənginiz başa çatdı.");
   showScreen("screen-done");
@@ -60,6 +161,7 @@ export function endCall() {
 }
 
 export function stopCallTimer() {
+  cancelSimChoice();
   clearInterval(timer);
 }
 

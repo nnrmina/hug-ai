@@ -7,13 +7,27 @@ const cap = () => window.Capacitor;
 export const isNativeApp = () => Boolean(cap()?.isNativePlatform?.());
 const plugin = (name) => cap()?.Plugins?.[name];
 
-export async function directCall(number) {
+// Dual-SIM: the SIMs that can place calls, in slot order → [{ index, slot, carrier }].
+// Empty in the browser, on single-SIM phones' older app builds, or without the phone permission.
+export async function listSims() {
+  const dc = isNativeApp() && plugin("DirectCall");
+  if (!dc || typeof dc.simCards !== "function") return [];
+  try {
+    const { sims } = await dc.simCards();
+    return Array.isArray(sims) ? sims : [];
+  } catch (_) {
+    return []; // app build without simCards(): Android shows its own SIM picker
+  }
+}
+
+// `sim` = index from listSims(); without it Android uses the default SIM (or asks).
+export async function directCall(number, sim) {
   const clean = String(number || "").replace(/[^\d+]/g, "");
   if (!clean) return false;
   const dc = isNativeApp() && plugin("DirectCall");
   if (dc) {
     try {
-      await dc.call({ number: clean });
+      await dc.call(Number.isInteger(sim) ? { number: clean, sim } : { number: clean });
       return true;
     } catch (_) { /* fall through to the dialer */ }
   }
