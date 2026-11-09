@@ -68,7 +68,10 @@
         <header class="top-nav samsung-top-nav">
           <button id="btn-sos" class="sos-btn" aria-label="SOS — təcili kömək. Basıb saxlayın." title="Basıb saxlayın">
             <svg class="sos-ring" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="27"/></svg>
-            <span>SOS</span>
+            <span class="sos-badge-wrap">
+              <span class="sos-live-beacon" aria-hidden="true"></span>
+              <span class="sos-title">SOS</span>
+            </span>
           </button>
 
           <div class="samsung-brand-logo" role="img" aria-label="HUG">
@@ -130,16 +133,6 @@
               <svg width="20" height="20" aria-hidden="true"><use href="#i-mic"/></svg>
               Danışmaq üçün toxunun
             </button>
-            <form id="text-command-form" class="text-command-form" autocomplete="off">
-              <label for="text-command-input" class="sr-only">Əmri yazın</label>
-              <input id="text-command-input" class="text-command-input" type="text" enterkeyhint="send" placeholder="və ya yazın..." maxlength="2000" />
-              <button type="submit" class="text-command-send" aria-label="Göndər">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                  <polyline points="12 5 19 12 12 19"></polyline>
-                </svg>
-              </button>
-            </form>
           </div>
         </main>
       </section>

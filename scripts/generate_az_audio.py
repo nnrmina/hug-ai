@@ -22,7 +22,10 @@ PHRASES = {
     "taxi_active.mp3": "Taksi təsdiqləndi. Toyota Camry üç dəqiqəyə çatır.",
     "reminders.mp3": "Xatırlatmalarınız ekrandadır.",
     "order_done.mp3": "Sifarişiniz tamamlandı. Nuş olsun!",
-    "action_cancel.mp3": "Əməliyyat ləğv edildi."
+    "action_cancel.mp3": "Əməliyyat ləğv edildi.",
+    "call_nene_confirm.mp3": "Nənənizə zəng edilsin? Bəli deyin.",
+    "call_nene_active.mp3": "Nənəniz ilə əlaqə qurulur.",
+    "not_understood.mp3": "Bağışlayın, tam başa düşmədim. Zəhmət olmasa təkrar edin."
 }
 
 async def generate():
