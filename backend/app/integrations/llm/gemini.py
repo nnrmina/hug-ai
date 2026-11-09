@@ -59,6 +59,7 @@ IntentName = Literal[
     "FIND_PLACE",
     "LOG_HEALTH",
     "HEALTH_QUERY",
+    "OPEN_SCREEN",
     "GENERAL_QUESTION",
     "UNKNOWN",
 ]
@@ -94,6 +95,7 @@ class Understanding(BaseModel):
     health_kind: Optional[Literal["bp", "sugar", "pulse", "temp", "weight"]] = None
     health_value: Optional[float] = None
     health_value2: Optional[float] = None
+    screen: Optional[Literal["meds", "reminders", "family", "settings"]] = None
     next_step: Optional[str] = Field(default=None, description="The rest of a multi-step request as one standalone command")
 
 
@@ -138,6 +140,9 @@ intent — pick exactly one:
   health_value 140 = systolic, health_value2 90 = diastolic), sugar "şəkərim 7.5" (sugar, mmol/L),
   pulse "nəbzim 80" (pulse), temperature "qızdırmam 38" (temp), weight "çəkim 72 kilo" (weight).
 - HEALTH_QUERY: the user asks about their own recent measurements ("son təzyiqlərim necədir").
+- OPEN_SCREEN: the user wants to SEE a part of the app ("dərmanlarımı göstər", "təqvimi aç",
+  "xatırlatmalarıma bax", "ailəmi göstər", "tənzimləmələri aç"): screen meds | reminders | family | settings.
+  "Remind me / take medicine" requests are NOT this.
 - GENERAL_QUESTION: greetings, small talk, questions about you or general knowledge.
 - UNKNOWN: anything else, or when you genuinely cannot tell.
 
@@ -377,6 +382,9 @@ class GeminiLLMAdapter(BaseLLMAdapter):
 
         elif u.intent == "FIND_PLACE":
             out["place_type"] = u.place_type or "pharmacy"
+
+        elif u.intent == "OPEN_SCREEN":
+            out["screen"] = u.screen or "meds"
 
         elif u.intent == "LOG_HEALTH":
             if u.health_kind and u.health_value is not None:

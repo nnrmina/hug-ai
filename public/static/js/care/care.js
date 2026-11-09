@@ -63,11 +63,12 @@ function renderCareCard() {
     doseRow.dataset.doseId = dose.id;
     doseRow.classList.toggle("due", due);
   }
-  const link = document.getElementById("care-open-meds");
   const total = state.doses.length;
   const taken = state.doses.filter((d) => d.status === "taken").length;
-  link.textContent = total ? `Bu gün: ${taken}/${total} dərman içilib →` : "Dərmanlarım →";
-  card.hidden = false;
+  const sub = document.getElementById("meds-entry-sub");
+  if (sub) sub.textContent = total ? `Bu gün: ${taken}/${total} dərman içilib` : "Gündəlik dərmanlar və sağlamlıq qeydləri";
+  // Only show the card when there is something to act on (next medicine / today's question)
+  card.hidden = checkinRow.hidden && doseRow.hidden;
 }
 
 // ------------------------------------------------------------------ SOS
@@ -542,7 +543,7 @@ export function initCare() {
     if (dose && dose.status !== "taken") showDoseAlert(dose);
   });
   document.getElementById("care-checkin")?.addEventListener("click", showCheckin);
-  document.getElementById("care-open-meds")?.addEventListener("click", openMeds);
+  document.getElementById("btn-open-meds-cal")?.addEventListener("click", openMeds);
   document.getElementById("care-dose-taken")?.addEventListener("click", (e) => {
     const id = e.currentTarget.closest("[data-dose-id]")?.dataset.doseId;
     if (id) markTaken(id);

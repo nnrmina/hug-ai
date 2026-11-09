@@ -9,7 +9,8 @@ const DEFAULT_SETTINGS = {
   theme: "system",       // system | light | dark
   contrast: "normal",    // normal | high
   textSize: "normal",    // normal | large | xl
-  alerts: true           // spoken + notification reminder alerts
+  alerts: true,          // spoken + notification reminder alerts
+  conversation: true     // reopen the mic after every spoken answer (hands-free chat)
 };
 
 function safeGet(storage, key) {

@@ -27,6 +27,7 @@ INTENTS = [
     "FIND_PLACE",
     "LOG_HEALTH",
     "HEALTH_QUERY",
+    "OPEN_SCREEN",
     "GENERAL_QUESTION",
     "UNKNOWN",
 ]
@@ -43,6 +44,13 @@ _STEP_SPLIT = re.compile(r"(?i)\s*,?\s+(?:və\s+)?(?:sonra|ardınca|daha sonra)\
 PLACE_WORDS = {"pharmacy": ["aptek", "aptekə", "apteka"], "hospital": ["xəstəxana", "xestexana", "poliklinika", "klinika"]}
 NEAR_WORDS = ["yaxın", "yaxin", "harada", "hardadır", "hardadir", "harda", "haradadır", "yaxınlıq"]
 WEATHER_WORDS = ["hava ", "hava?", "havanı", "havalar", "yağış", "yagis", "qar yağ", "neçə dərəcə", "temperatur necə"]
+OPEN_VERBS = ["göstər", "goster", "aç", "ac ", "bax", "açın", "göstərin"]
+SCREEN_WORDS = [
+    ("meds", ["dərmanlarım", "dermanlarim", "dərmanları", "dərman siyahı"]),
+    ("reminders", ["təqvim", "teqvim", "xatırlatmalar", "xatirlatmalar"]),
+    ("family", ["ailəm", "ailəmi", "aile", "kontakt"]),
+    ("settings", ["tənzimləmə", "tenzimleme", "parametr", "ayarlar"]),
+]
 HEALTH_QUERY_WORDS = ["son təzyiq", "təzyiqlərim", "göstəricilərim", "ölçülərim", "son ölçmə"]
 
 
@@ -65,7 +73,7 @@ EMERGENCY_KEYWORDS = [
     "tecili yardim", "ürəyim ağrıyır", "ureyim agriyir", "nəfəs ala bilmirəm", "nefes ala bilmirem",
     "özümü çox pis", "ozumu cox pis", "huşumu itir",
 ]
-TAKEN_KEYWORDS = ["dərmanımı içdim", "derman icdim", "dərmanı içdim", "həbi içdim", "həbimi içdim", "içdim dərman"]
+TAKEN_KEYWORDS = ["dərmanımı içdim", "dərmanlarımı içdim", "dərmanları içdim", "dermanlarimi icdim", "derman icdim", "dərmanı içdim", "həbi içdim", "həbimi içdim", "içdim dərman"]
 MOOD_KEYWORDS = {
     "bad": ["özümü pis hiss", "ozumu pis hiss", "halım yoxdur", "halim yoxdur", "xəstəyəm", "xesteyem"],
     "good": ["özümü yaxşı hiss", "ozumu yaxsi hiss", "yaxşıyam", "yaxsiyam", "əlayam", "kefim yaxşıdır"],
@@ -269,6 +277,13 @@ class AzerbaijaniSmartLLMAdapter(BaseLLMAdapter):
                 parsed["clarification_question"] = "Hər gün saat neçədə xatırladım? Məsələn: “səhər 9-da və axşam 9-da”."
                 parsed["missing_slots"] = ["med_times"]
             return parsed
+
+        # 0c2. "Dərmanlarımı göstər", "Təqvimi aç" -> open that screen
+        if any(v in lower + " " for v in OPEN_VERBS):
+            for screen, words in SCREEN_WORDS:
+                if any(w in lower for w in words):
+                    return {"intent": "OPEN_SCREEN", "confidence": 0.9, "screen": screen,
+                            "requires_confirmation": False}
 
         # 0d. Health measurements, weather, nearest places
         if any(kw in lower for kw in HEALTH_QUERY_WORDS):

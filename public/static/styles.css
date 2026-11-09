@@ -2323,3 +2323,45 @@ html:has(body.family-body), body.family-body { height: auto !important; overflow
 }
 .next-step-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .next-step-chip[hidden] { display: none; }
+
+/* ==========================================================================
+   Home header & headline refresh
+   ========================================================================== */
+.samsung-brand-logo img { width: 64px; height: 64px; }
+
+#screen-home .top-nav-right { gap: 2px; }
+#screen-home .top-nav-right .samsung-icon-btn {
+  width: 44px; height: 44px; border-radius: 22px;           /* keep a big touch target */
+  background: transparent; box-shadow: none; color: var(--text);
+}
+#screen-home .top-nav-right .samsung-icon-btn svg { width: 22px; height: 22px; }
+#screen-home .top-nav-right .samsung-icon-btn:hover,
+#screen-home .top-nav-right .samsung-icon-btn:active,
+#screen-home .top-nav-right .samsung-icon-btn:focus-visible {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+#screen-home .headline-block { margin-top: 26px; }
+#screen-home .greeting-line,
+#screen-home .hero-title {
+  font-size: min(calc(26px * var(--text-scale)), 30px); /* big, but never breaks into 4 lines */
+  line-height: 1.3;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+
+.text-command-send { background: var(--accent); color: var(--on-accent); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent); }
+.text-command-send:hover { background: var(--accent-strong); }
+
+.meds-entry {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border: none;
+  text-align: left; cursor: pointer; font: inherit; color: var(--text); flex-shrink: 0;
+}
+.meds-entry-ico { font-size: 26px; line-height: 1; }
+.meds-entry-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.meds-entry-text strong { font-size: calc(16px * var(--text-scale)); font-weight: 700; }
+.meds-entry-text small { font-size: calc(13px * var(--text-scale)); color: var(--text-muted); }
+.meds-entry-arrow { font-size: calc(30px * var(--text-scale)); font-weight: 700; color: var(--accent-strong); line-height: 1; }
+#screen-reminders .meds-entry { margin: 2px 0 10px; }

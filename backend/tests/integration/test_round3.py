@@ -238,3 +238,23 @@ def test_code_is_always_revalidated_and_entry_files_versioned(client):
     assert "max-age" in client.get("/static/audio/call_end.mp3").headers["cache-control"]
     page = client.get("/").text
     assert 'href="/static/styles.css?v=' in page and 'src="/static/js/main.js?v=' in page
+
+
+@pytest.mark.parametrize("text,screen", [
+    ("Dərmanlarımı göstər", "meds"),
+    ("Təqvimi aç", "reminders"),
+    ("Xatırlatmalarıma bax", "reminders"),
+    ("Ailəmi göstər", "family"),
+    ("Tənzimləmələri aç", "settings"),
+])
+def test_open_screen_by_voice(client, text, screen):
+    res = say(client, text)
+    assert res["intent"] == "OPEN_SCREEN" and res["status"] == "completed"
+    assert res["action_data"]["screen"] == screen and res["response"] == "Açıram."
+
+
+def test_open_screen_does_not_steal_other_intents():
+    rules = get_rule_adapter()
+    assert rules.understand(text="Hər gün səhər 9-da dərmanlarımı xatırlat")["intent"] == "CREATE_MEDICATION"
+    assert rules.understand(text="Ailəmə zəng et")["intent"] == "MAKE_CALL"
+    assert rules.understand(text="Dərmanlarımı içdim")["intent"] == "MEDICATION_TAKEN"

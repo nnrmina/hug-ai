@@ -5,7 +5,7 @@ import { playClip, speak, stopSpeaking } from "../audio/tts.js";
 import { listenYesNo, webSpeechSupported } from "../audio/webspeech.js";
 import { findContact } from "../contacts.js";
 import { openReminders } from "../reminders/index.js";
-import { capabilities, recordTurn } from "../store.js";
+import { capabilities, recordTurn, settings } from "../store.js";
 import { haptic } from "../ui/haptics.js";
 import { announce, setText, showScreen } from "../ui/screens.js";
 import { toast } from "../ui/toast.js";
@@ -37,6 +37,14 @@ export function runQueuedStep({ delay = 0 } = {}) {
     processText(text, { badge: `⏭️ ${tr("Növbəti addım")}...` });
   }, delay);
   return true;
+}
+
+// After an answer was spoken: run the next queued step, or (hands-free mode) reopen the mic
+export function continueConversation(screenId) {
+  if (runQueuedStep({ delay: 600 })) return;
+  if (!settings.conversation) return;
+  if (screenId && !document.getElementById(screenId)?.classList.contains("active")) return;
+  startListening({ followUp: true });
 }
 
 function showQueuedChip() {
@@ -90,9 +98,10 @@ export function showReply({ title, text, heard = "", icon = "✦", tone = "", li
   showScreen("screen-reply");
   say(text).then((finished) => {
     const stillHere = document.getElementById("screen-reply").classList.contains("active");
-    // Conversational follow-up: after asking a question, open the mic automatically
-    if (listenAfter && finished && stillHere) return startListening();
-    if (finished && stillHere) runQueuedStep({ delay: 600 });
+    if (!finished || !stillHere) return;
+    // After a question the mic always opens; otherwise only in hands-free conversation mode
+    if (listenAfter) return startListening({ followUp: true });
+    continueConversation("screen-reply");
   });
 }
 
@@ -244,6 +253,16 @@ export function handleResponse(data, heardText) {
     const icon = c === 0 ? "☀️" : c <= 3 ? "⛅" : c <= 48 ? "🌫️" : c >= 95 ? "⛈️" : c >= 71 && c <= 86 && !(c >= 80 && c <= 82) ? "❄️" : c >= 51 ? "🌧️" : "🌤️";
     return showReply({ title: "Hava proqnozu", text: data.response, heard, icon });
   }
+  if (intent === "OPEN_SCREEN" && data.status === "completed") {
+    // "Dərmanlarımı göstər", "Təqvimi aç": open it and say so (no auto-listen: the user is looking)
+    const screen = action.screen || "meds";
+    if (screen === "reminders") return openReminders(); // reads out the upcoming reminders itself
+    say(data.response);
+    if (screen === "meds") return import("../care/care.js").then((m) => m.openMeds());
+    showScreen("screen-home");
+    if (screen === "family") return document.getElementById("contacts-dialog")?.showModal();
+    return document.getElementById("btn-open-settings")?.click();
+  }
   if (intent === "FIND_PLACE" && data.status === "completed") {
     return import("./places.js").then((m) => m.openPlaces(action.place_type || "pharmacy"));
   }
@@ -308,6 +327,7 @@ export async function executeConfirmed() {
 
   // Leaving the app (call / SMS) comes last: if more steps are queued, offer them as a chip
   const next = () => runQueuedStep({ delay: 900 });
+  const nextOrListen = (finished) => finished !== false && continueConversation("screen-done");
   switch (action.type) {
     case "CALL":
       showQueuedChip();
@@ -330,7 +350,7 @@ export async function executeConfirmed() {
       await care.refreshCare();
       setText("done-message-subtext", result.response);
       showScreen("screen-done");
-      say(result.response).then(next);
+      say(result.response).then(nextOrListen);
       care.ensureNotifications();
       return;
     }
@@ -340,7 +360,7 @@ export async function executeConfirmed() {
     default:
       setText("done-message-subtext", result.response);
       showScreen("screen-done");
-      say(result.response).then(next);
+      say(result.response).then(nextOrListen);
   }
 }
 

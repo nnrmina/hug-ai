@@ -120,7 +120,9 @@ export class VoiceRecorder {
       this.onAutoStop(reason);
       return;
     }
-    this.raf = requestAnimationFrame(() => this._loop());
+    // A timer, not requestAnimationFrame: rAF stops when the page is hidden (screen locked,
+    // app in background), which would leave the microphone open forever.
+    this.raf = setTimeout(() => this._loop(), 50);
   }
 
   get hadSpeech() {
@@ -131,7 +133,7 @@ export class VoiceRecorder {
   async stop() {
     if (!this.running) return null;
     this.running = false;
-    cancelAnimationFrame(this.raf);
+    clearTimeout(this.raf);
     const durationMs = performance.now() - this.startedAt;
     try { this.source.disconnect(); } catch (_) {}
     try { this.tap.disconnect(); } catch (_) {}
@@ -147,7 +149,7 @@ export class VoiceRecorder {
   cancel() {
     if (!this.running) return;
     this.running = false;
-    cancelAnimationFrame(this.raf);
+    clearTimeout(this.raf);
     try { this.stream.getTracks().forEach((t) => t.stop()); } catch (_) {}
     try { this.ctx.close(); } catch (_) {}
     this.chunks = [];

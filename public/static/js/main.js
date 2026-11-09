@@ -1,7 +1,7 @@
 // HUG — voice assistant for elderly people in Azerbaijan.
 // Voice / typed command → FastAPI agent (Gemini or rules) → confirmation → on-device action.
 import { getCapabilities } from "./api.js";
-import { stopSpeaking, unlockAudio } from "./audio/tts.js";
+import { stopSpeaking, unlockAudio, isSpeaking } from "./audio/tts.js";
 import { cancelConfirmed, cancelPendingAction, clearQueuedStep, executeConfirmed, runQueuedStep, stopConfirmListening } from "./flows/assistant.js";
 import { endCall, stopCallTimer } from "./flows/call.js";
 import { cancelListening, finishListening, processText, startListening } from "./flows/listen.js";
@@ -132,6 +132,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Reply / call / orders
   on("btn-reply-talk", "click", () => startListening());
+  // Interrupt: tapping the answer while HUG is still talking stops it and opens the mic
+  document.querySelector("#screen-reply .reply-main")?.addEventListener("click", (e) => {
+    if (e.target.closest("button, a")) return;
+    if (isSpeaking()) startListening({ followUp: true });
+  });
   on("btn-end-active-call", "click", () => endCall());
   on("btn-order-finish", "click", () => finishOrder());
   on("btn-cancel-taxi", "click", () => {

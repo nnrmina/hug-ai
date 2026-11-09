@@ -43,24 +43,38 @@ export function cancelListening() {
   setMode("idle");
 }
 
-export async function startListening() {
+// followUp: opened automatically after an answer (hands-free conversation). If the user
+// says nothing, we end quietly instead of showing an error.
+export async function startListening({ followUp = false } = {}) {
   cancelListening();
   stopSpeaking();
   stopConfirmListening();
   cancelPendingAction();
   unlockAudio();
   showScreen("screen-listening");
-  setListeningUi({ badge: "🔴 Sizi dinləyirəm...", quote: "Danışın, sizi eşidirəm...", mode: "listening" });
+  setListeningUi({
+    badge: followUp ? "🔴 Davam edin, dinləyirəm..." : "🔴 Sizi dinləyirəm...",
+    quote: followUp ? "Başqa sualınız var? Danışın..." : "Danışın, sizi eşidirəm...",
+    mode: "listening"
+  });
   chime(true);
-  haptic("start");
+  if (!followUp) haptic("start");
 
-  if (useServerAudio()) return listenWithGemini();
-  if (webSpeechSupported) return listenWithBrowser();
+  if (useServerAudio()) return listenWithGemini(followUp);
+  if (webSpeechSupported) return listenWithBrowser(followUp);
   micError("Bu brauzer səs tanımır. Zəhmət olmasa əmri ana səhifədə yazın.");
 }
 
-async function listenWithGemini() {
-  const session = { kind: "gemini", cancelled: false, hint: "" };
+// Hands-free follow-up heard nothing: close the conversation quietly
+function endFollowUp() {
+  setMode("idle");
+  chime(false);
+  showScreen("screen-home");
+  toast("Danışmaq üçün mikrofona toxunun", { duration: 2200 });
+}
+
+async function listenWithGemini(followUp = false) {
+  const session = { kind: "gemini", cancelled: false, hint: "", followUp };
   active = session;
 
   const recorder = new VoiceRecorder({
@@ -94,6 +108,7 @@ async function listenWithGemini() {
     chime(false);
 
     if (!result || !result.hadSpeech) {
+      if (session.followUp && !session.hint) return endFollowUp();
       micError("Heç nə eşitmədim. Mikrofona yaxın danışın və yenidən cəhd edin.");
       return;
     }
@@ -126,7 +141,7 @@ async function listenWithGemini() {
   }
 }
 
-async function listenWithBrowser() {
+async function listenWithBrowser(followUp = false) {
   const session = { kind: "browser", cancelled: false };
   active = session;
   setMode("listening");
@@ -158,6 +173,7 @@ async function listenWithBrowser() {
   active = null;
   text = (text || heard).trim();
   if (!text) {
+    if (followUp) return endFollowUp();
     micError("Heç nə eşitmədim. Yenidən cəhd edin.");
     return;
   }

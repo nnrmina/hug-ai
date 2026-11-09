@@ -99,9 +99,7 @@
         <main class="home-main">
           <div class="headline-block">
             <p id="greeting-line" class="greeting-line">Salam</p>
-            <h1 class="hero-title" data-screen-title>
-              Bu gün sizə necə <span class="accent-word">kömək</span><br />edə bilərəm?
-            </h1>
+            <h1 class="hero-title" data-screen-title>Bu gün sizə necə kömək<br />edə bilərəm?</h1>
           </div>
 
           <div id="care-card" class="care-card" hidden>
@@ -114,7 +112,6 @@
               <span class="care-text"><strong id="care-dose-title"></strong><small id="care-dose-sub"></small></span>
               <button id="care-dose-taken" class="care-taken-btn">İçdim</button>
             </div>
-            <button id="care-open-meds" class="care-link">Bu günün dərmanları →</button>
           </div>
 
           <div class="orb-stage">
@@ -349,6 +346,12 @@
         <main class="reminders-main">
           <div id="calendar-card" class="calendar-card samsung-card"></div>
 
+          <button id="btn-open-meds-cal" class="samsung-card meds-entry" type="button">
+            <span class="meds-entry-ico" aria-hidden="true">💊</span>
+            <span class="meds-entry-text"><strong>Dərmanlarım</strong><small id="meds-entry-sub">Gündəlik dərmanlar və sağlamlıq qeydləri</small></span>
+            <span class="meds-entry-arrow" aria-hidden="true">›</span>
+          </button>
+
           <div class="reminders-list-header">
             <h3 id="reminders-list-title" class="reminders-list-title">Qarşıdakı xatırlatmalar</h3>
             <button id="btn-clear-day" class="link-btn" type="button" hidden>Hamısını göstər</button>
@@ -579,6 +582,11 @@
           <label><input type="radio" name="engine" value="browser" /><span>Brauzer</span></label>
         </div>
         <p id="engine-status" class="setting-help"></p>
+        <label class="switch-row">
+          <span>Davamlı söhbət</span>
+          <input type="checkbox" name="conversation" role="switch" />
+        </label>
+        <p class="setting-help">Cavabdan sonra mikrofon özü açılır — düyməyə toxunmadan danışmağa davam edin. Susanda özü dayanır.</p>
       </fieldset>
 
       <fieldset class="setting-group">

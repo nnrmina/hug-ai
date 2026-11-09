@@ -152,6 +152,9 @@ def response_node(state: AgentState) -> AgentState:
                           "Ən yaxın xəstəxanaları axtarıram..." if hospital else "Ən yaxın aptekləri axtarıram...",
                           "Ищу ближайшие больницы..." if hospital else "Ищу ближайшие аптеки..."), "completed")
 
+    if intent == "OPEN_SCREEN":
+        return reply(pick(lang, "Açıram.", "Открываю."), "completed")
+
     if intent in ("LOG_HEALTH", "HEALTH_QUERY"):
         # Saved and phrased by AssistantService (needs the database)
         return reply(pick(lang, "Qeyd etdim.", "Записала."), "completed")
