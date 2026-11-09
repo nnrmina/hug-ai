@@ -166,12 +166,10 @@
             <span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span>
           </div>
 
-          <div class="transcript-card samsung-card" aria-live="polite">
-            <span id="listening-status-badge" class="transcript-label">🔴 Sizi dinləyirəm...</span>
-            <p id="recognized-speech-quote" class="transcript-quote">Danışın, sizi eşidirəm...</p>
+          <div id="transcript-card" class="transcript-card" aria-live="polite" hidden>
+            <span id="listening-status-badge" class="sr-only"></span>
+            <p id="recognized-speech-quote" class="transcript-quote"></p>
           </div>
-
-          <p class="speak-hint-text">Danışıb susanda avtomatik göndərilir</p>
 
           <div class="listening-actions">
             <button id="btn-finish-recording" class="samsung-primary-pill-btn">Hazırdır, göndər</button>

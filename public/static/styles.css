@@ -702,8 +702,9 @@ body {
 
 .transcript-card {
   width: 100%;
-  padding: 20px 22px;
+  padding: 4px 22px;
   margin-bottom: 18px;
+  text-align: center;
 }
 
 .transcript-label {
@@ -716,9 +717,16 @@ body {
 
 .transcript-quote {
   font-size: calc(20px * var(--text-scale));
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text);
   line-height: 1.35;
+}
+
+/* Minimal one-line error ("Eşitmədim") instead of a big card */
+.transcript-card.is-error .transcript-quote {
+  font-size: calc(16px * var(--text-scale));
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .speak-hint-text {

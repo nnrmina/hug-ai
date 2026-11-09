@@ -15,9 +15,19 @@ import { cancelPendingAction, handleResponse, stopConfirmListening } from "./ass
 const isAndroid = /Android/i.test(navigator.userAgent);
 let active = null; // { kind, recorder?, captions?, finish, cancelled }
 
-function setListeningUi({ badge, quote, mode, showFinish = true, showRetry = false }) {
+// Minimal listening screen: no instruction texts. The card stays hidden until there is something
+// to show — the user's own words, or a one-line error. The badge is screen-reader only.
+function showQuote(text, { error = false } = {}) {
+  setText("recognized-speech-quote", text || "");
+  const card = document.getElementById("transcript-card");
+  if (!card) return;
+  card.hidden = !text;
+  card.classList.toggle("is-error", Boolean(text) && error);
+}
+
+function setListeningUi({ badge, quote, mode, showFinish = true, showRetry = false, error = false }) {
   if (badge !== undefined) setText("listening-status-badge", badge);
-  if (quote !== undefined) setText("recognized-speech-quote", quote);
+  if (quote !== undefined) showQuote(quote, { error });
   if (mode) setMode(mode);
   const finish = document.getElementById("btn-finish-recording");
   const retry = document.getElementById("btn-retry-listening");
@@ -29,9 +39,9 @@ export function useServerAudio() {
   return settings.engine !== "browser" && capabilities.audio_understanding && VoiceRecorder.supported;
 }
 
-function micError(message) {
+function micError(message = "Eşitmədim") {
   haptic("warning");
-  setListeningUi({ badge: "⚠️ Səs eşidilmədi", quote: message, mode: "idle", showFinish: false, showRetry: true });
+  setListeningUi({ badge: message, quote: message, mode: "idle", showFinish: false, showRetry: true, error: true });
 }
 
 export function cancelListening() {
@@ -53,8 +63,8 @@ export async function startListening({ followUp = false } = {}) {
   unlockAudio();
   showScreen("screen-listening");
   setListeningUi({
-    badge: followUp ? "🔴 Davam edin, dinləyirəm..." : "🔴 Sizi dinləyirəm...",
-    quote: followUp ? "Başqa sualınız var? Danışın..." : "Danışın, sizi eşidirəm...",
+    badge: "Dinləyirəm",
+    quote: "",
     mode: "listening"
   });
   chime(true);
@@ -62,7 +72,7 @@ export async function startListening({ followUp = false } = {}) {
 
   if (useServerAudio()) return listenWithGemini(followUp);
   if (webSpeechSupported) return listenWithBrowser(followUp);
-  micError("Bu brauzer səs tanımır. Zəhmət olmasa əmri ana səhifədə yazın.");
+  micError("Bu brauzer səsi tanımır");
 }
 
 // Hands-free follow-up heard nothing: close the conversation quietly
@@ -79,7 +89,7 @@ async function listenWithGemini(followUp = false) {
 
   const recorder = new VoiceRecorder({
     onLevel: setLevel,
-    onSpeechStart: () => setText("listening-status-badge", "🎙️ Danışırsınız..."),
+    onSpeechStart: () => setText("listening-status-badge", "Danışırsınız"),
     onAutoStop: () => session.finish()
   });
   session.recorder = recorder;
@@ -90,7 +100,7 @@ async function listenWithGemini(followUp = false) {
       session.captions = recognizeOnce({
         onInterim: (t) => {
           session.hint = t;
-          if (t) setText("recognized-speech-quote", `“${t}”`);
+          if (t) showQuote(`“${t}”`);
         }
       });
       session.captions.promise.then((t) => { if (t) session.hint = t; }).catch(() => {});
@@ -109,10 +119,10 @@ async function listenWithGemini(followUp = false) {
 
     if (!result || !result.hadSpeech) {
       if (session.followUp && !session.hint) return endFollowUp();
-      micError("Heç nə eşitmədim. Mikrofona yaxın danışın və yenidən cəhd edin.");
+      micError();
       return;
     }
-    setListeningUi({ badge: "⏳ Düşünürəm...", mode: "thinking", showFinish: false });
+    setListeningUi({ badge: "Düşünürəm", mode: "thinking", showFinish: false });
     // give the caption engine a moment to deliver its final words (used as a fallback hint)
     await Promise.race([session.captions?.promise.catch(() => ""), wait(600)]);
 
@@ -122,7 +132,7 @@ async function listenWithGemini(followUp = false) {
       handleResponse(data, data.transcript || session.hint);
     } catch (err) {
       if (session.hint) return processText(session.hint, { silentScreen: true });
-      micError(err.message || "Serverlə əlaqə qurulmadı.");
+      micError("Bağlantı yoxdur");
     }
   };
 
@@ -132,11 +142,11 @@ async function listenWithGemini(followUp = false) {
     active = null;
     session.captions?.stop();
     if (err?.name === "NotAllowedError" || err?.name === "SecurityError") {
-      micError("Mikrofona icazə verilmədi. Brauzer parametrlərində mikrofona icazə verin.");
+      micError("Mikrofona icazə verin");
     } else if (webSpeechSupported) {
       listenWithBrowser();
     } else {
-      micError("Mikrofon işə düşmədi. Əmri yazaraq göndərə bilərsiniz.");
+      micError("Mikrofon işləmir");
     }
   }
 }
@@ -150,8 +160,8 @@ async function listenWithBrowser(followUp = false) {
     onInterim: (t) => {
       heard = t;
       if (t) {
-        setText("recognized-speech-quote", `“${t}”`);
-        setText("listening-status-badge", "🎙️ Danışırsınız...");
+        showQuote(`“${t}”`);
+        setText("listening-status-badge", "Danışırsınız");
         setLevel(0.55, true);
       }
     }
@@ -164,9 +174,7 @@ async function listenWithBrowser(followUp = false) {
   } catch (err) {
     if (session.cancelled) return;
     active = null;
-    micError(err.code === "not-allowed"
-      ? "Mikrofona icazə verilmədi. Brauzer parametrlərində mikrofona icazə verin."
-      : "Səs tanınmadı. Yenidən cəhd edin və ya əmri yazın.");
+    micError(err.code === "not-allowed" ? "Mikrofona icazə verin" : "Eşitmədim");
     return;
   }
   if (session.cancelled) return;
@@ -174,7 +182,7 @@ async function listenWithBrowser(followUp = false) {
   text = (text || heard).trim();
   if (!text) {
     if (followUp) return endFollowUp();
-    micError("Heç nə eşitmədim. Yenidən cəhd edin.");
+    micError();
     return;
   }
   chime(false);
@@ -186,7 +194,7 @@ export function finishListening() {
 }
 
 // Typed or recognized text → agent
-export async function processText(text, { silentScreen = false, badge = "⏳ Düşünürəm..." } = {}) {
+export async function processText(text, { silentScreen = false, badge = "Düşünürəm" } = {}) {
   text = (text || "").trim();
   if (!text) return;
   stopSpeaking();
@@ -200,7 +208,7 @@ export async function processText(text, { silentScreen = false, badge = "⏳ Dü
     const data = await sendText(text);
     handleResponse(data, text);
   } catch (err) {
-    micError(err.message || "Serverlə əlaqə qurulmadı.");
+    micError("Bağlantı yoxdur");
     toast(err.message || "Serverlə əlaqə qurulmadı.", { type: "error" });
   }
 }
