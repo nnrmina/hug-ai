@@ -36,6 +36,8 @@ def test_intent_classification_evaluation_dataset():
         ("Qızıma zəng et", "MAKE_CALL"),
         ("Anama zəng etmək istəyirəm", "MAKE_CALL"),
         ("Oğluma zəng vur", "MAKE_CALL"),
+        ("Nənəmə zəng et", "MAKE_CALL"),
+        ("Nənəmə zəng elə", "MAKE_CALL"),
         ("Sabah 10-da məni oyat", "CREATE_REMINDER"),
         ("Sabah saat 9-da mənə xatırlat", "CREATE_REMINDER"),
         ("Sabah saat 10-da mənə qızıma zəng etməyi xatırlat", "CREATE_REMINDER"),

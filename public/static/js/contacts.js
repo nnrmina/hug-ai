@@ -14,7 +14,9 @@ const RELATIONS = {
   "kürəkənim": { aliases: ["kürəkənim", "kurekenim", "kürəkən"], title: (n) => `Kürəkəniniz ${n}` },
   "həkim": { aliases: ["həkim", "hekim", "həkimə", "doktor"], title: (n) => `Həkim ${n}` },
   "anam": { aliases: ["anam", "ana", "mama", "mamam", "mamama", "anama"], title: (n) => `Ananız ${n}` },
-  "atam": { aliases: ["atam", "ata", "papa", "atama"], title: (n) => `Atanız ${n}` }
+  "atam": { aliases: ["atam", "ata", "papa", "atama"], title: (n) => `Atanız ${n}` },
+  "nənəm": { aliases: ["nənəm", "nenem", "nənəmə", "neneme", "nənə", "nene", "nənəyə", "neneye", "nənəmin", "nenemin"], title: (n) => `Nənəniz ${n}` },
+  "babam": { aliases: ["babam", "babama", "baba", "babaya"], title: (n) => `Babanız ${n}` }
 };
 export const RELATION_OPTIONS = Object.keys(RELATIONS);
 
@@ -46,6 +48,16 @@ export const getFamily = () => family;
 const activeContacts = () => (family.length ? family : CONTACTS);
 
 export const CONTACTS = [
+  {
+    id: "grandmother",
+    call_phrase: "Nənəmə zəng et",
+    aliases: ["nənəm", "nenem", "nənə", "nene", "nənəmə", "neneme", "nənəyə", "neneye", "nənəmin", "nenemin", "fatma nənə", "fatma"],
+    display_name: "Fatma nənə (Nənəm)",
+    short_name: "Fatma nənə",
+    relation_title: "Nənəniz Fatma nənəyə",
+    phone_number: "+994 50 987 65 43",
+    initial: "N"
+  },
   {
     id: "sister",
     call_phrase: "Bacıma zəng et",
