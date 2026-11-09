@@ -24,6 +24,7 @@ mimetypes.add_type("application/javascript", ".mjs")
 mimetypes.add_type("text/css", ".css")
 mimetypes.add_type("application/manifest+json", ".webmanifest")
 mimetypes.add_type("image/svg+xml", ".svg")
+mimetypes.add_type("application/vnd.android.package-archive", ".apk")  # HUG app download
 
 # Top-level files the PWA needs at the site root (same paths Vercel serves from public/)
 ROOT_FILES = {

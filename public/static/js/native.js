@@ -7,6 +7,9 @@ const cap = () => window.Capacitor;
 export const isNativeApp = () => Boolean(cap()?.isNativePlatform?.());
 const plugin = (name) => cap()?.Plugins?.[name];
 
+// App 1.1+ can list SIMs; 1.0 cannot (Android then shows its own SIM picker)
+export const simChoiceSupported = () => typeof plugin("DirectCall")?.simCards === "function";
+
 // Dual-SIM: the SIMs that can place calls, in slot order → [{ index, slot, carrier }].
 // Empty in the browser, on single-SIM phones' older app builds, or without the phone permission.
 export async function listSims() {

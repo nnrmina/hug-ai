@@ -73,8 +73,11 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(VERSION).then((c) => c.put("/", copy));
+          // only an HTML page may become the offline shell (not e.g. the APK download)
+          if (res.ok && (res.headers.get("content-type") || "").includes("text/html")) {
+            const copy = res.clone();
+            caches.open(VERSION).then((c) => c.put("/", copy));
+          }
           return res;
         })
         .catch(() => caches.match("/"))

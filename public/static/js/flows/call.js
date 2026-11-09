@@ -3,7 +3,8 @@
 import { playClip, speak } from "../audio/tts.js";
 import { getLang } from "../i18n.js";
 import { smsHref, telHref } from "../contacts.js";
-import { directCall, isNativeApp, listSims } from "../native.js";
+import { directCall, isNativeApp, listSims, simChoiceSupported } from "../native.js";
+import { toast } from "../ui/toast.js";
 import { announce, setText, showScreen } from "../ui/screens.js";
 
 let timer = null;
@@ -38,6 +39,7 @@ export function startCall(contact) {
 async function placeNativeCall(contact, ru) {
   const callId = ++activeCall;
   // Dual-SIM: ask which SIM instead of leaving it to Android's picker
+  if (!simChoiceSupported()) warnOldApp(ru);
   let sim;
   const sims = await listSims();
   if (sims.length >= 2) {
@@ -64,6 +66,16 @@ async function placeNativeCall(contact, ru) {
 }
 
 // ---------------------------------------------------------------- SIM choice
+
+// The installed app predates SIM choice (1.0): say so once per session, with the download link
+let warnedOldApp = false;
+function warnOldApp(ru) {
+  if (warnedOldApp) return;
+  warnedOldApp = true;
+  toast(ru
+    ? "Чтобы HUG спрашивал SIM 1 или SIM 2, установите новую версию приложения."
+    : "HUG-ın SIM 1 / SIM 2 soruşması üçün tətbiqin yeni versiyasını yükləyin.", { duration: 7000 });
+}
 
 let activeCall = 0;
 let simListener = null;
