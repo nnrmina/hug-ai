@@ -521,6 +521,20 @@ body {
   transition: transform 0.2s ease;
 }
 
+/* HUG logo on the orb: white silhouette of the brand mark, under the glossy highlights */
+.orb-logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 104px;
+  height: 104px;
+  transform: translate(-50%, -50%);
+  filter: brightness(0) invert(1) drop-shadow(0 2px 3px rgba(10, 60, 20, 0.35));
+  opacity: 0.95;
+  pointer-events: none;
+  user-select: none;
+}
+
 .ai-orb:hover {
   transform: scale(1.03);
 }
@@ -2027,6 +2041,20 @@ body { background: var(--page); color: var(--text); }
   .done-info-banner { display: none; }
 }
 
+/* Browser call screen: the dial link is the one thing to press */
+#screen-calling.needs-tap .calling-wave { visibility: hidden; }
+#screen-calling.needs-tap .dialer-native-link {
+  height: 64px;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: calc(18px * var(--text-scale));
+  box-shadow: 0 8px 20px rgba(46, 161, 63, 0.35);
+  animation: dial-nudge 1.6s ease-in-out infinite;
+}
+@keyframes dial-nudge { 50% { transform: scale(1.03); } }
+@media (prefers-reduced-motion: reduce) { #screen-calling.needs-tap .dialer-native-link { animation: none; } }
+
 /* ==========================================================================
    Emergency call button (home, under "Danışmaq üçün toxunun"): hold to activate,
    the darker fill sweeping left to right shows the 1.5 s hold progress
@@ -2100,6 +2128,10 @@ button.care-row { cursor: pointer; }
 .care-row.due { border-color: var(--accent); background: var(--accent-soft); }
 .care-checkin { border-color: #f3d27a; background: #fff8e1; }
 :root[data-theme="dark"] .care-checkin { background: #3a2c08; border-color: #6b5214; }
+/* system dark mode (theme "auto") needs the same dark card, or light text sits on cream */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .care-checkin { background: #3a2c08; border-color: #6b5214; }
+}
 .care-ico { font-size: 24px; line-height: 1; flex-shrink: 0; }
 .care-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .care-text strong { font-size: calc(16px * var(--text-scale)); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2391,7 +2423,7 @@ html:has(body.family-body), body.family-body { height: auto !important; overflow
    ========================================================================== */
 .samsung-brand-logo img { width: 64px; height: 64px; }
 
-#screen-home .top-nav-right { gap: 2px; }
+#screen-home .top-nav-right { gap: 2px; grid-column: 3; }  /* no centre logo on home: keep icons right */
 #screen-home .top-nav-right .samsung-icon-btn,
 #screen-home #btn-open-settings {
   width: 44px; height: 44px; border-radius: 22px;           /* keep a big touch target */

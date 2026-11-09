@@ -181,6 +181,18 @@ export function handleResponse(data, heardText) {
           heard, icon: "?", tone: "muted", listenAfter: true
         });
       }
+      if (!contact.real) {
+        // Built-in demo contacts carry made-up numbers: dialing them reaches a stranger or nobody
+        cancelAction(base.id, base.token).catch(() => {});
+        clearQueuedStep();
+        return showReply({
+          title: getLang() === "ru" ? "Нет номера" : "Nömrə əlavə edilməyib",
+          text: getLang() === "ru"
+            ? `Сначала добавьте настоящий номер: ${contact.short_name}. Нажмите значок «Семья» вверху.`
+            : `${contact.short_name} üçün real nömrə yoxdur. Yuxarıdakı “Ailəm” düyməsindən nömrəni əlavə edin.`,
+          heard, icon: "📞", tone: "muted"
+        });
+      }
       const isCall = intent === "MAKE_CALL";
       pending = { ...base, type: isCall ? "CALL" : "MESSAGE", contact, message: action.message_text || "" };
       const ru = getLang() === "ru";
