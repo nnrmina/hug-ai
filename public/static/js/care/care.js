@@ -522,13 +522,43 @@ function addOnbRow() {
   wrap.append(row);
 }
 
+// First launch: open onboarding straight away (no flash of the home screen while the
+// care state loads). settleOnboarding() then corrects it once the server has answered.
+let onboardingShownEarly = false;
+export function showOnboardingEarly() {
+  let done = false;
+  try { done = localStorage.getItem(ONB_KEY) === "1"; } catch (_) {}
+  if (done) return false;
+  document.getElementById("onb-family").innerHTML = "";
+  addOnbRow();
+  showScreen("screen-onboarding");
+  onboardingShownEarly = true;
+  return true;
+}
+
+// After refreshCare(): true while onboarding should stay on screen.
+export function settleOnboarding() {
+  if (maybeOnboard()) return true;
+  if (!onboardingShownEarly) return false;
+  onboardingShownEarly = false;
+  if (!state) return true; // offline: keep the form, "İndi yox" still leads home
+  // Already set up on this account (e.g. app reinstalled): skip onboarding for good
+  try { localStorage.setItem(ONB_KEY, "1"); } catch (_) {}
+  if (document.getElementById("screen-onboarding")?.classList.contains("active")) showScreen("screen-home");
+  return false;
+}
+
 export function maybeOnboard() {
   let done = false;
   try { done = localStorage.getItem(ONB_KEY) === "1"; } catch (_) {}
   if (done || !state || state.profile.name || state.family.length) return false;
-  document.getElementById("onb-family").innerHTML = "";
-  addOnbRow();
-  showScreen("screen-onboarding");
+  if (!onboardingShownEarly || !document.getElementById("screen-onboarding")?.classList.contains("active")) {
+    // don't wipe what the user already typed into the early form
+    document.getElementById("onb-family").innerHTML = "";
+    addOnbRow();
+    showScreen("screen-onboarding");
+  }
+  onboardingShownEarly = false;
   return true;
 }
 

@@ -8,7 +8,7 @@ import { cancelListening, finishListening, processText, startListening } from ".
 import { finishOrder, stopOrderTimers } from "./flows/orders.js";
 import { clearDayFilter, openReminders, refreshReminders } from "./reminders/index.js";
 import { initSettings } from "./settings.js";
-import { ensureNotifications, handleCareDeepLink, initCare, maybeOnboard, refreshCare, showCheckin, watchDoses } from "./care/care.js";
+import { ensureNotifications, handleCareDeepLink, initCare, refreshCare, settleOnboarding, showOnboardingEarly, showCheckin, watchDoses } from "./care/care.js";
 import { applySettings, capabilities, settings } from "./store.js";
 import { haptic } from "./ui/haptics.js";
 import { bindWaveform } from "./ui/orb.js";
@@ -93,8 +93,9 @@ document.addEventListener("DOMContentLoaded", () => {
   registerServiceWorker();
   if (settings.alerts) refreshReminders().catch(() => {});
   const params = new URLSearchParams(location.search);
+  showOnboardingEarly();
   refreshCare().then(async (care) => {
-    if (maybeOnboard()) return;
+    if (settleOnboarding()) return;
     if (params.get("open") === "reminders") return openReminders();
     if (params.get("dose") || params.get("checkin")) return handleCareDeepLink(params);
     if (care && typeof Notification !== "undefined" && Notification.permission === "granted") ensureNotifications({ quiet: true });

@@ -2369,6 +2369,8 @@ body.family-body { display: block; min-height: 100vh; background: var(--bg); ove
 .family-body .toast-host { position: fixed; }
 .meds-main, .onboarding-main { justify-content: flex-start; }
 .onboarding-main { padding-top: 24px; }
+/* Onboarding sits on the same page background as home: no separate card panel */
+#onb-form.samsung-card { background: transparent; box-shadow: none; padding: 4px 0 0; }
 /* The family page is a normal document: let it scroll (the app's no-scroll rule is for the phone UI) */
 html:has(body.family-body), body.family-body { height: auto !important; overflow: visible !important; overscroll-behavior: auto !important; }
 .family-notify { gap: 10px; }
