@@ -105,14 +105,13 @@ export function showReply({ title, text, heard = "", icon = "✦", tone = "", li
   });
 }
 
-function fillConfirm({ badge, title, primary, secondary, yesLabel, demo = false }) {
+function fillConfirm({ badge, title, primary, secondary, yesLabel }) {
   setText("confirm-avatar-badge", badge);
   setText("confirm-question-title", tr(title));
   setText("confirm-details-primary", primary);
   setText("confirm-details-secondary", secondary);
   setText("btn-confirm-yes", tr(yesLabel));
   setText("btn-confirm-cancel", tr("Xeyr, ləğv et"));
-  document.getElementById("confirm-demo-badge")?.toggleAttribute("hidden", !demo);
 }
 
 function askConfirmation(question) {
@@ -120,31 +119,30 @@ function askConfirmation(question) {
   if (head) head.textContent = tr("Təsdiqləyin");
   showScreen("screen-confirm");
   haptic("tap");
-  const label = document.getElementById("confirm-voice-label");
   const indicator = document.getElementById("confirm-voice-indicator");
-  if (label) label.textContent = tr("“Bəli” və ya “Xeyr” deyin...");
   indicator?.classList.remove("listening");
 
   announce(question);
-  // Listen only AFTER the question finished, so the assistant can't hear itself say "Bəli"
-  speak(`${question} ${tr("Bəli və ya xeyr deyin.")}`, getLang()).then((finished) => {
+  // Listen only AFTER the question finished, so the assistant can't hear itself say "Bəli".
+  // No "say Bəli" instruction: any natural answer ("hə", "olar", "yox") is understood, and the
+  // pulsing mic shows that the assistant is listening.
+  speak(question, getLang()).then((finished) => {
     if (!finished || !pending || !webSpeechSupported) return;
-    if (!document.getElementById("screen-confirm").classList.contains("active")) return;
-    if (label) label.textContent = tr("🎙️ Eşidirəm... “Bəli” deyin");
-    indicator?.classList.add("listening");
-    yesNo = listenYesNo(getLang());
-    yesNo.promise.then((answer) => {
-      indicator?.classList.remove("listening");
-      if (!pending) return;
-      if (answer === "yes") {
-        if (label) label.textContent = tr("✓ Səslə təsdiqləndi");
-        executeConfirmed();
-      } else if (answer === "no") {
-        cancelConfirmed();
-      } else if (label) {
-        label.textContent = tr("Düyməyə toxunun və ya mikrofona “Bəli” deyin");
-      }
-    });
+    listenForAnswer(indicator, 2);
+  });
+}
+
+// Up to `tries` listening rounds: a quiet or unclear answer just reopens the mic.
+function listenForAnswer(indicator, tries) {
+  if (!pending || !document.getElementById("screen-confirm").classList.contains("active")) return;
+  indicator?.classList.add("listening");
+  yesNo = listenYesNo(getLang());
+  yesNo.promise.then((answer) => {
+    indicator?.classList.remove("listening");
+    if (!pending || !document.getElementById("screen-confirm").classList.contains("active")) return;
+    if (answer === "yes") return executeConfirmed();
+    if (answer === "no") return cancelConfirmed();
+    if (tries > 1) listenForAnswer(indicator, tries - 1);
   });
 }
 
@@ -244,8 +242,7 @@ export function handleResponse(data, heardText) {
         title: taxi ? "Taksi çağırılsın?" : getLang() === "ru" ? `Заказать в ${order.vendor}?` : `${order.vendor} sifarişi təsdiqlənsin?`,
         primary: order.item || "",
         secondary: `${getLang() === "ru" ? "Итого" : "Cəmi"} ${order.price || ""} · ${order.vendor || "Wolt"}`,
-        yesLabel: taxi ? "Bəli, taksi çağır" : "Bəli, sifariş et",
-        demo: true
+        yesLabel: taxi ? "Bəli, taksi çağır" : "Bəli, sifariş et"
       });
       return askConfirmation(data.response);
     }
