@@ -54,7 +54,9 @@ function renderCareCard() {
   const dose = nextDose();
   const checkinRow = document.getElementById("care-checkin");
   const doseRow = document.getElementById("care-dose");
-  checkinRow.hidden = !state.checkin_due;
+  // The daily check-in is not shown on the home screen; it is answered from its notification
+  // (/?checkin=1) or by voice ("yaxşıyam").
+  checkinRow.hidden = true;
   doseRow.hidden = !dose;
   if (dose) {
     const due = new Date(dose.due_at).getTime() <= Date.now();
